@@ -8,7 +8,7 @@
   },
   "devDependencies": {
     "jest": "^29",
-    "eslint": "^8",
+    "eslint": "^9.0.0",
     "eslint-plugin-jest": "^28.0.0",
     "@openwhisk/wskdebug": "^1.3.0"
   },
