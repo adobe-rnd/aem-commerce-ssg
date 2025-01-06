@@ -26,17 +26,6 @@ jobs:
         with:
           os: ${{ matrix.os }}
           version: 10.x.x
-      - name: Auth
-        uses: adobe/aio-apps-action@3.3.0
-        with:
-          os: ${{ matrix.os }}
-          command: oauth_sts
-          CLIENTID: ${{ secrets.CLIENTID_PROD }}
-          CLIENTSECRET: ${{ secrets.CLIENTSECRET_PROD }}
-          TECHNICALACCOUNTID: ${{ secrets.TECHNICALACCID_PROD }}
-          TECHNICALACCOUNTEMAIL: ${{ secrets.TECHNICALACCEMAIL_PROD }}
-          IMSORGID: ${{ secrets.IMSORGID_PROD }}
-          SCOPES: ${{ secrets.SCOPES_PROD }}
       - name: Build
         env:
           AIO_RUNTIME_NAMESPACE: ${{ secrets.AIO_RUNTIME_NAMESPACE_PROD }}
