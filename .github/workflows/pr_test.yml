@@ -26,14 +26,14 @@ jobs:
       - name: Build
         env:
           AIO_RUNTIME_NAMESPACE: ${{ secrets.AIO_RUNTIME_NAMESPACE_STAGE }}
-        uses: adobe/aio-apps-action@3.3.0
+        uses: adobe/aio-apps-action@3.4.0
         with:
           os: ${{ matrix.os }}
           command: build
       - name: Lint
         run: npm run lint
       - name: Test
-        uses: adobe/aio-apps-action@3.3.0
+        uses: adobe/aio-apps-action@3.4.0
         with:
           os: ${{ matrix.os }}
           command: test
