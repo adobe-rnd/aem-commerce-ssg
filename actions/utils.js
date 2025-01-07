@@ -137,9 +137,92 @@ function errorResponse (statusCode, message, logger) {
   }
 }
 
+async function request(name, url, req) {
+  // allow requests for 60s max
+  const abortController = new AbortController();
+  const abortTimeout = setTimeout(() => abortController.abort(), 60000);
+
+  const resp = await fetch(url, {
+    ...req,
+    signal: abortController.signal,
+  });
+  // clear the abort timeout if the request passed
+  clearTimeout(abortTimeout);
+
+  if (resp.ok) {
+    if (resp.status < 204) {
+      // ok with content
+      return resp.json();
+    } else if (resp.status == 204) {
+      // ok but no content
+      return null;
+    }
+  }
+
+  throw new Error(`Request '${name}' to '${url}' failed (${resp.status}): ${resp.headers.get('x-error') || resp.statusText}`);
+}
+
+async function requestSpreadsheet(name, sheet, context) {
+  const { contentUrl, storeCode } = context;
+  let storeRoot = contentUrl;
+  if (storeCode) {
+    storeRoot += `/${storeCode}`;
+  }
+  let sheetUrl = `${storeRoot}/${name}.json`
+  if (sheet) {
+    sheetUrl += `?sheet=${sheet}`;
+  }
+  return request('spreadsheet', sheetUrl);
+}
+
+async function getConfig(context) {
+  const { configName = 'configs' } = context;
+  if (!context.config) {
+    const configData = await requestSpreadsheet(configName, null, context);
+    context.config = configData.data.reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {});
+  }
+  return context.config;
+}
+
+async function requestSaaS(query, operationName, variables, context, configOverrides = {}) {
+  const { storeUrl } = context;
+  const config = {
+    ... (await getConfig(context)),
+    ...configOverrides
+  };
+  const headers = {
+    'Content-Type': 'application/json',
+    'origin': storeUrl,
+    'magento-customer-group': config['commerce-customer-group'],
+    'magento-environment-id': config['commerce-environment-id'],
+    'magento-store-code': config['commerce-store-code'],
+    'magento-store-view-code': config['commerce-store-view-code'],
+    'magento-website-code': config['commerce-website-code'],
+    'x-api-key': config['commerce-x-api-key'],
+    // bypass LiveSearch cache
+    'Magento-Is-Preview': true,
+  };
+  const method = 'POST';
+  return request(
+    `${operationName}(${JSON.stringify(variables)})`,
+    config['commerce-endpoint'],
+    {
+      method,
+      headers,
+      body: JSON.stringify({
+        operationName,
+        query,
+        variables,
+      })
+    }
+  );
+}
+
 module.exports = {
   errorResponse,
   getBearerToken,
   stringParameters,
-  checkMissingRequestInputs
+  checkMissingRequestInputs,
+  requestSaaS,
+  getConfig,
 }

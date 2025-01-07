@@ -4,7 +4,9 @@
   "private": true,
   "dependencies": {
     "@adobe/aio-sdk": "^6",
-    "node-fetch": "^2.6.0"
+    "handlebars": "^4.7.8",
+    "node-fetch": "^2.6.0",
+    "striptags": "^3.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

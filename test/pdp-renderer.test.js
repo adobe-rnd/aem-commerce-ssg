@@ -20,7 +20,7 @@ const { Core } = require('@adobe/aio-sdk')
 const mockLoggerInstance = { info: jest.fn(), debug: jest.fn(), error: jest.fn() }
 Core.Logger.mockReturnValue(mockLoggerInstance)
 
-const action = require('./../actions/pdp-ssg/index.js')
+const action = require('./../actions/pdp-renderer/index.js')
 
 beforeEach(() => {
   Core.Logger.mockClear()
@@ -29,20 +29,29 @@ beforeEach(() => {
   mockLoggerInstance.error.mockReset()
 })
 
-const fakeParams = { __ow_headers: { } }
-describe('pdp-ssg', () => {
+const fakeParams = {
+  __ow_headers: { },
+};
+
+describe('pdp-renderer', () => {
   test('main should be defined', () => {
     expect(action.main).toBeInstanceOf(Function)
   })
+
   test('should set logger to use LOG_LEVEL param', async () => {
     await action.main({ ...fakeParams, LOG_LEVEL: 'fakeLevel' })
     expect(Core.Logger).toHaveBeenCalledWith(expect.any(String), { level: 'fakeLevel' })
   })
-  test('should return an http reponse', async () => {
+
+  test('should return an http response', async () => {
     const response = await action.main(fakeParams)
     expect(response).toEqual({
-      statusCode: 200,
-      body: 'Hello World!',
+      error: {
+        statusCode: 400,
+        body: {
+          error: 'Invalid path',
+        },
+      },
     })
   })
 })

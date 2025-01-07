@@ -17,7 +17,7 @@ const fetch = require('node-fetch')
 const namespace = Config.get('runtime.namespace')
 const hostname = Config.get('cna.hostname') || 'adobeioruntime.net'
 const runtimePackage = 'aem-commerce-ssg'
-const actionUrl = `https://${namespace}.${hostname}/api/v1/web/${runtimePackage}/pdp-ssg`
+const actionUrl = `https://${namespace}.${hostname}/api/v1/web/${runtimePackage}/pdp-renderer`
 
 test('returns hello world', async () => {
   const res = await fetch(actionUrl);
