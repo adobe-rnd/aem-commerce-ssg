@@ -22,9 +22,9 @@ const { ProductQuery } = require('./queries');
  * Parameters
  * @param {Object} params The parameters object
  * @param {string} params.__ow_path The path of the request
- * @param {string} params.siteName The repo name of the site
- * @param {string} params.orgName The GitHub org of the site
- * @param {string} params.configName The config sheet to use (e.g. configs for prod, configs-dev for dev)
+ * @param {string} params.HLX_CONFIG_NAME The config sheet to use (e.g. configs for prod, configs-dev for dev)
+ * @param {string} params.HLX_CONTENT_URL Edge Delivery URL of the store (e.g. aem.live)
+ * @param {string} params.HLX_STORE_URL Public facing URL of the store
  */
 async function main (params) {
   const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' })
@@ -33,16 +33,15 @@ async function main (params) {
     logger.info('Calling the main action')
     logger.debug(stringParameters(params))
 
-    const { __ow_path, siteName = "aem-boilerplate-commerce", orgName = "hlxsites", configName } = params;
+    const { __ow_path, HLX_STORE_URL, HLX_CONTENT_URL, HLX_CONFIG_NAME } = params;
     const { sku } = extractPathDetails(__ow_path);
 
-    if (!sku) {
+    if (!sku || !HLX_CONTENT_URL) {
       return errorResponse(400, 'Invalid path', logger);
     }
 
-    const contentUrl = `https://main--${siteName}--${orgName}.aem.live`;
-    const storeUrl = params.storeUrl ? params.storeUrl : contentUrl;
-    const context = { contentUrl, storeUrl, configName };
+    const storeUrl = HLX_STORE_URL ? HLX_STORE_URL : HLX_CONTENT_URL;
+    const context = { contentUrl: HLX_CONTENT_URL, storeUrl, configName: HLX_CONFIG_NAME };
   
     // Retrieve base product
     const baseProductData = await requestSaaS(ProductQuery, 'ProductQuery', { sku }, context);
