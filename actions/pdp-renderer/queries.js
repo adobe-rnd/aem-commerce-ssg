@@ -1,75 +1,115 @@
 const ProductQuery = `query ProductQuery($sku: String!) {
-    products(skus: [$sku]) {
-      __typename
-      id
-      sku
-      name
+  products(skus: [$sku]) {
+    __typename
+    id
+    sku
+    name
+    url
+    description
+    shortDescription
+    metaDescription
+    metaKeyword
+    metaTitle
+    urlKey
+    inStock
+    externalId
+    lastModifiedAt
+    images(roles: []) {
       url
-      description
-      shortDescription
-      metaDescription
-      metaKeyword
-      metaTitle
-      urlKey
-      inStock
-      externalId
-      lastModifiedAt
-      images(roles: []) {
-        url
-        label
-        roles
+      label
+      roles
+    }
+    attributes(roles: ["visible_in_pdp"]) {
+      name
+      label
+      value
+      roles
+    }
+    ... on SimpleProductView {
+      price {
+        ...priceFields
       }
-      attributes(roles: []) {
-        name
-        label
-        value
-        roles
+    }
+    ... on ComplexProductView {
+      options {
+        id
+        title
+        required
+        values {
+          id
+          title
+          inStock
+          ... on ProductViewOptionValueSwatch {
+            type
+            value
+          }
+        }
       }
-      ... on SimpleProductView {
-        price {
+      priceRange {
+        maximum {
+          ...priceFields
+        }
+        minimum {
           ...priceFields
         }
       }
-      ... on ComplexProductView {
-        options {
-          id
-          title
-          required
-          values {
-            id
-            title
-            inStock
-            ... on ProductViewOptionValueSwatch {
-              type
-              value
-            }
-          }
+    }
+  }
+}
+fragment priceFields on ProductViewPrice {
+  roles
+  regular {
+    amount {
+      currency
+      value
+    }
+  }
+  final {
+    amount {
+      currency
+      value
+    }
+  }
+}`;
+
+const VariantsQuery = `query VariantsQuery($sku: String!) {
+  variants(sku: $sku) {
+    variants {
+      selections
+      product {
+        sku
+        name
+        inStock
+        images(roles: []) {
+          url
+          roles
         }
-        priceRange {
-          maximum {
-            ...priceFields
-          }
-          minimum {
-            ...priceFields
+        attributes(roles: ["visible_in_pdp"]) {
+          name
+          label
+          value
+          roles
+        }
+        ... on SimpleProductView {
+          price {
+            roles
+            regular {
+              amount {
+                value
+                currency
+              }
+            }
+            final {
+              amount {
+                value
+                currency
+              }
+            }
           }
         }
       }
     }
   }
-  fragment priceFields on ProductViewPrice {
-    roles
-    regular {
-      amount {
-        currency
-        value
-      }
-    }
-    final {
-      amount {
-        currency
-        value
-      }
-    }
-  }`;
+}`;
 
-module.exports = { ProductQuery };
+module.exports = { ProductQuery, VariantsQuery };

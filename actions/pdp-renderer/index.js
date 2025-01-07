@@ -12,11 +12,14 @@ governing permissions and limitations under the License.
 
 const fs = require('fs');
 const path = require('path');
+
 const { Core } = require('@adobe/aio-sdk')
 const Handlebars = require('handlebars');
+
 const { errorResponse, stringParameters, requestSaaS } = require('../utils');
 const { extractPathDetails } = require('./lib');
 const { ProductQuery } = require('./queries');
+const { generateLdJson } = require('./ldJson');
 
 /**
  * Parameters
@@ -42,7 +45,7 @@ async function main (params) {
 
     const storeUrl = HLX_STORE_URL ? HLX_STORE_URL : HLX_CONTENT_URL;
     const context = { contentUrl: HLX_CONTENT_URL, storeUrl, configName: HLX_CONFIG_NAME };
-  
+
     // Retrieve base product
     const baseProductData = await requestSaaS(ProductQuery, 'ProductQuery', { sku }, context);
     if (!baseProductData.data.products || baseProductData.data.products.length === 0) {
@@ -51,6 +54,9 @@ async function main (params) {
     const baseProduct = baseProductData.data.products[0];
 
     logger.debug('Retrieved base product', JSON.stringify(baseProduct, null, 4));
+
+    // Generate LD-JSON
+    const ldJson = await generateLdJson(baseProduct, context);
 
     // TODO: Add base template logic
     // Load the Handlebars template
@@ -63,15 +69,14 @@ async function main (params) {
       statusCode: 200,
       body: pageTemplate({
         ...baseProduct,
+        ldJson,
       }),
     }
     logger.info(`${response.statusCode}: successful request`)
     return response;
 
   } catch (error) {
-    // log any server errors
     logger.error(error)
-    // return with 500
     return errorResponse(500, 'server error', logger)
   }
 }
