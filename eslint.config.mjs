@@ -8,13 +8,19 @@ export default [
         files: ["**/*.js"],
         languageOptions: {
             sourceType: "commonjs",
+            globals: {
+                ...globals.node,
+            }
         }
     },
     {
         files: ['**/*.spec.js', '**/*.test.js'],
         plugins: { jest: pluginJest },
         languageOptions: {
-            globals: pluginJest.environments.globals.globals,
+            globals: {
+                ...pluginJest.environments.globals.globals,
+                ...globals.node,
+            },
         },
         rules: {
             'jest/no-disabled-tests': 'warn',
@@ -22,11 +28,6 @@ export default [
             'jest/no-identical-title': 'error',
             'jest/prefer-to-have-length': 'warn',
             'jest/valid-expect': 'error',
-        },
-    },
-    {
-        languageOptions: { 
-            globals: globals.browser 
         },
     },
     pluginJs.configs.recommended,

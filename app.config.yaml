@@ -5,11 +5,13 @@ application:
       aem-commerce-ssg:
         license: Apache-2.0
         actions:
-          pdp-ssg:
-            function: actions/pdp-ssg/index.js
+          pdp-renderer:
+            function: actions/pdp-renderer/index.js
             web: 'yes'
             runtime: nodejs:18
             inputs:
               LOG_LEVEL: debug
             annotations:
               final: true
+            include:
+              - ["actions/pdp-renderer/templates/*.hbs", "templates/"]

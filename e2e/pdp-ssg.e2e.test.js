@@ -17,10 +17,27 @@ const fetch = require('node-fetch')
 const namespace = Config.get('runtime.namespace')
 const hostname = Config.get('cna.hostname') || 'adobeioruntime.net'
 const runtimePackage = 'aem-commerce-ssg'
-const actionUrl = `https://${namespace}.${hostname}/api/v1/web/${runtimePackage}/pdp-ssg`
+const actionUrl = `https://${namespace}.${hostname}/api/v1/web/${runtimePackage}/pdp-renderer`
 
 test('returns hello world', async () => {
-  const res = await fetch(actionUrl);
+  const res = await fetch(`${actionUrl}/products/crown-summit-backpack/24-MB03`);
   const content = await res.text();
-  expect(content).toEqual('Hello World!');
-})
+  expect(content).toEqual(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title></title>
+</head><body>
+  <header></header>
+  <main>
+    <div class="product-details">
+      <div>
+        <div>
+          <h1>Crown Summit Backpack</h1>
+        </div>
+      </div>
+    </div>  </main>
+  <footer></footer>
+</body>
+</html>`);
+});
