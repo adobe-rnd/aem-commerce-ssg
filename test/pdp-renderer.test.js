@@ -21,6 +21,9 @@ const mockLoggerInstance = { info: jest.fn(), debug: jest.fn(), error: jest.fn()
 Core.Logger.mockReturnValue(mockLoggerInstance)
 
 const action = require('./../actions/pdp-renderer/index.js')
+const fs = require("fs");
+const path = require("path");
+const Handlebars = require("handlebars");
 
 beforeEach(() => {
   Core.Logger.mockClear()
@@ -55,3 +58,117 @@ describe('pdp-renderer', () => {
     })
   })
 })
+
+describe('Meta Tags Template', () => {
+  let headTemplate;
+  beforeAll(() => {
+    const headTemplateFile = fs.readFileSync(path.join(__dirname, '..', 'actions', 'pdp-renderer', 'templates', `head.hbs`), 'utf8');
+    headTemplate = Handlebars.compile(headTemplateFile);
+  });
+
+  test('template renders with no params passed', () => {
+    const result = headTemplate();
+    expect(result).toMatchInlineSnapshot(`
+"<head>
+  <meta charset="UTF-8">
+  <title></title>
+
+  <meta property="og:type" content="og:product">
+</head>
+"
+`);
+  });
+
+  it('renders meta tags with all parameters provided', () => {
+    const result = headTemplate({
+      metaDescription: "Product Description",
+      metaKeyword: "foo, bar",
+      metaImage: "https://example.com/image.jpg",
+      lastModifiedAt: "2023-10-01",
+      sku: "12345",
+      externalId: "67890"
+    });
+
+    expect(result).toMatchInlineSnapshot(`
+"<head>
+  <meta charset="UTF-8">
+  <title></title>
+
+  <meta name="description" content="Product Description"><meta name="keywords" content="foo, bar"><meta name="image" content="https://example.com/image.jpg"><meta name="id" content="67890"><meta name="sku" content="12345"><meta name="x-cs-lastModifiedAt" content="2023-10-01"><meta property="og:type" content="og:product">
+</head>
+"
+`);
+  });
+
+  it('renders only type meta tag when no parameters are provided', () => {
+    const result = headTemplate({});
+
+    expect(result).toMatchInlineSnapshot(`
+"<head>
+  <meta charset="UTF-8">
+  <title></title>
+
+  <meta property="og:type" content="og:product">
+</head>
+"
+`);
+  });
+
+  it('renders only description meta tag when only description is provided', () => {
+    const result = headTemplate({ description: "Product Description" });
+
+    expect(result).toMatchInlineSnapshot(`
+"<head>
+  <meta charset="UTF-8">
+  <title></title>
+
+  <meta property="og:type" content="og:product">
+</head>
+"
+`);
+  });
+
+  it('renders only id meta tag when only id is provided', () => {
+    const result = headTemplate({ id: "67890" });
+
+    expect(result).toMatchInlineSnapshot(`
+"<head>
+  <meta charset="UTF-8">
+  <title></title>
+
+  <meta property="og:type" content="og:product">
+</head>
+"
+`);
+  });
+
+  it('renders only sku meta tag when only sku is provided', () => {
+    const result = headTemplate({ sku: "12345" });
+
+    expect(result).toMatchInlineSnapshot(`
+"<head>
+  <meta charset="UTF-8">
+  <title></title>
+
+  <meta name="sku" content="12345"><meta property="og:type" content="og:product">
+</head>
+"
+`);
+  });
+
+  it('renders only lastModifiedAt meta tag when only lastModifiedAt is provided', () => {
+    const result = headTemplate({ lastModifiedAt: "2023-10-01" });
+
+    expect(result).toMatchInlineSnapshot(`
+"<head>
+  <meta charset="UTF-8">
+  <title></title>
+
+  <meta name="x-cs-lastModifiedAt" content="2023-10-01"><meta property="og:type" content="og:product">
+</head>
+"
+`);
+  });
+
+
+});

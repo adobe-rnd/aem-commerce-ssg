@@ -15,8 +15,13 @@ const path = require('path');
 const { Core } = require('@adobe/aio-sdk')
 const Handlebars = require('handlebars');
 const { errorResponse, stringParameters, requestSaaS } = require('../utils');
-const { extractPathDetails } = require('./lib');
+const { extractPathDetails, findDescription} = require('./lib');
 const { ProductQuery } = require('./queries');
+
+function assignMetaTemplateData(templateProductData, baseProduct) {
+  templateProductData.metaDescription = findDescription(baseProduct);
+  templateProductData.metaImage = templateProductData.images?.[0]?.url;
+}
 
 /**
  * Parameters
@@ -43,7 +48,7 @@ async function main (params) {
     const contentUrl = `https://main--${siteName}--${orgName}.aem.live`;
     const storeUrl = params.storeUrl ? params.storeUrl : contentUrl;
     const context = { contentUrl, storeUrl, configName };
-  
+
     // Retrieve base product
     const baseProductData = await requestSaaS(ProductQuery, 'ProductQuery', { sku }, context);
     if (!baseProductData.data.products || baseProductData.data.products.length === 0) {
@@ -52,6 +57,9 @@ async function main (params) {
     const baseProduct = baseProductData.data.products[0];
 
     logger.debug('Retrieved base product', JSON.stringify(baseProduct, null, 4));
+
+    const templateProductData = { ...baseProduct };
+    assignMetaTemplateData(templateProductData, baseProduct);
 
     // TODO: Add base template logic
     // Load the Handlebars template
@@ -63,7 +71,7 @@ async function main (params) {
     const response = {
       statusCode: 200,
       body: pageTemplate({
-        ...baseProduct,
+        ...templateProductData,
       }),
     }
     logger.info(`${response.statusCode}: successful request`)

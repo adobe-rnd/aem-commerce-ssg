@@ -1,3 +1,5 @@
+const striptags = require('striptags');
+
 function extractPathDetails(path) {
     if (!path) {
         return {};
@@ -21,4 +23,12 @@ function extractPathDetails(path) {
     return { sku };
 }
 
-module.exports = { extractPathDetails };
+function findDescription(product, priority = ['metaDescription', 'shortDescription', 'description']) {
+    return priority
+      .map(d => product[d]?.trim() || '')
+      .map(d => striptags(d))
+      .map(d => d.replace(/\r?\n|\r/g, ''))
+      .find(d => d.length > 0) || '';
+}
+
+module.exports = { extractPathDetails, findDescription };
