@@ -2,22 +2,17 @@ const { requestSaaS } = require('../utils');
 const { getProductUrl, findDescription, getPrimaryImage } = require('./lib');
 const { VariantsQuery } = require('./queries');
 
-function getOffer(product, url, gtin, image) {
+function getOffer(product, url) {
   const { sku, inStock, price } = product;
   const offer = {
     '@type': 'Offer',
     sku,
     url,
-    gtin,
-    availability: inStock ? 'InStock' : 'OutOfStock',
+    availability: inStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
     price: price?.final?.amount?.value,
     priceCurrency: price?.final?.amount?.currency,
+    itemCondition: 'https://schema.org/NewCondition',
   };
-  if (image) {
-    offer.image = image;
-  }
-
-  offer.itemCondition = 'NewCondition';
 
   if (price?.final?.amount?.value < price?.regular?.amount?.value) {
     offer.priceSpecification = {
@@ -31,51 +26,83 @@ function getOffer(product, url, gtin, image) {
   return offer;
 }
 
-async function addOffers(ldJson, product, context) {
-  const { '@id': url, gtin, image } = ldJson;
+async function getVariants(baseProduct, url, axes, context) {
+  const variantsData = await requestSaaS(VariantsQuery, 'VariantsQuery', { sku: baseProduct.sku }, context);
+  const variants = variantsData.data.variants.variants;
 
-  ldJson.offers = [];
-  if (product.__typename === 'ComplexProductView') {
-    const variantsData = await requestSaaS(VariantsQuery, 'VariantsQuery', { sku: product.sku }, context);
-    const variants = variantsData.data.variants.variants;
+  return variants.map(variant => {
+    const variantImage = getPrimaryImage(variant.product, null);
+    const variantUrl = new URL(url);
+    variantUrl.searchParams.append('optionsUIDs', variant.selections.join(','));
 
-    for (const variant of variants) {
-      const variantGtin = ''; // TODO: Add based on your data model
-      const variantImage = getPrimaryImage(variant.product, null);
-
-      const variantUrl = new URL(url);
-      variantUrl.searchParams.append('optionsUIDs', variant.selections.join(','));
-
-      const offer = getOffer(variant.product, variantUrl.toString(), variantGtin, variantImage?.url);
-      ldJson.offers.push(offer);
+    const ldJson = {
+      '@type': 'Product',
+      sku: variant.product.sku,
+      name: variant.product.name,
+      gtin: '', // TODO: Add based on your data model (https://schema.org/gtin)
+      image: getPrimaryImage(variant.product, null),
+      offers: [getOffer(variant.product, variantUrl.toString())],
+    };
+    if (variantImage) {
+      ldJson.image = variantImage.url;
     }
-  } else {
-    ldJson.offers.push(getOffer(product, url, gtin, image));
-  }
+    for (let axis of axes) {
+      const attribute = variant.product.attributes.find(attr => attr.name === axis);
+      if (attribute) {
+        ldJson[axis] = attribute.value;
+      }
+    }
+
+    return ldJson;
+  });
 }
 
 async function generateLdJson(product, context) {
-  const { name, sku, urlKey } = product;
+  const { name, sku, urlKey, __typename } = product;
   const image = getPrimaryImage(product);
   const url = getProductUrl(urlKey, sku, context);
+  const gtin = ''; // TODO: Add based on your data model (https://schema.org/gtin)
 
-  const ldJson = {
-    '@context': 'http://schema.org',
-    '@type': 'Product',
-    sku,
-    name,
-    gtin: '', // TODO: Add based on your data model
-    description: findDescription(product, ['shortDescription', 'metaDescription', 'description']),
-    '@id': url,
-  };
+  let ldJson;
+  if (__typename === 'SimpleProductView') {
+    ldJson = {
+      '@context': 'http://schema.org',
+      '@type': 'Product',
+      sku,
+      name,
+      gtin,
+      description: findDescription(product, ['shortDescription', 'metaDescription', 'description']),
+      '@id': url,
+      offers: [getOffer(product, url, image ? image.url : null)],
+    };
+  } else if (__typename === 'ComplexProductView') {
+    const axes = product.options.map(({ id }) => id);
+
+    // TODO: Double check if your axis are a schema org property (e.g. https://schema.org/color) or a simple string
+    const schemaOrgProperties = ['color', 'size'];
+
+    ldJson = {
+      '@context': 'http://schema.org',
+      '@type': 'ProductGroup',
+      sku,
+      productGroupId: sku,
+      name,
+      gtin,
+      variesBy: axes.map(axis => schemaOrgProperties.includes(axis) ? `https://schema.org/${axis}` : axis),
+      description: findDescription(product, ['shortDescription', 'metaDescription', 'description']),
+      '@id': url,
+      hasVariant: await getVariants(product, url, axes, context),
+    };
+  } else {
+    throw 'Unsupported product type';
+  }
 
   if (image) {
     ldJson.image = image.url;
   }
 
-  await addOffers(ldJson, product, context);
-
-  // TODO: Add other data like aggregated reviews
+  // TODO: Add other data like aggregated ratings (https://schema.org/AggregateRating),
+  // shipping details (https://schema.org/OfferShippingDetails) and return policy (https://schema.org/MerchantReturnPolicy)
 
   return JSON.stringify(ldJson);
 }
