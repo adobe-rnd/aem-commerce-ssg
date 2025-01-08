@@ -33,7 +33,7 @@ async function getVariants(baseProduct, url, axes, context) {
   return variants.map(variant => {
     const variantImage = getPrimaryImage(variant.product, null);
     const variantUrl = new URL(url);
-    variantUrl.searchParams.append('optionsUIDs', variant.selections.join(','));
+    variantUrl.searchParams.append('optionsUIDs', variant.selections.sort().join(','));
 
     const ldJson = {
       '@type': 'Product',
