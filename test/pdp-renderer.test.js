@@ -74,7 +74,10 @@ describe('Meta Tags Template', () => {
   <title></title>
 
   <meta property="og:type" content="og:product">
+
+  <script type="application/ld+json"></script>
 </head>
+
 "
 `);
   });
@@ -95,7 +98,10 @@ describe('Meta Tags Template', () => {
   <title></title>
 
   <meta name="description" content="Product Description"><meta name="keywords" content="foo, bar"><meta name="image" content="https://example.com/image.jpg"><meta name="id" content="67890"><meta name="sku" content="12345"><meta name="x-cs-lastModifiedAt" content="2023-10-01"><meta property="og:type" content="og:product">
+
+  <script type="application/ld+json"></script>
 </head>
+
 "
 `);
   });
@@ -109,7 +115,10 @@ describe('Meta Tags Template', () => {
   <title></title>
 
   <meta property="og:type" content="og:product">
+
+  <script type="application/ld+json"></script>
 </head>
+
 "
 `);
   });
@@ -123,7 +132,10 @@ describe('Meta Tags Template', () => {
   <title></title>
 
   <meta property="og:type" content="og:product">
+
+  <script type="application/ld+json"></script>
 </head>
+
 "
 `);
   });
@@ -137,7 +149,10 @@ describe('Meta Tags Template', () => {
   <title></title>
 
   <meta property="og:type" content="og:product">
+
+  <script type="application/ld+json"></script>
 </head>
+
 "
 `);
   });
@@ -151,7 +166,10 @@ describe('Meta Tags Template', () => {
   <title></title>
 
   <meta name="sku" content="12345"><meta property="og:type" content="og:product">
+
+  <script type="application/ld+json"></script>
 </head>
+
 "
 `);
   });
@@ -165,7 +183,10 @@ describe('Meta Tags Template', () => {
   <title></title>
 
   <meta name="x-cs-lastModifiedAt" content="2023-10-01"><meta property="og:type" content="og:product">
+
+  <script type="application/ld+json"></script>
 </head>
+
 "
 `);
   });
