@@ -13,3 +13,27 @@ application:
               LOG_LEVEL: debug
             annotations:
               final: true
+          check-product-changes:
+            function: actions/check-product-changes/index.js
+            web: 'no'
+            runtime: nodejs:18
+            inputs:
+              LOG_LEVEL: debug
+            annotations:
+              final: true
+        triggers:
+          everyMinTrigger:
+            feed: /whisk.system/alarms/interval
+            inputs: 
+              minutes: 1
+        rules:
+          everyMinRule:
+          # When the action is invoked, it first checks
+          # that no instances of the same action are already
+          # running. If an instance is running, business logic
+          # execution is skipped; if no instances are running,
+          # it scans the Catalog to check for product changes.
+          # The above means that the actual logic is not
+          # necessarily executed every minute.
+            trigger: everyMinTrigger
+            action: check-product-changes
