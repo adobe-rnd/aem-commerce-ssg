@@ -4,7 +4,7 @@ import pluginJest from 'eslint-plugin-jest';
 
 /** @type {import('eslint').Linter.Config[]} */
 export default [
-    { 
+    {
         files: ["**/*.js"],
         languageOptions: {
             sourceType: "commonjs",
@@ -14,7 +14,7 @@ export default [
         }
     },
     {
-        files: ['**/*.spec.js', '**/*.test.js'],
+        files: ['**/*.spec.js', '**/*.test.js', 'test/mock-server.js'],
         plugins: { jest: pluginJest },
         languageOptions: {
             globals: {
