@@ -10,7 +10,7 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
-const { useMockServer } = require('./mock-server.js');
+const { useMockServer, handlers } = require('./mock-server.js');
 
 jest.mock('@adobe/aio-sdk', () => ({
   Core: {
@@ -61,13 +61,24 @@ describe('pdp-renderer', () => {
   })
 
   test('returns correct template', async () => {
+    const sku = '24-MB03';
+
+    let passedSku;
+    let calledUrl;
+    server.use(handlers.defaultProduct(({ variables, request }) => {
+      calledUrl = request.url;
+      passedSku = variables.sku;
+    }));
+
     const response = await action.main({
       HLX_STORE_URL: 'https://store.com',
       HLX_CONTENT_URL: 'https://content.com',
       HLX_CONFIG_NAME: 'config',
-      __ow_path: '/products/crown-summit-backpack/24-MB03',
+      __ow_path: `/products/crown-summit-backpack/${sku}`,
     });
 
+    expect(calledUrl).toBe('https://www.aemshop.net/cs-graphql');
+    expect(passedSku).toBe(sku);
     expect(response.statusCode).toEqual(200);
     expect(response.body).toMatchInlineSnapshot(`
 "<!DOCTYPE html>
@@ -94,6 +105,8 @@ describe('pdp-renderer', () => {
   });
 
   test('returns 404 if product doesnt exist', async () => {
+    server.use(handlers.return404());
+
     const response = await action.main({
       HLX_STORE_URL: 'https://aemstore.net',
       HLX_CONTENT_URL: 'https://content.com',
