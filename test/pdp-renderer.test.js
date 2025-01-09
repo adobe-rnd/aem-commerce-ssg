@@ -90,8 +90,12 @@ describe('pdp-renderer', () => {
   <meta charset="UTF-8">
   <title></title>
 
+  <meta name="description" content="The Crown Summit Backpack is equally at home in a gym locker, study cube or a pup tent, so be sure yours is packed with books, a bag lunch, water bottles, yoga block, laptop, or whatever else you want in hand. Rugged enough for day hikes and camping trips, it has two large zippered compartments and padded, adjustable shoulder straps.Top handle.Grommet holes.Two-way zippers.H 20&quot; x W 14&quot; x D 12&quot;.Weight: 2 lbs, 8 oz. Volume: 29 L."><meta name="image" content="http://www.aemshop.net/media/catalog/product/m/b/mb03-black-0.jpg"><meta name="id" content="7"><meta name="sku" content="24-MB03"><meta name="x-cs-lastModifiedAt" content="2024-10-03T15:26:48.850Z"><meta property="og:type" content="og:product">
+
   <script type="application/ld+json">{"@context":"http://schema.org","@type":"Product","sku":"24-MB03","name":"Crown Summit Backpack","gtin":"","description":"The Crown Summit Backpack is equally at home in a gym locker, study cube or a pup tent, so be sure yours is packed with books, a bag lunch, water bottles, yoga block, laptop, or whatever else you want in hand. Rugged enough for day hikes and camping trips, it has two large zippered compartments and padded, adjustable shoulder straps.Top handle.Grommet holes.Two-way zippers.H 20\\" x W 14\\" x D 12\\".Weight: 2 lbs, 8 oz. Volume: 29 L.","@id":"https://store.com/products/crown-summit-backpack/24-MB03","offers":[{"@type":"Offer","sku":"24-MB03","url":"https://store.com/products/crown-summit-backpack/24-MB03","availability":"https://schema.org/InStock","price":38,"priceCurrency":"USD","itemCondition":"https://schema.org/NewCondition"}],"image":"http://www.aemshop.net/media/catalog/product/m/b/mb03-black-0.jpg"}</script>
-</head><body>
+</head>
+
+<body>
   <header></header>
   <main>
     <div class="product-details">
