@@ -88,7 +88,7 @@ describe('pdp-renderer', () => {
 <html>
 <head>
   <meta charset="UTF-8">
-  <title></title>
+  <title>Crown Summit Backpack</title>
 
   <meta name="description" content="The Crown Summit Backpack is equally at home in a gym locker, study cube or a pup tent, so be sure yours is packed with books, a bag lunch, water bottles, yoga block, laptop, or whatever else you want in hand. Rugged enough for day hikes and camping trips, it has two large zippered compartments and padded, adjustable shoulder straps.Top handle.Grommet holes.Two-way zippers.H 20&quot; x W 14&quot; x D 12&quot;.Weight: 2 lbs, 8 oz. Volume: 29 L."><meta name="image" content="http://www.aemshop.net/media/catalog/product/m/b/mb03-black-0.jpg"><meta name="id" content="7"><meta name="sku" content="24-MB03"><meta name="x-cs-lastModifiedAt" content="2024-10-03T15:26:48.850Z"><meta property="og:type" content="og:product">
 
