@@ -109,6 +109,7 @@ function getBearerToken (params) {
   }
   return undefined
 }
+
 /**
  *
  * Returns an error response object and attempts to log.info the status code and error message
@@ -137,10 +138,21 @@ function errorResponse (statusCode, message, logger) {
   }
 }
 
-async function request(name, url, req) {
+/**
+ * Makes an HTTP request with a timeout of 60 seconds.
+ *
+ * @param {string} name a name to identify the request.
+ * @param {string} url the URL.
+ * @param {object} req request options.
+ *
+ * @returns {Promise<object|null>} the response as parsed object or null if no content.
+ *
+ * @throws {Error} if the request fails.
+ */
+async function request(name, url, req, timeout = 60000) {
   // allow requests for 60s max
   const abortController = new AbortController();
-  const abortTimeout = setTimeout(() => abortController.abort(), 60000);
+  const abortTimeout = setTimeout(() => abortController.abort(), timeout);
 
   const resp = await fetch(url, {
     ...req,
@@ -162,6 +174,15 @@ async function request(name, url, req) {
   throw new Error(`Request '${name}' to '${url}' failed (${resp.status}): ${resp.headers.get('x-error') || resp.statusText}`);
 }
 
+/**
+ * Requests data from a spreadsheet.
+ *
+ * @param {string} name file name of the spreadsheet.
+ * @param {string} [sheet] optional sheet name.
+ * @param {object} context the context object.
+ *
+ * @returns {Promise<object>} spreadsheet data as JSON.
+ */
 async function requestSpreadsheet(name, sheet, context) {
   const { contentUrl, storeCode } = context;
   let storeRoot = contentUrl;
@@ -175,6 +196,13 @@ async function requestSpreadsheet(name, sheet, context) {
   return request('spreadsheet', sheetUrl);
 }
 
+/**
+ * Returns the parsed configuration.
+ *
+ * @param {object} context context object containing the configName.
+ *
+ * @returns {Promise<object>} configuration as object.
+ */
 async function getConfig(context) {
   const { configName = 'configs' } = context;
   if (!context.config) {
@@ -184,6 +212,17 @@ async function getConfig(context) {
   return context.config;
 }
 
+/**
+ * Requests data from Commerce Catalog Service API.
+ *
+ * @param {string} query GraphQL query.
+ * @param {string} operationName name of the operation.
+ * @param {object} variables query variables.
+ * @param {object} context the context object.
+ * @param {object} [configOverrides] optional object to overwrite config values.
+ *
+ * @returns {Promise<object>} GraphQL response as parsed object.
+ */
 async function requestSaaS(query, operationName, variables, context, configOverrides = {}) {
   const { storeUrl } = context;
   const config = {
@@ -225,4 +264,6 @@ module.exports = {
   checkMissingRequestInputs,
   requestSaaS,
   getConfig,
+  request,
+  requestSpreadsheet,
 }
