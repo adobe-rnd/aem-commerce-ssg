@@ -21,9 +21,11 @@ const { extractPathDetails, findDescription} = require('./lib');
 const { ProductQuery } = require('./queries');
 const { generateLdJson } = require('./ldJson');
 
-function assignMetaTemplateData(templateProductData, baseProduct) {
+function toMetaTemplateData(baseProduct) {
+  const templateProductData = { ...baseProduct };
   templateProductData.metaDescription = findDescription(baseProduct);
   templateProductData.metaImage = templateProductData.images?.[0]?.url;
+  return templateProductData;
 }
 
 /**
@@ -60,8 +62,8 @@ async function main (params) {
 
     logger.debug('Retrieved base product', JSON.stringify(baseProduct, null, 4));
 
-    const templateProductData = { ...baseProduct };
-    assignMetaTemplateData(templateProductData, baseProduct);
+    // Assign meta tag data for template
+    const templateProductData = toMetaTemplateData(baseProduct);;
     // Generate LD-JSON
     const ldJson = await generateLdJson(baseProduct, context);
 
