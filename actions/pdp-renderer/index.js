@@ -25,7 +25,7 @@ function toMetaTemplateData(baseProduct) {
   const templateProductData = { ...baseProduct };
   templateProductData.metaDescription = findDescription(baseProduct);
   templateProductData.metaImage = baseProduct.images?.[0]?.url;
-  templateProductData.metaTitle = baseProduct.metaTitle || baseProduct.title || baseProduct.name || 'Product Details';
+  templateProductData.metaTitle = baseProduct.metaTitle || baseProduct.name || 'Product Details';
   return templateProductData;
 }
 
