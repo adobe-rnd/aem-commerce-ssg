@@ -17,9 +17,17 @@ const { Core } = require('@adobe/aio-sdk')
 const Handlebars = require('handlebars');
 
 const { errorResponse, stringParameters, requestSaaS } = require('../utils');
-const { extractPathDetails } = require('./lib');
+const { extractPathDetails, findDescription} = require('./lib');
 const { ProductQuery } = require('./queries');
 const { generateLdJson } = require('./ldJson');
+
+function toMetaTemplateData(baseProduct) {
+  const templateProductData = { ...baseProduct };
+  templateProductData.metaDescription = findDescription(baseProduct);
+  templateProductData.metaImage = baseProduct.images?.[0]?.url;
+  templateProductData.metaTitle = baseProduct.metaTitle || baseProduct.name || 'Product Details';
+  return templateProductData;
+}
 
 /**
  * Parameters
@@ -55,6 +63,8 @@ async function main (params) {
 
     logger.debug('Retrieved base product', JSON.stringify(baseProduct, null, 4));
 
+    // Assign meta tag data for template
+    const templateProductData = toMetaTemplateData(baseProduct);
     // Generate LD-JSON
     const ldJson = await generateLdJson(baseProduct, context);
 
@@ -68,7 +78,7 @@ async function main (params) {
     const response = {
       statusCode: 200,
       body: pageTemplate({
-        ...baseProduct,
+        ...templateProductData,
         ldJson,
       }),
     }
