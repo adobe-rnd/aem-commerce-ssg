@@ -94,7 +94,7 @@ async function generateLdJson(product, context) {
       hasVariant: await getVariants(product, url, axes, context),
     };
   } else {
-    throw 'Unsupported product type';
+    throw new Error('Unsupported product type');
   }
 
   if (image) {
