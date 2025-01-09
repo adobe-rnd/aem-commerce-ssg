@@ -63,7 +63,7 @@ async function main (params) {
     logger.debug('Retrieved base product', JSON.stringify(baseProduct, null, 4));
 
     // Assign meta tag data for template
-    const templateProductData = toMetaTemplateData(baseProduct);;
+    const templateProductData = toMetaTemplateData(baseProduct);
     // Generate LD-JSON
     const ldJson = await generateLdJson(baseProduct, context);
 
