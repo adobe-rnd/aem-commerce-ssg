@@ -1,0 +1,112 @@
+{
+    "data": {
+        "variants": {
+            "variants": [
+                {
+                    "selections": [
+                        "color-green",
+                        "size-l"
+                    ],
+                    "product": {
+                        "sku": "complex-sku-L-Green",
+                        "name": "Complex Product (L,Green)",
+                        "inStock": false,
+                        "images": [
+                            {
+                                "url": "green-image.jpg"
+                            }
+                        ],
+                        "attributes": [
+                            {
+                                "name": "color",
+                                "label": "Color",
+                                "value": "Green",
+                                "roles": [
+                                    "visible_in_pdp",
+                                    "visible_in_compare_list",
+                                    "visible_in_plp",
+                                    "visible_in_search"
+                                ]
+                            },
+                            {
+                                "name": "size",
+                                "label": "Size",
+                                "value": "L",
+                                "roles": [
+                                    "visible_in_pdp",
+                                    "visible_in_plp"
+                                ]
+                            }
+                        ],
+                        "price": {
+                            "regular": {
+                                "amount": {
+                                    "currency": "USD",
+                                    "value": 52
+                                }
+                            },
+                            "final": {
+                                "amount": {
+                                    "currency": "USD",
+                                    "value": 30
+                                }
+                            }
+                        }
+                    }
+                },
+                {
+                    "selections": [
+                        "size-m",
+                        "color-red"
+                    ],
+                    "product": {
+                        "sku": "complex-sku-M-Red",
+                        "name": "Complex Product (M,Red)",
+                        "inStock": true,
+                        "images": [
+                            {
+                                "url": "red-image.jpg"
+                            }
+                        ],
+                        "attributes": [
+                            {
+                                "name": "color",
+                                "label": "Color",
+                                "value": "Red",
+                                "roles": [
+                                    "visible_in_pdp",
+                                    "visible_in_compare_list",
+                                    "visible_in_plp",
+                                    "visible_in_search"
+                                ]
+                            },
+                            {
+                                "name": "size",
+                                "label": "Size",
+                                "value": "M",
+                                "roles": [
+                                    "visible_in_pdp",
+                                    "visible_in_plp"
+                                ]
+                            }
+                        ],
+                        "price": {
+                            "regular": {
+                                "amount": {
+                                    "value": 52,
+                                    "currency": "USD"
+                                }
+                            },
+                            "final": {
+                                "amount": {
+                                    "value": 52,
+                                    "currency": "USD"
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
+        }
+    }
+}

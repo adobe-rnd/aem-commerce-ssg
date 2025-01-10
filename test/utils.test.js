@@ -10,18 +10,20 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
-const utils = require('./../actions/utils.js')
+const { useMockServer } = require('./mock-server');
+const { errorResponse, stringParameters, checkMissingRequestInputs, getBearerToken, request, requestSpreadsheet, getConfig, requestSaaS } = require('./../actions/utils.js');
+const { http, HttpResponse } = require('msw');
 
 test('interface', () => {
-  expect(typeof utils.errorResponse).toBe('function')
-  expect(typeof utils.stringParameters).toBe('function')
-  expect(typeof utils.checkMissingRequestInputs).toBe('function')
-  expect(typeof utils.getBearerToken).toBe('function')
+  expect(typeof errorResponse).toBe('function')
+  expect(typeof stringParameters).toBe('function')
+  expect(typeof checkMissingRequestInputs).toBe('function')
+  expect(typeof getBearerToken).toBe('function')
 })
 
 describe('errorResponse', () => {
   test('(400, errorMessage)', () => {
-    const res = utils.errorResponse(400, 'errorMessage')
+    const res = errorResponse(400, 'errorMessage')
     expect(res).toEqual({
       error: {
         statusCode: 400,
@@ -34,7 +36,7 @@ describe('errorResponse', () => {
     const logger = {
       info: jest.fn()
     }
-    const res = utils.errorResponse(400, 'errorMessage', logger)
+    const res = errorResponse(400, 'errorMessage', logger)
     expect(logger.info).toHaveBeenCalledWith('400: errorMessage')
     expect(res).toEqual({
       error: {
@@ -50,70 +52,169 @@ describe('stringParameters', () => {
     const params = {
       a: 1, b: 2, __ow_headers: { 'x-api-key': 'fake-api-key' }
     }
-    expect(utils.stringParameters(params)).toEqual(JSON.stringify(params))
+    expect(stringParameters(params)).toEqual(JSON.stringify(params))
   })
   test('with auth header', () => {
     const params = {
       a: 1, b: 2, __ow_headers: { 'x-api-key': 'fake-api-key', authorization: 'secret' }
     }
-    expect(utils.stringParameters(params)).toEqual(expect.stringContaining('"authorization":"<hidden>"'))
-    expect(utils.stringParameters(params)).not.toEqual(expect.stringContaining('secret'))
+    expect(stringParameters(params)).toEqual(expect.stringContaining('"authorization":"<hidden>"'))
+    expect(stringParameters(params)).not.toEqual(expect.stringContaining('secret'))
   })
 })
 
 describe('checkMissingRequestInputs', () => {
   test('({ a: 1, b: 2 }, [a])', () => {
-    expect(utils.checkMissingRequestInputs({ a: 1, b: 2 }, ['a'])).toEqual(null)
+    expect(checkMissingRequestInputs({ a: 1, b: 2 }, ['a'])).toEqual(null)
   })
   test('({ a: 1 }, [a, b])', () => {
-    expect(utils.checkMissingRequestInputs({ a: 1 }, ['a', 'b'])).toEqual('missing parameter(s) \'b\'')
+    expect(checkMissingRequestInputs({ a: 1 }, ['a', 'b'])).toEqual('missing parameter(s) \'b\'')
   })
   test('({ a: { b: { c: 1 } }, f: { g: 2 } }, [a.b.c, f.g.h.i])', () => {
-    expect(utils.checkMissingRequestInputs({ a: { b: { c: 1 } }, f: { g: 2 } }, ['a.b.c', 'f.g.h.i'])).toEqual('missing parameter(s) \'f.g.h.i\'')
+    expect(checkMissingRequestInputs({ a: { b: { c: 1 } }, f: { g: 2 } }, ['a.b.c', 'f.g.h.i'])).toEqual('missing parameter(s) \'f.g.h.i\'')
   })
   test('({ a: { b: { c: 1 } }, f: { g: 2 } }, [a.b.c, f.g.h])', () => {
-    expect(utils.checkMissingRequestInputs({ a: { b: { c: 1 } }, f: { g: 2 } }, ['a.b.c', 'f'])).toEqual(null)
+    expect(checkMissingRequestInputs({ a: { b: { c: 1 } }, f: { g: 2 } }, ['a.b.c', 'f'])).toEqual(null)
   })
   test('({ a: 1, __ow_headers: { h: 1, i: 2 } }, undefined, [h])', () => {
-    expect(utils.checkMissingRequestInputs({ a: 1, __ow_headers: { h: 1, i: 2 } }, undefined, ['h'])).toEqual(null)
+    expect(checkMissingRequestInputs({ a: 1, __ow_headers: { h: 1, i: 2 } }, undefined, ['h'])).toEqual(null)
   })
   test('({ a: 1, __ow_headers: { f: 2 } }, [a], [h, i])', () => {
-    expect(utils.checkMissingRequestInputs({ a: 1, __ow_headers: { f: 2 } }, ['a'], ['h', 'i'])).toEqual('missing header(s) \'h,i\'')
+    expect(checkMissingRequestInputs({ a: 1, __ow_headers: { f: 2 } }, ['a'], ['h', 'i'])).toEqual('missing header(s) \'h,i\'')
   })
   test('({ c: 1, __ow_headers: { f: 2 } }, [a, b], [h, i])', () => {
-    expect(utils.checkMissingRequestInputs({ c: 1 }, ['a', 'b'], ['h', 'i'])).toEqual('missing header(s) \'h,i\' and missing parameter(s) \'a,b\'')
+    expect(checkMissingRequestInputs({ c: 1 }, ['a', 'b'], ['h', 'i'])).toEqual('missing header(s) \'h,i\' and missing parameter(s) \'a,b\'')
   })
   test('({ a: 0 }, [a])', () => {
-    expect(utils.checkMissingRequestInputs({ a: 0 }, ['a'])).toEqual(null)
+    expect(checkMissingRequestInputs({ a: 0 }, ['a'])).toEqual(null)
   })
   test('({ a: null }, [a])', () => {
-    expect(utils.checkMissingRequestInputs({ a: null }, ['a'])).toEqual(null)
+    expect(checkMissingRequestInputs({ a: null }, ['a'])).toEqual(null)
   })
   test('({ a: \'\' }, [a])', () => {
-    expect(utils.checkMissingRequestInputs({ a: '' }, ['a'])).toEqual('missing parameter(s) \'a\'')
+    expect(checkMissingRequestInputs({ a: '' }, ['a'])).toEqual('missing parameter(s) \'a\'')
   })
   test('({ a: undefined }, [a])', () => {
-    expect(utils.checkMissingRequestInputs({ a: undefined }, ['a'])).toEqual('missing parameter(s) \'a\'')
+    expect(checkMissingRequestInputs({ a: undefined }, ['a'])).toEqual('missing parameter(s) \'a\'')
   })
 })
 
 describe('getBearerToken', () => {
   test('({})', () => {
-    expect(utils.getBearerToken({})).toEqual(undefined)
+    expect(getBearerToken({})).toEqual(undefined)
   })
   test('({ authorization: Bearer fake, __ow_headers: {} })', () => {
-    expect(utils.getBearerToken({ authorization: 'Bearer fake', __ow_headers: {} })).toEqual(undefined)
+    expect(getBearerToken({ authorization: 'Bearer fake', __ow_headers: {} })).toEqual(undefined)
   })
   test('({ authorization: Bearer fake, __ow_headers: { authorization: fake } })', () => {
-    expect(utils.getBearerToken({ authorization: 'Bearer fake', __ow_headers: { authorization: 'fake' } })).toEqual(undefined)
+    expect(getBearerToken({ authorization: 'Bearer fake', __ow_headers: { authorization: 'fake' } })).toEqual(undefined)
   })
   test('({ __ow_headers: { authorization: Bearerfake} })', () => {
-    expect(utils.getBearerToken({ __ow_headers: { authorization: 'Bearerfake' } })).toEqual(undefined)
+    expect(getBearerToken({ __ow_headers: { authorization: 'Bearerfake' } })).toEqual(undefined)
   })
   test('({ __ow_headers: { authorization: Bearer fake} })', () => {
-    expect(utils.getBearerToken({ __ow_headers: { authorization: 'Bearer fake' } })).toEqual('fake')
+    expect(getBearerToken({ __ow_headers: { authorization: 'Bearer fake' } })).toEqual('fake')
   })
   test('({ __ow_headers: { authorization: Bearer fake Bearer fake} })', () => {
-    expect(utils.getBearerToken({ __ow_headers: { authorization: 'Bearer fake Bearer fake' } })).toEqual('fake Bearer fake')
+    expect(getBearerToken({ __ow_headers: { authorization: 'Bearer fake Bearer fake' } })).toEqual('fake Bearer fake')
   })
 })
+
+describe('request', () => {
+  const server = useMockServer();
+
+  test('getConfig', async () => {
+    server.use(http.get('https://content.com/configs.json', async () => {
+      return HttpResponse.json({ data: [{ key: 'testKey', value: 'testValue' }] });
+    }));
+
+    const context = { contentUrl: 'https://content.com' };
+    const config = await getConfig(context);
+    expect(config).toEqual({ testKey: 'testValue' });
+  });
+  
+  test('requestSaaS', async () => {
+    let requestHeaders;
+    server.use(http.post('https://commerce-endpoint.com', async ({ request }) => {
+      requestHeaders = request.headers;
+      return HttpResponse.json({ data: { result: 'success' } });
+    }));
+
+    const context = {
+      storeUrl: 'https://store.com',
+      config: {
+        'commerce-endpoint': 'https://commerce-endpoint.com',
+        'commerce-customer-group': 'customer-group',
+        'commerce-environment-id': 'environment-id',
+        'commerce-store-code': 'store-code',
+        'commerce-store-view-code': 'store-view-code',
+        'commerce-website-code': 'website-code',
+        'commerce-x-api-key': 'api-key'
+      }
+    };
+
+    const query = 'query { test }';
+    const operationName = 'TestOperation';
+    const variables = { var1: 'value1' };
+
+    const response = await requestSaaS(query, operationName, variables, context);
+    expect(response).toEqual({ data: { result: 'success' } });
+
+    expect(requestHeaders.get('Content-Type')).toBe('application/json');
+    expect(requestHeaders.get('origin')).toBe('https://store.com');
+    expect(requestHeaders.get('magento-customer-group')).toBe('customer-group');
+    expect(requestHeaders.get('magento-environment-id')).toBe('environment-id');
+    expect(requestHeaders.get('magento-store-code')).toBe('store-code');
+    expect(requestHeaders.get('magento-store-view-code')).toBe('store-view-code');
+    expect(requestHeaders.get('magento-website-code')).toBe('website-code');
+    expect(requestHeaders.get('x-api-key')).toBe('api-key');
+    expect(requestHeaders.get('Magento-Is-Preview')).toBe('true');
+  });
+  
+  test('requestSpreadsheet', async () => {
+    server.use(http.get('https://content.com/test/config.json', async () => {
+      return HttpResponse.json({ data: [{ key: 'testKey', value: 'testValue' }] });
+    }));
+
+    const context = { contentUrl: 'https://content.com', storeCode: 'test' };
+    const data = await requestSpreadsheet('config', null, context);
+    expect(data).toEqual({ data: [{ key: 'testKey', value: 'testValue' }] });
+  });
+
+  test('requestSpreadsheet with sheet', async () => {
+    let requestUrl;
+    server.use(http.get('https://content.com/test2/config.json', async ({ request }) => {
+      requestUrl = request.url;
+      return HttpResponse.json({ data: [{ key: 'testKey', value: 'testValue' }] });
+    }));
+
+    const context = { contentUrl: 'https://content.com', storeCode: 'test2' };
+    await requestSpreadsheet('config', 'testSheet', context);
+    expect(requestUrl).toEqual('https://content.com/test2/config.json?sheet=testSheet');
+  });
+
+  test('successful request', async () => {
+    server.use(http.get('https://example.com/success', async () => {
+      return HttpResponse.json({ data: 'success' });
+    }));
+
+    const response = await request('testRequest', 'https://example.com/success', {});
+    expect(response).toEqual({ data: 'success' });
+  });
+  
+  test('error request', async () => {
+    server.use(http.get('https://example.com/not-found', async () => {
+      return new HttpResponse(null, { status: 404, statusText: 'Not Found' });
+    }));
+
+    await expect(request('testRequest', 'https://example.com/not-found', {})).rejects.toThrow("Request 'testRequest' to 'https://example.com/not-found' failed (404): Not Found");
+  });
+
+  test('request timeout', async () => {
+    server.use(http.get('https://example.com/timeout', async () => {
+      return new Promise((resolve) => setTimeout(() => resolve(HttpResponse.json({ data: 'timeout' })), 1000));
+    }));
+
+    await expect(request('testRequest', 'https://example.com/timeout', {}, 100)).rejects.toThrow('This operation was aborted');
+  });
+});

@@ -5,14 +5,19 @@ application:
       aem-commerce-ssg:
         license: Apache-2.0
         actions:
-          pdp-ssg:
-            function: actions/pdp-ssg/index.js
+          pdp-renderer:
+            function: actions/pdp-renderer/index.js
             web: 'yes'
             runtime: nodejs:18
             inputs:
               LOG_LEVEL: debug
+              HLX_CONTENT_URL: "https://main--aem-boilerplate-commerce--hlxsites.aem.live"
+              HLX_STORE_URL: "https://www.aemshop.net"
+              HLX_CONFIG_NAME: "configs"
             annotations:
               final: true
+            include:
+              - ["actions/pdp-renderer/templates/*.hbs", "templates/"]
           check-product-changes:
             function: actions/check-product-changes/index.js
             web: 'no'

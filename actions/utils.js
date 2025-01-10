@@ -109,6 +109,7 @@ function getBearerToken (params) {
   }
   return undefined
 }
+
 /**
  *
  * Returns an error response object and attempts to log.info the status code and error message
@@ -137,9 +138,132 @@ function errorResponse (statusCode, message, logger) {
   }
 }
 
+/**
+ * Makes an HTTP request with a timeout of 60 seconds.
+ *
+ * @param {string} name a name to identify the request.
+ * @param {string} url the URL.
+ * @param {object} req request options.
+ *
+ * @returns {Promise<object|null>} the response as parsed object or null if no content.
+ *
+ * @throws {Error} if the request fails.
+ */
+async function request(name, url, req, timeout = 60000) {
+  // allow requests for 60s max
+  const abortController = new AbortController();
+  const abortTimeout = setTimeout(() => abortController.abort(), timeout);
+
+  const resp = await fetch(url, {
+    ...req,
+    signal: abortController.signal,
+  });
+  // clear the abort timeout if the request passed
+  clearTimeout(abortTimeout);
+
+  if (resp.ok) {
+    if (resp.status < 204) {
+      // ok with content
+      return resp.json();
+    } else if (resp.status == 204) {
+      // ok but no content
+      return null;
+    }
+  }
+
+  throw new Error(`Request '${name}' to '${url}' failed (${resp.status}): ${resp.headers.get('x-error') || resp.statusText}`);
+}
+
+/**
+ * Requests data from a spreadsheet.
+ *
+ * @param {string} name file name of the spreadsheet.
+ * @param {string} [sheet] optional sheet name.
+ * @param {object} context the context object.
+ *
+ * @returns {Promise<object>} spreadsheet data as JSON.
+ */
+async function requestSpreadsheet(name, sheet, context) {
+  const { contentUrl, storeCode } = context;
+  let storeRoot = contentUrl;
+  if (storeCode) {
+    storeRoot += `/${storeCode}`;
+  }
+  let sheetUrl = `${storeRoot}/${name}.json`
+  if (sheet) {
+    sheetUrl += `?sheet=${sheet}`;
+  }
+  return request('spreadsheet', sheetUrl);
+}
+
+/**
+ * Returns the parsed configuration.
+ *
+ * @param {object} context context object containing the configName.
+ *
+ * @returns {Promise<object>} configuration as object.
+ */
+async function getConfig(context) {
+  const { configName = 'configs' } = context;
+  if (!context.config) {
+    const configData = await requestSpreadsheet(configName, null, context);
+    context.config = configData.data.reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {});
+  }
+  return context.config;
+}
+
+/**
+ * Requests data from Commerce Catalog Service API.
+ *
+ * @param {string} query GraphQL query.
+ * @param {string} operationName name of the operation.
+ * @param {object} variables query variables.
+ * @param {object} context the context object.
+ * @param {object} [configOverrides] optional object to overwrite config values.
+ *
+ * @returns {Promise<object>} GraphQL response as parsed object.
+ */
+async function requestSaaS(query, operationName, variables, context, configOverrides = {}) {
+  const { storeUrl } = context;
+  const config = {
+    ... (await getConfig(context)),
+    ...configOverrides
+  };
+  const headers = {
+    'Content-Type': 'application/json',
+    'origin': storeUrl,
+    'magento-customer-group': config['commerce-customer-group'],
+    'magento-environment-id': config['commerce-environment-id'],
+    'magento-store-code': config['commerce-store-code'],
+    'magento-store-view-code': config['commerce-store-view-code'],
+    'magento-website-code': config['commerce-website-code'],
+    'x-api-key': config['commerce-x-api-key'],
+    // bypass LiveSearch cache
+    'Magento-Is-Preview': true,
+  };
+  const method = 'POST';
+  return request(
+    `${operationName}(${JSON.stringify(variables)})`,
+    config['commerce-endpoint'],
+    {
+      method,
+      headers,
+      body: JSON.stringify({
+        operationName,
+        query,
+        variables,
+      })
+    }
+  );
+}
+
 module.exports = {
   errorResponse,
   getBearerToken,
   stringParameters,
-  checkMissingRequestInputs
+  checkMissingRequestInputs,
+  requestSaaS,
+  getConfig,
+  request,
+  requestSpreadsheet,
 }
