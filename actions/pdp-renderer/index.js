@@ -33,6 +33,10 @@ function toMetaTemplateData(baseProduct) {
  * Parameters
  * @param {Object} params The parameters object
  * @param {string} params.__ow_path The path of the request
+ * @param {string} params.__ow_query The query parameters of the request
+ * @param {string} params.__ow_query.configName Overwrite for HLX_CONFIG_NAME
+ * @param {string} params.__ow_query.contentUrl Overwrite for HLX_CONTENT_URL
+ * @param {string} params.__ow_query.storeUrl Overwrite for HLX_STORE_URL
  * @param {string} params.HLX_CONFIG_NAME The config sheet to use (e.g. configs for prod, configs-dev for dev)
  * @param {string} params.HLX_CONTENT_URL Edge Delivery URL of the store (e.g. aem.live)
  * @param {string} params.HLX_STORE_URL Public facing URL of the store
@@ -41,18 +45,18 @@ async function main (params) {
   const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' })
 
   try {
-    logger.info('Calling the main action')
     logger.debug(stringParameters(params))
-
-    const { __ow_path, HLX_STORE_URL, HLX_CONTENT_URL, HLX_CONFIG_NAME } = params;
+    const { __ow_path, __ow_query, HLX_STORE_URL, HLX_CONTENT_URL, HLX_CONFIG_NAME } = params;
     const { sku } = extractPathDetails(__ow_path);
 
-    if (!sku || !HLX_CONTENT_URL) {
+    const configName = __ow_query?.configName || HLX_CONFIG_NAME;
+    const contentUrl = __ow_query?.contentUrl || HLX_CONTENT_URL;
+    const storeUrl = __ow_query?.storeUrl || HLX_STORE_URL || contentUrl;
+    const context = { contentUrl, storeUrl, configName };
+
+    if (!sku || !contentUrl) {
       return errorResponse(400, 'Invalid path', logger);
     }
-
-    const storeUrl = HLX_STORE_URL ? HLX_STORE_URL : HLX_CONTENT_URL;
-    const context = { contentUrl: HLX_CONTENT_URL, storeUrl, configName: HLX_CONFIG_NAME };
 
     // Retrieve base product
     const baseProductData = await requestSaaS(ProductQuery, 'ProductQuery', { sku }, context);
