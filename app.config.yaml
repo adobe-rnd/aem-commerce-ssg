@@ -23,12 +23,20 @@ application:
             inputs:
               LOG_LEVEL: debug
               storeUrl: https://www.aemshop.net
-              PLPURIPrefix: null
-              PDPURIPrefix: /products
               orgName: hlxsites
               siteName: aem-boilerplate-commerce
               configName: configs
+              # storeCodes: comma-seprated list of store codes.
+              # i.e. us,uk,it,de,fr,es - or just one
+              # null if there is a single store and no
+              # URI prefixes are used
               storeCodes: null
+              # PDPURIPrefix: URI prefix for the Product Pages
+              # i.e.: /products
+              PDPURIPrefix: /products
+              # PLPURIPrefix: URI prefix for the Category/Product List Pages
+              # i.e.: /categories. null if no URI prefix is used for Categories
+              PLPURIPrefix: null
               authToken: ${AEM_ADMIN_API_AUTH_TOKEN}
             annotations:
               final: true

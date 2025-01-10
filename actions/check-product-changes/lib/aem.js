@@ -3,7 +3,7 @@ const { performRequest } = require('./util');
 async function getSpreadsheet(name, context, options = {}) {
     const { sheet } = options;
     const { storeUrl, storeCode } = context;
-    const storeRoot = `${storeUrl}/${storeCode}`;
+    const storeRoot = storeCode ? `${storeUrl}/${storeCode}` : storeUrl;
     let indexURL = `${storeRoot}/${name}.json`;
     if (sheet) {
         indexURL += `?sheet=${sheet}`;

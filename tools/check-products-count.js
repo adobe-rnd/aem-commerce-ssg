@@ -12,7 +12,8 @@ async function main() {
     // eslint-disable-next-line no-undef
     } = process.env;
     const context = { storeUrl, storeCode, configName };
-    const { total: actualCount } = await (await fetch(`${storeUrl}/${storeCode}/published-products-index.json`)).json();
+    const storeCodePrefix = storeCode ? `/${storeCode}` : '';
+    const { total: actualCount } = await (await fetch(`${storeUrl}${storeCodePrefix}/published-products-index.json`)).json();
     let [productsCount, currentPage, expectedCount] = [-1, 1, 0];
     while (productsCount !== 0) {
         const { data: { productSearch: { items: products } } } = await performSaaSQuery(queries.getAllSkusPaginated, 'getAllSkusPaginated', { currentPage }, context);

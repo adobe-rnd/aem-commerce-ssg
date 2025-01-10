@@ -9,7 +9,7 @@ const logger = {
 };
 
 async function loadState(storeCode, stateLib) {
-  const stateKey = `${storeCode}`;
+  const stateKey = storeCode ? `${storeCode}` : 'default';
   const stateData = await stateLib.get(stateKey);
   if (!stateData?.value) {
     return {
@@ -33,7 +33,11 @@ async function loadState(storeCode, stateLib) {
 }
 
 async function saveState(state, stateLib) {
-  const stateKey = `${state.storeCode}`;
+  let {storeCode} = state;
+  if (!storeCode) {
+    storeCode = 'default';
+  }
+  const stateKey = `${storeCode}`;
   const stateData = [
     state.skusLastQueriedAt.getTime(),
     ...Object.entries(state.skus).flatMap(([sku, lastPreviewedAt]) => [sku, lastPreviewedAt.getTime()]),
@@ -44,6 +48,9 @@ async function saveState(state, stateLib) {
 async function poll(params, stateLib, log = logger) {
   const {
     siteName,
+    PDPURIPrefix,
+    // eslint-disable-next-line no-unused-vars
+    PLPURIPrefix,
     orgName,
     configName,
     requestPerSecond = 5,
@@ -51,7 +58,7 @@ async function poll(params, stateLib, log = logger) {
     skusRefreshInterval = 600000,
   } = params;
   const storeUrl = params.storeUrl ? params.storeUrl : `https://main--${siteName}--${orgName}.aem.live`;
-  const storeCodes = params.storeCodes.split(',');
+  const storeCodes = params.storeCodes ? params.storeCodes.split(',') : [ null ];
 
   const counts = {
     published: 0, unpublished: 0, ignored: 0, failed: 0,
@@ -124,7 +131,7 @@ async function poll(params, stateLib, log = logger) {
         if (urlKey?.match(/^[a-zA-Z0-9-]+$/)
           && lastModifiedDate >= lastPreviewDate) {
           // preview & publish
-          const path = `/${storeCode}/p/${urlKey}`.toLowerCase();
+          const path = (storeCode ? `/${storeCode}${PDPURIPrefix}/${urlKey}` : `${PDPURIPrefix}/${urlKey}`).toLowerCase();
           const req = adminApi.previewAndPublish({ path, sku });
           batch.push(req);
         } else {
