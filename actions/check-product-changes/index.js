@@ -10,39 +10,22 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
-/**
- * This is a placeholder/snippet for a basic I/O Runtime action.
- */
+const { stateLib } = require('@adobe/aio-lib-state');
+const { poll } = require('./poller');
 
+async function main(params) {
+  const state = await stateLib.init();
+  const running = await state.get('running');
 
-const { Core } = require('@adobe/aio-sdk')
-const { errorResponse, stringParameters } = require('../utils')
-
-// main function that will be executed by Adobe I/O Runtime
-async function main (params) {
-  // create a Logger
-  const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' })
+  if (running?.value === 'true') {
+    return { state: 'skipped' };
+  }
 
   try {
-    // 'info' is the default level if not set
-    logger.info('Calling the main action')
-
-    // log parameters, only if params.LOG_LEVEL === 'debug'
-    logger.debug(stringParameters(params))
-  
-    const response = {
-      statusCode: 200,
-      body: "Hello World!",
-    }
-
-    // log the response status code
-    logger.info(`${response.statusCode}: successful request`)
-    return response
-  } catch (error) {
-    // log any server errors
-    logger.error(error)
-    // return with 500
-    return errorResponse(500, 'server error', logger)
+    await state.put('running', 'true');
+    return await poll(params, state);
+  } finally {
+    await state.put('running', 'false');
   }
 }
 

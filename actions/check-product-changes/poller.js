@@ -1,0 +1,222 @@
+const { Timings, aggregate } = require('./lib/benchmark');
+const { AdminAPI, getSpreadsheet } = require('./lib/aem');
+const { queries, performSaaSQuery } = require('./lib/commerce');
+
+const logger = {
+  info: console.log,
+  error: console.error,
+  debug: () => { },
+};
+
+async function loadState(storeCode, stateLib) {
+  const stateKey = `${storeCode}`;
+  const stateData = await stateLib.get(stateKey);
+  if (!stateData?.value) {
+    return {
+      storeCode,
+      skusLastQueriedAt: new Date(0),
+      skus: {},
+    };
+  }
+  // the format of the state object is:
+  // <timestamp>,<sku1>,<timestamp>,<sku2>,<timestamp>,<sku3>,...,<timestamp>
+  // the first timestamp is the last time the SKUs were fetched from Adobe Commerce
+  // folloed by a pair of SKUs and timestamps which are the last preview times per SKU
+  const [catalogQueryTimestamp, ...skus] = stateData && stateData.value ? stateData.value.split(',') : [0];
+  return {
+    storeCode,
+    skusLastQueriedAt: new Date(parseInt(catalogQueryTimestamp)),
+    skus: Object.fromEntries(skus
+      .map((sku, i, arr) => (i % 2 === 0 ? [sku, new Date(parseInt(arr[i + 1]))] : null))
+      .filter(Boolean)),
+  };
+}
+
+async function saveState(state, stateLib) {
+  const stateKey = `${state.storeCode}`;
+  const stateData = [
+    state.skusLastQueriedAt.getTime(),
+    ...Object.entries(state.skus).flatMap(([sku, lastPreviewedAt]) => [sku, lastPreviewedAt.getTime()]),
+  ].join(',');
+  await stateLib.put(stateKey, stateData);
+}
+
+async function poll(params, stateLib, log = logger) {
+  const {
+    siteName,
+    orgName,
+    configName,
+    requestPerSecond = 5,
+    authToken,
+    skusRefreshInterval = 600000,
+  } = params;
+  const storeUrl = params.storeUrl ? params.storeUrl : `https://main--${siteName}--${orgName}.aem.live`;
+  const storeCodes = params.storeCodes.split(',');
+
+  const counts = {
+    published: 0, unpublished: 0, ignored: 0, failed: 0,
+  };
+  const sharedContext = {
+    storeUrl, configName, log, counts,
+  };
+  const timings = new Timings();
+  const adminApi = new AdminAPI({
+    org: orgName,
+    site: siteName,
+  }, sharedContext, { requestPerSecond, authToken });
+
+  log.info(`Starting poll from ${storeUrl} for store codes ${storeCodes}`);
+
+  try {
+    // start processing preview and publish queues
+    await adminApi.startProcessing();
+
+    const results = await Promise.all(storeCodes.map(async (storeCode) => {
+      const timings = new Timings();
+      // load state
+      const state = await loadState(storeCode, stateLib);
+      timings.sample('loadedState');
+      const context = { ...sharedContext, storeCode };
+
+      // setup preview / publish queues
+
+      // get all skus
+      // check if the skus were last quieryed within the last 10 minutes
+      if (timings.now - state.skusLastQueriedAt >= skusRefreshInterval) {
+        state.skusLastQueriedAt = new Date();
+        const allSkusResp = await performSaaSQuery(queries.getAllSkus, 'getAllSkus', {}, context);
+        const allSkus = allSkusResp.data.productSearch.items
+          .map(({ productView }) => productView || {})
+          .map(({ sku }) => sku?.toUpperCase()) // enforce uppercase
+          .filter(Boolean);
+        // add new skus to state if any
+        for (const sku of allSkus) {
+          if (!state.skus[sku]) {
+            state.skus[sku] = new Date(0);
+          }
+        }
+        timings.sample('fetchedSkus');
+      } else {
+        timings.sample('fetchedSkus', 0);
+      }
+
+      // get last modified dates
+      const skus = Object.keys(state.skus);
+      const lastModifiedResp = await performSaaSQuery(queries.getLastModified, 'getLastModified', { skus }, context);
+      timings.sample('fetchedLastModifiedDates');
+      log.info(`Fetched last modified date for ${lastModifiedResp.data.products.length} skus, total ${skus.length}`);
+
+      // preview in batches of 50, then save state in case we get interrupted
+      const batchSize = 50;
+      let batch = [];
+      for (let i = 0; i < lastModifiedResp.data.products.length; i++) {
+        const { sku, urlKey, lastModifiedAt } = lastModifiedResp.data.products[i];
+        const lastPreviewedAt = state.skus[sku] || 0;
+        const lastPreviewDate = new Date(lastPreviewedAt);
+        const lastModifiedDate = new Date(lastModifiedAt);
+
+        // remove the sku from the list of currently known skus
+        skus.splice(skus.indexOf(sku), 1);
+
+        // skip if
+        // - the product was not modified since last preview
+        // - has no urlKey
+        if (urlKey?.match(/^[a-zA-Z0-9-]+$/)
+          && lastModifiedDate >= lastPreviewDate) {
+          // preview & publish
+          const path = `/${storeCode}/p/${urlKey}`.toLowerCase();
+          const req = adminApi.previewAndPublish({ path, sku });
+          batch.push(req);
+        } else {
+          // ignore
+          counts.ignored += 1;
+        }
+
+        if (batch.length === batchSize || i === lastModifiedResp.data.products.length - 1) {
+          const response = await Promise.all(batch);
+          for (const { sku, previewedAt, publishedAt } of response) {
+            if (previewedAt && publishedAt) {
+              state.skus[sku] = previewedAt;
+              counts.published++;
+            } else {
+              counts.failed++;
+            }
+          }
+          await saveState(state, stateLib);
+          batch = [];
+        }
+      }
+
+      timings.sample('publishedPaths');
+
+      // if there are still skus left, they were not in Catalog Service and may
+      // have been disabled/deleted
+      if (skus.length) {
+        try {
+          const publishedProducts = await getSpreadsheet('published-products-index', null, context);
+          // if any of the indexed PDPs is in the remaining list of skus that were not returned by the catalog service
+          // consider them deleted
+          const deletedProducts = publishedProducts.data.filter(({ sku }) => skus.includes(sku));
+          // we assume the amout of deleted skus is relatively small so don't batch it
+          if (deletedProducts.length) {
+            await Promise.all(deletedProducts.map(async ({ path, sku }) => {
+              const result = await adminApi.unpublishAndDelete({ path, sku });
+              if (result.deletedAt) {
+                counts.unpublished++;
+              } else {
+                counts.failed++;
+              }
+              // always delete the sku from the state if it needs to be re-published this will happen automatically.
+              // If we remove it only if the delete was successful we might end up with a sku that is the state
+              // but was not fully un-published
+              delete state.skus[sku];
+            }));
+            // save state after deletes
+            await saveState(state, stateLib);
+          }
+        } catch (e) {
+          // in case the index doesn't yet exist or any other error
+          log.error(e);
+        }
+
+        timings.sample('unpublishedPaths');
+      } else {
+        timings.sample('unpublishedPaths', 0);
+      }
+
+      return timings.measures;
+    }));
+
+    await adminApi.stopProcessing();
+
+    // aggregate timings
+    for (const measure of results) {
+      for (const [name, value] of Object.entries(measure)) {
+        if (!timings.measures[name]) timings.measures[name] = [];
+        if (!Array.isArray(timings.measures[name])) timings.measures[name] = [timings.measures[name]];
+        timings.measures[name].push(value);
+      }
+    }
+    for (const [name, values] of Object.entries(timings.measures)) {
+      timings.measures[name] = aggregate(values);
+    }
+    timings.measures.previewDuration = aggregate(adminApi.previewDurations);
+  } catch (e) {
+    log.error(e);
+    // wait for queues to finish, even in error case
+    await adminApi.stopProcessing();
+  }
+
+  const elapsed = new Date() - timings.now;
+
+  log.info(`Finished polling, elapsed: ${elapsed}ms`);
+
+  return {
+    state: 'completed',
+    elapsed,
+    status: { ...counts },
+    timings: timings.measures,
+  };
+}
+
+module.exports = { poll, loadState, saveState };

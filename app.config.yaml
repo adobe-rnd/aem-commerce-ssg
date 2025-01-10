@@ -16,9 +16,18 @@ application:
           check-product-changes:
             function: actions/check-product-changes/index.js
             web: 'no'
-            runtime: nodejs:18
+            runtime: nodejs:22
+            limits:
+              memorySize: 128
+              timeout: 3600000
             inputs:
               LOG_LEVEL: debug
+              storeUrl: https://staging.aemshop.net
+              orgName: adobe
+              siteName: aemshop-staging
+              configName: configs
+              storeCodes: us
+              authToken: ${AEM_ADMIN_API_AUTH_TOKEN}
             annotations:
               final: true
         triggers:
