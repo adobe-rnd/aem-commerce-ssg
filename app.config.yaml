@@ -22,11 +22,13 @@ application:
               timeout: 3600000
             inputs:
               LOG_LEVEL: debug
-              storeUrl: https://staging.aemshop.net
-              orgName: adobe
-              siteName: aemshop-staging
+              storeUrl: https://www.aemshop.net
+              PLPURIPrefix: null
+              PDPURIPrefix: /products
+              orgName: hlxsites
+              siteName: aem-boilerplate-commerce
               configName: configs
-              storeCodes: us
+              storeCodes: null
               authToken: ${AEM_ADMIN_API_AUTH_TOKEN}
             annotations:
               final: true
