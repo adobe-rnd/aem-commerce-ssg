@@ -106,6 +106,27 @@ describe('pdp-renderer', () => {
             <h1>Crown Summit Backpack</h1>
           </div>
         </div>
+        <div>
+          <div>Image</div>
+          <div>
+            <img src="http://www.aemshop.net/media/catalog/product/m/b/mb03-black-0.jpg" />
+          </div>
+        </div>
+        <div>
+          <div>Description</div>
+          <div><p>The Crown Summit Backpack is equally at home in a gym locker, study cube or a pup tent, so be sure yours is packed with books, a bag lunch, water bottles, yoga block, laptop, or whatever else you want in hand. Rugged enough for day hikes and camping trips, it has two large zippered compartments and padded, adjustable shoulder straps.</p>
+      <ul>
+      <li>Top handle.</li>
+      <li>Grommet holes.</li>
+      <li>Two-way zippers.</li>
+      <li>H 20" x W 14" x D 12".</li>
+      <li>Weight: 2 lbs, 8 oz. Volume: 29 L.</li>
+      <ul></div>
+        </div>
+        <div>
+          <div>Price</div>
+          <div>$38.00</div>
+        </div>
       </div></div>
     <div>
       <div class="product-recommendations">

@@ -74,7 +74,6 @@ function getPrimaryImage(product, role = 'image') {
  *
  * @param {string} url The URL to fetch the base template HTML from.
  * @param {Array<string>} blocks The list of block class names to replace with Handlebars partials.
- *
  * @returns {Promise<string>} The adapted base template HTML as a string.
  */
 async function prepareBaseTemplate(url, blocks) {
@@ -92,4 +91,68 @@ async function prepareBaseTemplate(url, blocks) {
   return adaptedBaseTemplate;
 }
 
-module.exports = { extractPathDetails, getProductUrl, findDescription, getPrimaryImage, prepareBaseTemplate };
+/**
+ * Returns a number formatter for the specified locale and currency.
+ *
+ * @param {string} [locale] The locale to use for formatting. Defaults to us-en.
+ * @param {string} [currency] The currency code to use for formatting. Defaults to USD.
+ * @returns {Intl.NumberFormat} The number formatter.
+ */
+function getFormatter(locale = 'us-en', currency) {
+  return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: currency || 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+  });
+};
+
+/**
+ * Generates a formatted price string of a simple or complex product.
+ * 
+ * @param {Object} product Product object.
+ * @returns {string} Formatted price string.
+ */
+function generatePriceString(product) {
+  const { price, priceRange } = product;
+  let currency = priceRange ? priceRange?.minimum?.regular?.amount?.currency : price?.regular?.amount?.currency;
+  const format = getFormatter('us-en', currency).format; // TODO: Assign the correct locale based on your implementation
+
+  let priceString = '';
+
+  if (priceRange) {
+    const hasRange = priceRange.minimum.final.amount.value !== priceRange.maximum.final.amount.value;
+    if (hasRange) {
+      const minimumDiscounted = priceRange.minimum.regular.amount.value > priceRange.minimum.final.amount.value;
+      if (minimumDiscounted) {
+        priceString = `<s>${format(priceRange.minimum.regular.amount.value)}</s> ${format(priceRange.minimum.final.amount.value)}`;
+      } else {
+        priceString = `${format(priceRange.minimum.final.amount.value)}`;
+      }
+      priceString += '-';
+      const maximumDiscounted = priceRange.maximum.regular.amount.value > priceRange.maximum.final.amount.value;
+      if (maximumDiscounted) {
+        priceString += `<s>${format(priceRange.maximum.regular.amount.value)}</s> ${format(priceRange.maximum.final.amount.value)}`;
+      } else {
+        priceString += `${format(priceRange.maximum.final.amount.value)}`;
+      }
+    } else {
+      const isDiscounted = priceRange.minimum.regular.amount.value > priceRange.minimum.final.amount.value;
+      if (isDiscounted) {
+        priceString = `<s>${format(priceRange.minimum.regular.amount.value)}</s> ${format(priceRange.minimum.final.amount.value)}`;
+      } else {
+        priceString = `${format(priceRange.minimum.final.amount.value)}`;
+      }
+    }
+  } else if (price) {
+    const isDiscounted = price.regular.amount.value > price.final.amount.value;
+    if (isDiscounted) {
+      priceString = `<s>${format(price.regular.amount.value)}</s> ${format(price.final.amount.value)}`;
+    } else {
+      priceString = `${format(price.final.amount.value)}`;
+    }
+  }
+  return priceString;
+}
+
+module.exports = { extractPathDetails, getProductUrl, findDescription, getPrimaryImage, prepareBaseTemplate, generatePriceString };
