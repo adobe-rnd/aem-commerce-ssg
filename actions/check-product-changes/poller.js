@@ -1,12 +1,8 @@
 const { Timings, aggregate } = require('./lib/benchmark');
 const { AdminAPI, getSpreadsheet } = require('./lib/aem');
 const { queries, performSaaSQuery } = require('./lib/commerce');
-
-const logger = {
-  info: console.log,
-  error: console.error,
-  debug: () => { },
-};
+const { isValidUrl } = require('./lib/util');
+const { Core } = require('@adobe/aio-sdk');
 
 async function loadState(storeCode, stateLib) {
   const stateKey = storeCode ? `${storeCode}` : 'default';
@@ -45,7 +41,42 @@ async function saveState(state, stateLib) {
   await stateLib.put(stateKey, stateData);
 }
 
-async function poll(params, stateLib, log = logger) {
+/**
+ * Checks the Adobe Commerce store for product changes, performs
+ * preview/publish/delete operstions if needed, then updates the
+ * state accordingly.
+ *
+ * @param {Object} params - The parameters object.
+ * @param {string} params.siteName - The name of the site (repo or repoless).
+ * @param {string} params.PDPURIPrefix - The URI prefix for Product Detail Pages.
+ * @param {string} params.PLPURIPrefix - The URI prefix for Product List Pages.
+ * @param {string} params.orgName - The name of the organization.
+ * @param {string} params.configName - The name of the configuration json/xlsx.
+ * @param {number} [params.requestPerSecond=5] - The number of requests per second allowed by the throttling logic.
+ * @param {string} params.authToken - The authentication token.
+ * @param {number} [params.skusRefreshInterval=600000] - The interval for refreshing SKUs in milliseconds.
+ * @param {string} [params.storeUrl] - The store's base URL.
+ * @param {string} [params.storeCodes] - Comma-separated list of store codes.
+ * @param {string} [params.LOG_LEVEL] - The log level.
+ * @param {Object} stateLib - The state provider object.
+ * @returns {Promise<Object>} The result of the polling action.
+ */
+function checkParams(params) {
+  const requiredParams = ['siteName', 'PDPURIPrefix', 'PLPURIPrefix', 'orgName', 'configName', 'authToken'];
+  const missingParams = requiredParams.filter(param => !params[param]);
+  if (missingParams.length > 0) {
+    throw new Error(`Missing required parameters: ${missingParams.join(', ')}`);
+  }
+
+  if (params.storeUrl && !isValidUrl(params.storeUrl)) {
+    throw new Error('Invalid storeUrl');
+  }
+}
+
+async function poll(params, stateLib) {
+  checkParams(params);
+
+  const log = Core.Logger('main', { level: params.LOG_LEVEL || 'info' });
   const {
     siteName,
     PDPURIPrefix,
@@ -58,7 +89,7 @@ async function poll(params, stateLib, log = logger) {
     skusRefreshInterval = 600000,
   } = params;
   const storeUrl = params.storeUrl ? params.storeUrl : `https://main--${siteName}--${orgName}.aem.live`;
-  const storeCodes = params.storeCodes ? params.storeCodes.split(',') : [ null ];
+  const storeCodes = params.storeCodes ? params.storeCodes.split(',') : [null];
 
   const counts = {
     published: 0, unpublished: 0, ignored: 0, failed: 0,
@@ -88,7 +119,7 @@ async function poll(params, stateLib, log = logger) {
       // setup preview / publish queues
 
       // get all skus
-      // check if the skus were last quieryed within the last 10 minutes
+      // check if the skus were last queried within the last 10 minutes
       if (timings.now - state.skusLastQueriedAt >= skusRefreshInterval) {
         state.skusLastQueriedAt = new Date();
         const allSkusResp = await performSaaSQuery(queries.getAllSkus, 'getAllSkus', {}, context);
@@ -164,7 +195,7 @@ async function poll(params, stateLib, log = logger) {
           // if any of the indexed PDPs is in the remaining list of skus that were not returned by the catalog service
           // consider them deleted
           const deletedProducts = publishedProducts.data.filter(({ sku }) => skus.includes(sku));
-          // we assume the amout of deleted skus is relatively small so don't batch it
+          // we assume the amount of deleted skus is relatively small so don't batch it
           if (deletedProducts.length) {
             await Promise.all(deletedProducts.map(async ({ path, sku }) => {
               const result = await adminApi.unpublishAndDelete({ path, sku });

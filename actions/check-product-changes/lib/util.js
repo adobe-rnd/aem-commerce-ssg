@@ -23,4 +23,12 @@ async function performRequest(name, url, req) {
     throw new Error(`Request '${name}' to '${url}' failed (${resp.status}): ${resp.headers.get('x-error') || resp.statusText}`);
 }
 
-module.exports = { performRequest };
+function isValidUrl(string) {
+    try {
+      return Boolean(new URL(string));
+    } catch {
+      return false;
+    }
+  }
+
+module.exports = { performRequest, isValidUrl };

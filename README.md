@@ -5,7 +5,7 @@ Welcome to my Adobe I/O Application!
 ## Setup
 
 - Populate the `.env` file in the project root and fill it as shown [below](#env)
-- Add the folllowing to [helix-query](https://www.aem.live/docs/admin.html#schema/IndexConfig) config by adding the following:
+- Add the folllowing to [helix-query](https://www.aem.live/docs/admin.html#schema/IndexConfig) config:
   ```yaml
   index-published-products:
     # adjust paths based on your specific requirements (i.e. storeCode, routes, ...)
@@ -16,7 +16,6 @@ Welcome to my Adobe I/O Application!
       - 'drafts/**'
       - 'enrichment/**'
       - 'fragments/**'
-      - 'products/**'
     properties:
       sku:
         select: head > meta[name="sku"]
@@ -26,7 +25,7 @@ Welcome to my Adobe I/O Application!
         value: parseTimestamp(headers["last-modified"], "ddd, DD MMM YYYY hh:mm:ss GMT")
       # for benchmarking in the AppBuilder action
       product-last-modified:
-        select: head > meta[name="lastmodifiedatcs"]
+        select: head > meta[name="x-cs-lastModifiedAt"]
         value: parseTimestamp(attribute(el, "content"), "YYYY-MM-DDTHH:mm:ss.SSSZ")
   ```
 

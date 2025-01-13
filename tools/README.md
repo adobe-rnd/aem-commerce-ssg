@@ -36,7 +36,7 @@ This script checks the product count consistency between the published-products-
 
 2. Run the script using Node.js:
     ```bash
-    node tools/check-products-count.js
+    node check-products-count.js
     ```
 
 3. The script will throw an error if the product counts do not match, indicating the expected and actual product counts. PLEASE NOTE: the number of products listed is just an indication to check for "macroscopic" failures, slight differences might be due to specific Commerce configs/attributes for certain products.
