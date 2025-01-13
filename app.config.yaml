@@ -12,6 +12,7 @@ application:
             inputs:
               LOG_LEVEL: debug
               HLX_CONTENT_URL: "https://main--aem-boilerplate-commerce--hlxsites.aem.live"
+              HLX_PRODUCTS_TEMPLATE: "https://main--aem-boilerplate-commerce--hlxsites.aem.live/products/default"
               HLX_STORE_URL: "https://www.aemshop.net"
               HLX_CONFIG_NAME: "configs"
             annotations:

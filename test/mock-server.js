@@ -11,10 +11,13 @@ governing permissions and limitations under the License.
 */
 const { setupServer } = require('msw/node');
 const { http, graphql, HttpResponse } = require('msw');
+const fs = require('fs');
+const path = require('path');
 
 const mockConfig = require('./mock-responses/mock-config.json');
 const mockVariants = require('./mock-responses/mock-variants.json');
 const mockProduct = require('./mock-responses/mock-product.json');
+const mockProductTemplate = fs.readFileSync(path.resolve(__dirname, './mock-responses/product-default.html'), 'utf8');
 
 const handlers = {
   defaultProduct: (matcher) => graphql.query('ProductQuery', (req) => {
@@ -28,6 +31,9 @@ const handlers = {
   return404: (matcher) => graphql.query('ProductQuery', (req) => {
     matcher?.(req);
     return HttpResponse.json({ data: { products: [] }});
+  }),
+  defaultProductTemplate : http.get('https://content.com/products/default.plain.html', () => {
+    return HttpResponse.html(mockProductTemplate);
   }),
 }
 

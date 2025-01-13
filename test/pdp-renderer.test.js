@@ -68,6 +68,7 @@ describe('pdp-renderer', () => {
 
     let passedSku;
     let calledUrl;
+    server.use(handlers.defaultProductTemplate);
     server.use(handlers.defaultProduct(({ variables, request }) => {
       calledUrl = request.url;
       passedSku = variables.sku;
@@ -98,13 +99,22 @@ describe('pdp-renderer', () => {
 <body>
   <header></header>
   <main>
-    <div class="product-details">
-      <div>
+    <div>
+      <div class="product-details">
         <div>
-          <h1>Crown Summit Backpack</h1>
+          <div>
+            <h1>Crown Summit Backpack</h1>
+          </div>
+        </div>
+      </div></div>
+    <div>
+      <div class="product-recommendations">
+        <div>
+          <div></div>
         </div>
       </div>
-    </div>  </main>
+    </div>
+  </main>
   <footer></footer>
 </body>
 </html>"

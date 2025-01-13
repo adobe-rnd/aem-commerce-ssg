@@ -1,4 +1,5 @@
 const striptags = require('striptags');
+const cheerio = require('cheerio');
 
 /**
  * Extracts the SKU from the path.
@@ -68,4 +69,27 @@ function getPrimaryImage(product, role = 'image') {
   return product?.images?.length > 0 ? product?.images?.[0] : undefined;
 }
 
-module.exports = { extractPathDetails, getProductUrl, findDescription, getPrimaryImage };
+/**
+ * Returns the base template for a product detail page. It loads a Edge Delivery page and replaces specified blocks with Handlebars partials.
+ *
+ * @param {string} url The URL to fetch the base template HTML from.
+ * @param {Array<string>} blocks The list of block class names to replace with Handlebars partials.
+ *
+ * @returns {Promise<string>} The adapted base template HTML as a string.
+ */
+async function prepareBaseTemplate(url, blocks) {
+  const baseTemplateHtml = await fetch(`${url}.plain.html`).then(resp => resp.text());
+
+  const $ = cheerio.load(`<main>${baseTemplateHtml}</main>`);
+
+  blocks.forEach(block => {
+      $(`.${block}`).replaceWith(`{{> ${block} }}`);
+  });
+
+  let adaptedBaseTemplate = $('main').prop('innerHTML');
+  adaptedBaseTemplate = adaptedBaseTemplate.replace(/&gt;/g, '>') + '\n';
+
+  return adaptedBaseTemplate;
+}
+
+module.exports = { extractPathDetails, getProductUrl, findDescription, getPrimaryImage, prepareBaseTemplate };

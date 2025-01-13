@@ -17,7 +17,7 @@ const { Core } = require('@adobe/aio-sdk')
 const Handlebars = require('handlebars');
 
 const { errorResponse, stringParameters, requestSaaS } = require('../utils');
-const { extractPathDetails, findDescription} = require('./lib');
+const { extractPathDetails, findDescription, prepareBaseTemplate } = require('./lib');
 const { ProductQuery } = require('./queries');
 const { generateLdJson } = require('./ldJson');
 
@@ -37,21 +37,24 @@ function toMetaTemplateData(baseProduct) {
  * @param {string} params.__ow_query.configName Overwrite for HLX_CONFIG_NAME
  * @param {string} params.__ow_query.contentUrl Overwrite for HLX_CONTENT_URL
  * @param {string} params.__ow_query.storeUrl Overwrite for HLX_STORE_URL
+ * @param {string} params.__ow_query.productsTemplate Overwrite for HLX_PRODUCTS_TEMPLATE
  * @param {string} params.HLX_CONFIG_NAME The config sheet to use (e.g. configs for prod, configs-dev for dev)
  * @param {string} params.HLX_CONTENT_URL Edge Delivery URL of the store (e.g. aem.live)
  * @param {string} params.HLX_STORE_URL Public facing URL of the store
+ * @param {string} params.HLX_PRODUCTS_TEMPLATE URL to the products template page
  */
 async function main (params) {
   const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' })
 
   try {
     logger.debug(stringParameters(params))
-    const { __ow_path, __ow_query, HLX_STORE_URL, HLX_CONTENT_URL, HLX_CONFIG_NAME } = params;
+    const { __ow_path, __ow_query, HLX_STORE_URL, HLX_CONTENT_URL, HLX_CONFIG_NAME, HLX_PRODUCTS_TEMPLATE } = params;
     const { sku } = extractPathDetails(__ow_path);
 
     const configName = __ow_query?.configName || HLX_CONFIG_NAME;
     const contentUrl = __ow_query?.contentUrl || HLX_CONTENT_URL;
     const storeUrl = __ow_query?.storeUrl || HLX_STORE_URL || contentUrl;
+    const productsTemplate = __ow_query?.productsTemplate || HLX_PRODUCTS_TEMPLATE || `${HLX_CONTENT_URL}/products/default`;
     const context = { contentUrl, storeUrl, configName };
 
     if (!sku || !contentUrl) {
@@ -72,12 +75,18 @@ async function main (params) {
     // Generate LD-JSON
     const ldJson = await generateLdJson(baseProduct, context);
 
-    // TODO: Add base template logic
+    // Retrieve default product page as template
+    const blocksToReplace = [
+      'product-details',
+    ];
+    const baseTemplate = await prepareBaseTemplate(productsTemplate, blocksToReplace);
+
     // Load the Handlebars template
     const [pageHbs, headHbs, productDetailsHbs] = ['page', 'head', 'product-details'].map((template) => fs.readFileSync(path.join(__dirname, 'templates', `${template}.hbs`), 'utf8'));
     const pageTemplate = Handlebars.compile(pageHbs);
     Handlebars.registerPartial('head', headHbs);
     Handlebars.registerPartial('product-details', productDetailsHbs);
+    Handlebars.registerPartial('content', baseTemplate);
 
     const response = {
       statusCode: 200,
