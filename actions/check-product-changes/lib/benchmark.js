@@ -15,6 +15,15 @@ class Timings {
     lastTime = new Date();
     now = new Date();
 
+    /**
+     * Records a timing sample with the given name and elapsed time.
+     * If the elapsed time is not provided, it calculates the elapsed time
+     * since the last recorded time.
+     *
+     * @param {string} name - The name of the timing sample.
+     * @param {number} [elapsed] - The elapsed time in milliseconds. If not provided, it will be calculated.
+     * @returns {Timings} The current instance of the Timings class.
+     */
     sample(name, elapsed) {
         if (elapsed === undefined) {
             elapsed = new Date() - this.lastTime;
@@ -25,6 +34,16 @@ class Timings {
     }
 }
 
+/**
+ * Aggregates an array of numeric values to calculate the maximum, minimum, average, and count.
+ *
+ * @param {number[]} values - The array of numeric values to aggregate.
+ * @returns {Object} An object containing the following properties:
+ *   - {number} max - The maximum value in the array, or 0 if the array is empty.
+ *   - {number} min - The minimum value in the array, or 0 if the array is empty.
+ *   - {number} avg - The average value of the array, or 0 if the array is empty.
+ *   - {number} n - The number of elements in the array.
+ */
 function aggregate(values) {
     const n = values.length;
     const max = n > 0 ? Math.max(...values) : 0;

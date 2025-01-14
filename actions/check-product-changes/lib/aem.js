@@ -12,6 +12,17 @@ governing permissions and limitations under the License.
 
 const { performRequest } = require('./util');
 
+/**
+ * Fetches data from a specified spreadsheet (or index).
+ *
+ * @param {string} name - The name of the spreadsheet.
+ * @param {Object} context - The context object containing store information.
+ * @param {string} context.storeUrl - The base URL of the store.
+ * @param {string} [context.storeCode] - The code of the store (optional, can be null).
+ * @param {Object} [options={}] - Additional options for the request.
+ * @param {string} [options.sheet] - The specific sheet to fetch within the spreadsheet (optional).
+ * @returns {Promise<Object>} - A promise that resolves to the data from the spreadsheet.
+ */
 async function getSpreadsheet(name, context, options = {}) {
     const { sheet } = options;
     const { storeUrl, storeCode } = context;
@@ -23,6 +34,17 @@ async function getSpreadsheet(name, context, options = {}) {
     return performRequest(context, 'spreadsheet', indexURL);
 }
 
+/**
+ * Fetches and returns the configuration data for the given context.
+ * If the configuration data is not already present in the context, it fetches the data
+ * from the specified spreadsheet and stores it in the context.
+ *
+ * @param {Object} context - The context object containing store information.
+ * @param {string} context.configName - The name of the configuration spreadsheet.
+ * @param {string} context.storeUrl - The base URL of the store.
+ * @param {string} [context.storeCode] - The code of the store (optional, can be null).
+ * @returns {Promise<Object>} - A promise that resolves to the configuration data.
+ */
 async function getConfig(context) {
     const { configName } = context;
     if (!context.config) {
@@ -32,6 +54,17 @@ async function getConfig(context) {
     return context.config;
 }
 
+/**
+ * Creates an instance of AdminAPI.
+ * @param {Object} params - The parameters for the AdminAPI.
+ * @param {string} params.org - The organization name.
+ * @param {string} params.site - The site name.
+ * @param {Object} context - The context object containing store information.
+ * @param {Object} [options={}] - Additional options for the AdminAPI.
+ * @param {number} [options.requestPerSecond=5] - The number of requests per second.
+ * @param {number} [options.publishBatchSize=100] - The batch size for publishing.
+ * @param {string} [options.authToken] - The authentication token.
+ */
 class AdminAPI {
     previewQueue = [];
     publishQueue = [];
