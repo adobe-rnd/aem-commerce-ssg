@@ -85,6 +85,21 @@ function checkParams(params) {
   }
 }
 
+async function deleteBatch({counts, batch, state, adminApi}) {
+  return Promise.all(batch.map(async ({ path, sku }) => {
+    const result = await adminApi.unpublishAndDelete({ path, sku });
+    if (result.deletedAt) {
+      counts.unpublished++;
+    } else {
+      counts.failed++;
+    }
+    // always delete the sku from the state if it needs to be re-published this will happen automatically.
+    // If we remove it only if the delete was successful we might end up with a sku that is the state
+    // but was not fully un-published
+    delete state.skus[sku];
+  }));
+}
+
 async function poll(params, stateLib) {
   checkParams(params);
 
@@ -207,20 +222,21 @@ async function poll(params, stateLib) {
           // if any of the indexed PDPs is in the remaining list of skus that were not returned by the catalog service
           // consider them deleted
           const deletedProducts = publishedProducts.data.filter(({ sku }) => skus.includes(sku));
-          // we assume the amount of deleted skus is relatively small so don't batch it
+          // we batch the deleted products to avoid the risk of HTTP 429 from the AEM Admin API
           if (deletedProducts.length) {
-            await Promise.all(deletedProducts.map(async ({ path, sku }) => {
-              const result = await adminApi.unpublishAndDelete({ path, sku });
-              if (result.deletedAt) {
-                counts.unpublished++;
-              } else {
-                counts.failed++;
+            // delete in batches of batchSize, then save state in case we get interrupted
+            let batch = [];
+            for (const product of deletedProducts) {
+              batch.push(product);
+              if (batch.length === batchSize) {
+                // deleteBatch has side effects on state and counts, by design
+                await deleteBatch({counts, batch, state, adminApi});
+                batch = [];
               }
-              // always delete the sku from the state if it needs to be re-published this will happen automatically.
-              // If we remove it only if the delete was successful we might end up with a sku that is the state
-              // but was not fully un-published
-              delete state.skus[sku];
-            }));
+            }
+            if (batch.length > 0) {
+              await deleteBatch({counts, batch, state, adminApi});
+            }
             // save state after deletes
             await saveState(state, stateLib);
           }
