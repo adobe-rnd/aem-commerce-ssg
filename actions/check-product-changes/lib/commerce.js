@@ -48,41 +48,6 @@ query getAllSkusPaginated($currentPage: Int!) {
 }
 `,
 };
-
-/**
- * Performs a core query to the Commerce Core GraphQL API.
- *
- * @param {string} query - The GraphQL query string.
- * @param {string} operationName - The name of the GraphQL operation.
- * @param {Object} variables - The variables for the GraphQL query.
- * @param {Object} context - The context object containing configuration and store URL.
- * @param {string} context.storeUrl - The store's base URL.
- * @returns {Promise<Object>} - The response from the Commerce Core GraphQL API.
- */
-async function performCoreQuery(query, operationName, variables, context) {
-    const { storeUrl } = context;
-    const config = await getConfig(context);
-    const headers = {
-      'Content-Type': 'application/json',
-      Store: config['commerce-store-view-code'],
-      Origin: storeUrl,
-    };
-    const method = 'POST';
-    return performRequest(
-      context,
-      `${operationName}(${JSON.stringify(variables)})`,
-      config['commerce-core-endpoint'],
-      {
-        method,
-        headers,
-        body: JSON.stringify({
-          operationName,
-          query,
-          variables,
-        }),
-      },
-    );
-  }
   
   /**
    * Performs a SaaS query to the Commerce Catalog Service API.
@@ -125,4 +90,4 @@ async function performCoreQuery(query, operationName, variables, context) {
     );
   }
   
-  module.exports = { performCoreQuery, performSaaSQuery, queries };
+  module.exports = { performSaaSQuery, queries };
