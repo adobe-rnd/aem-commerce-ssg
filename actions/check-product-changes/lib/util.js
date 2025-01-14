@@ -1,4 +1,5 @@
-async function performRequest(name, url, req) {
+async function performRequest(ctx, name, url, req) {
+  const { log } = ctx;
     // allow requests for 60s max
     const abortController = new AbortController();
     const abortTimeout = setTimeout(() => abortController.abort(), 60000);
@@ -18,6 +19,13 @@ async function performRequest(name, url, req) {
             // ok but no content
             return null;
         }
+    } else {
+      let responseText = '';
+      try {
+        responseText = await resp.text();
+      // eslint-disable-next-line no-unused-vars
+      } catch (e) { /* nothing to be done */ }
+      log.error(`error statusCode=${resp.status} request='${name}': ${responseText || ''}`);
     }
 
     throw new Error(`Request '${name}' to '${url}' failed (${resp.status}): ${resp.headers.get('x-error') || resp.statusText}`);

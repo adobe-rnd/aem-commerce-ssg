@@ -8,7 +8,7 @@ async function getSpreadsheet(name, context, options = {}) {
     if (sheet) {
         indexURL += `?sheet=${sheet}`;
     }
-    return performRequest('spreadsheet', indexURL);
+    return performRequest(context, 'spreadsheet', indexURL);
 }
 
 async function getConfig(context) {
@@ -115,7 +115,7 @@ class AdminAPI {
         if (this.authToken) {
             req.headers['x-auth-token'] = this.authToken;
         }
-        return performRequest(route, adminUrl, req);
+        return performRequest(this.context, route, adminUrl, req);
     }
 
     doPreview(item) {

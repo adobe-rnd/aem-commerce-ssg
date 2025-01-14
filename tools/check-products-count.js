@@ -1,8 +1,7 @@
 require('dotenv').config();
 
-const { performSaaSQuery } = require('../../actions/check-product-changes/lib/commerce')
-const { queries } = require('../../actions/check-product-changes/lib/commerce');
-const { getSpreadsheet } = require('../../actions/check-product-changes/lib/aem');
+const { performSaaSQuery, queries } = require('../actions/check-product-changes/lib/commerce');
+const { getSpreadsheet } = require('../actions/check-product-changes/lib/aem');
 
 async function main() {
     // TODO: fetch from app.config.yaml (incl. mapped env vars)?

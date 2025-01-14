@@ -24,7 +24,7 @@ getLastModified: `
   }
 `,
 getAllSkusPaginated: `
-query getAllSkus($currentPage: Int!) {
+query getAllSkusPaginated($currentPage: Int!) {
 	productSearch(phrase: "", page_size: 500, current_page: $currentPage) {
 		items {
 			productView {
@@ -47,6 +47,7 @@ async function performCoreQuery(query, operationName, variables, context) {
     };
     const method = 'POST';
     return performRequest(
+      context,
       `${operationName}(${JSON.stringify(variables)})`,
       config['commerce-core-endpoint'],
       {
@@ -77,6 +78,7 @@ async function performCoreQuery(query, operationName, variables, context) {
 
     const method = 'POST';
     return performRequest(
+      context,
       `${operationName}(${JSON.stringify(variables)})`,
       config['commerce-endpoint'],
       {
