@@ -189,7 +189,7 @@ async function poll(params, stateLib) {
         if (urlKey?.match(/^[a-zA-Z0-9-]+$/)
           && lastModifiedDate >= lastPreviewDate) {
           // preview & publish
-          const path = (storeCode ? `/${storeCode}${PDPURIPrefix}/${urlKey}` : `${PDPURIPrefix}/${urlKey}`).toLowerCase();
+          const path = (storeCode ? `/${storeCode}${PDPURIPrefix}/${urlKey}/${sku}` : `${PDPURIPrefix}/${urlKey}/${sku}`).toLowerCase();
           const req = adminApi.previewAndPublish({ path, sku });
           batch.push(req);
         } else {
