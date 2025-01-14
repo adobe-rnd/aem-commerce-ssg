@@ -59,7 +59,7 @@ async function main (params) {
     const configName = __ow_query?.configName || HLX_CONFIG_NAME;
     const contentUrl = __ow_query?.contentUrl || HLX_CONTENT_URL;
     const storeUrl = __ow_query?.storeUrl || HLX_STORE_URL || contentUrl;
-    const productsTemplate = __ow_query?.productsTemplate || HLX_PRODUCTS_TEMPLATE || `${HLX_CONTENT_URL}/products/default`;
+    const productsTemplate = __ow_query?.productsTemplate || HLX_PRODUCTS_TEMPLATE;
     const context = { contentUrl, storeUrl, configName };
 
     if (!sku || !contentUrl) {
@@ -81,18 +81,24 @@ async function main (params) {
     // Generate LD-JSON
     const ldJson = await generateLdJson(baseProduct, context);
 
-    // Retrieve default product page as template
-    const blocksToReplace = [
-      'product-details',
-    ];
-    const baseTemplate = await prepareBaseTemplate(productsTemplate, blocksToReplace);
-
     // Load the Handlebars template
     const [pageHbs, headHbs, productDetailsHbs] = ['page', 'head', 'product-details'].map((template) => fs.readFileSync(path.join(__dirname, 'templates', `${template}.hbs`), 'utf8'));
     const pageTemplate = Handlebars.compile(pageHbs);
     Handlebars.registerPartial('head', headHbs);
-    Handlebars.registerPartial('product-details', productDetailsHbs);
-    Handlebars.registerPartial('content', baseTemplate);
+
+    if (productsTemplate) {
+      // Retrieve default product page as template
+      const blocksToReplace = [
+        'product-details',
+      ];
+      const baseTemplate = await prepareBaseTemplate(productsTemplate, blocksToReplace);
+
+      Handlebars.registerPartial('product-details', productDetailsHbs);
+      Handlebars.registerPartial('content', baseTemplate);
+    } else {
+      // Use product details block as sole content if no products template is defined
+      Handlebars.registerPartial('content', productDetailsHbs);
+    }
 
     const response = {
       statusCode: 200,

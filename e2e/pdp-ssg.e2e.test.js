@@ -30,6 +30,27 @@ test('simple product markup', async () => {
   // Validate H1
   expect($('h1').text()).toEqual('Crown Summit Backpack');
 
+  // Validate price
+  expect($('.product-details > div > div:contains("Price")').next().text()).toEqual('$38.00');
+
+  // Validate image
+  expect($('.product-details > div > div:contains("Image")').next().find('img').attr('src')).toEqual('http://www.aemshop.net/media/catalog/product/m/b/mb03-black-0.jpg');
+
+  // Validate no options
+  expect($('.product-details > div > div:contains("Options")')).toHaveLength(0);
+
+  // Validate description
+  expect($('.product-details > div > div:contains("Description")').next().html().trim()).toMatchInlineSnapshot(`
+"<p>The Crown Summit Backpack is equally at home in a gym locker, study cube or a pup tent, so be sure yours is packed with books, a bag lunch, water bottles, yoga block, laptop, or whatever else you want in hand. Rugged enough for day hikes and camping trips, it has two large zippered compartments and padded, adjustable shoulder straps.</p>
+      <ul>
+      <li>Top handle.</li>
+      <li>Grommet holes.</li>
+      <li>Two-way zippers.</li>
+      <li>H 20" x W 14" x D 12".</li>
+      <li>Weight: 2 lbs, 8 oz. Volume: 29 L.</li>
+      <ul></ul></ul>"
+`);
+
   // Validate LD-JSON
   const ldJson = JSON.parse($('script[type="application/ld+json"]').html());
   const expected = {
@@ -65,6 +86,43 @@ test('complex product markup', async () => {
 
   // Validate H1
   expect($('h1').text()).toEqual('Hollister Backyard Sweatshirt');
+
+  // Validate price
+  expect($('.product-details > div > div:contains("Price")').next().text()).toEqual('$2.00-$52.00');
+
+  // Validate image
+  expect($('.product-details > div > div:contains("Image")').next().find('img').attr('src')).toEqual('http://www.aemshop.net/media/catalog/product/m/h/mh05-white_main_1.jpg');
+
+  // Validate options
+  expect($('.product-details > div > div:contains("Options")')).toHaveLength(1);
+  expect($('.product-details > div > div:contains("Options")').next().html().trim()).toMatchInlineSnapshot(`
+"<ul>
+              <li>
+                Size
+                <ul>
+                  <li>XS</li>
+                  <li>S</li>
+                  <li>M</li>
+                  <li>L</li>
+                  <li>XL</li>
+                </ul>
+              </li>
+              <li>
+                Color
+                <ul>
+                  <li>Green</li>
+                  <li>Red</li>
+                  <li>White</li>
+                </ul>
+              </li>
+            </ul>"
+`);
+
+  // Validate description
+  expect($('.product-details > div > div:contains("Description")').next().html().trim()).toMatchInlineSnapshot(`
+"<p>Kick off your weekend in the Hollister Backyard Sweatshirt. Whether you're raking leaves or flipping burgers, this comfy layer blocks the bite of the crisp autumn air. Puffy thick from hood to hem, it traps heat against your core.</p>
+      <p>• Cream crewneck sweatshirt with navy sleeves/trim.<br>• Relaxed fit. <br>• Ribbed cuffs and hem. <br>• Machine wash/dry.</p>"
+`);
 
   // Validate LD-JSON
   const ldJson = JSON.parse($('script[type="application/ld+json"]').html());
