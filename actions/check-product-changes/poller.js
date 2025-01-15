@@ -16,6 +16,8 @@ const { queries, requestSaaS, requestSpreadsheet } = require('../utils');
 const { isValidUrl } = require('./lib/util');
 const { Core } = require('@adobe/aio-sdk');
 
+const BATCH_SIZE = 50;
+
 async function loadState(storeCode, stateLib) {
   const stateKey = storeCode ? `${storeCode}` : 'default';
   const stateData = await stateLib.get(stateKey);
@@ -41,7 +43,7 @@ async function loadState(storeCode, stateLib) {
 }
 
 async function saveState(state, stateLib) {
-  let {storeCode} = state;
+  let { storeCode } = state;
   if (!storeCode) {
     storeCode = 'default';
   }
@@ -85,7 +87,7 @@ function checkParams(params) {
   }
 }
 
-async function deleteBatch({counts, batch, state, adminApi}) {
+async function deleteBatch({ counts, batch, state, adminApi }) {
   return Promise.all(batch.map(async ({ path, sku }) => {
     const result = await adminApi.unpublishAndDelete({ path, sku });
     if (result.deletedAt) {
@@ -98,6 +100,11 @@ async function deleteBatch({counts, batch, state, adminApi}) {
     // but was not fully un-published
     delete state.skus[sku];
   }));
+}
+
+function shouldProcessProduct(product) {
+  const { urlKey, lastModifiedDate, lastPreviewDate } = product;
+  return urlKey?.match(/^[a-zA-Z0-9-]+$/) && lastModifiedDate >= lastPreviewDate;
 }
 
 async function poll(params, stateLib) {
@@ -168,46 +175,51 @@ async function poll(params, stateLib) {
       timings.sample('fetchedLastModifiedDates');
       log.info(`Fetched last modified date for ${lastModifiedResp.data.products.length} skus, total ${skus.length}`);
 
-      // preview in batches of 50, then save state in case we get interrupted
-      const batchSize = 50;
-      let batch = [];
-      for (let i = 0; i < lastModifiedResp.data.products.length; i++) {
-        const { sku, urlKey, lastModifiedAt } = lastModifiedResp.data.products[i];
-        const lastPreviewedAt = state.skus[sku] || 0;
-        const lastPreviewDate = new Date(lastPreviewedAt);
-        const lastModifiedDate = new Date(lastModifiedAt);
+      // group preview in batches of 50
+      let products = lastModifiedResp.data.products
+        .map((product) => {
+          const { sku, lastModifiedAt } = product;
+          const lastPreviewedAt = state.skus[sku] || 0;
+          const lastPreviewDate = new Date(lastPreviewedAt);
+          const lastModifiedDate = new Date(lastModifiedAt);
 
+          return { ...product, lastModifiedDate, lastPreviewDate };
+        }) // inject the lastModifiedDate and lastPreviewDate into the product object
+
+      products.forEach((product) => {
+        const { sku } = product;
         // remove the sku from the list of currently known skus
         skus.splice(skus.indexOf(sku), 1);
 
-        // skip if
-        // - the product was not modified since last preview
-        // - has no urlKey
-        if (urlKey?.match(/^[a-zA-Z0-9-]+$/)
-          && lastModifiedDate >= lastPreviewDate) {
-          // preview & publish
+        // increment count of ignored products if condition is not met
+        if (!shouldProcessProduct(product)) counts.ignored += 1;
+      })
+
+      const batches = products.filter(shouldProcessProduct)
+        .reduce((acc, product, i, arr) => {
+          const { sku, urlKey } = product;
           const path = (storeCode ? `/${storeCode}${PDPURIPrefix}/${urlKey}/${sku}` : `${PDPURIPrefix}/${urlKey}/${sku}`).toLowerCase();
           const req = adminApi.previewAndPublish({ path, sku });
-          batch.push(req);
-        } else {
-          // ignore
-          counts.ignored += 1;
-        }
-
-        if (batch.length === batchSize || i === lastModifiedResp.data.products.length - 1) {
-          const response = await Promise.all(batch);
-          for (const { sku, previewedAt, publishedAt } of response) {
-            if (previewedAt && publishedAt) {
-              state.skus[sku] = previewedAt;
-              counts.published++;
-            } else {
-              counts.failed++;
-            }
+          acc.push(req);
+          if (acc.length === BATCH_SIZE || i === arr.length - 1) {
+            return [...acc];
           }
-          await saveState(state, stateLib);
-          batch = [];
+          return acc;
+        });
+
+      // preview batches , then save state in case we get interrupted
+      batches.forEach(async (batch) => {
+        const response = await Promise.all(batch);
+        for (const { sku, previewedAt, publishedAt } of response) {
+          if (previewedAt && publishedAt) {
+            state.skus[sku] = previewedAt;
+            counts.published++;
+          } else {
+            counts.failed++;
+          }
         }
-      }
+        await saveState(state, stateLib);
+      })
 
       timings.sample('publishedPaths');
 
@@ -221,18 +233,18 @@ async function poll(params, stateLib) {
           const deletedProducts = publishedProducts.data.filter(({ sku }) => skus.includes(sku));
           // we batch the deleted products to avoid the risk of HTTP 429 from the AEM Admin API
           if (deletedProducts.length) {
-            // delete in batches of batchSize, then save state in case we get interrupted
+            // delete in batches of BATCH_SIZE, then save state in case we get interrupted
             let batch = [];
             for (const product of deletedProducts) {
               batch.push(product);
-              if (batch.length === batchSize) {
+              if (batch.length === BATCH_SIZE) {
                 // deleteBatch has side effects on state and counts, by design
-                await deleteBatch({counts, batch, state, adminApi});
+                await deleteBatch({ counts, batch, state, adminApi });
                 batch = [];
               }
             }
             if (batch.length > 0) {
-              await deleteBatch({counts, batch, state, adminApi});
+              await deleteBatch({ counts, batch, state, adminApi });
             }
             // save state after deletes
             await saveState(state, stateLib);
