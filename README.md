@@ -105,4 +105,5 @@ and make sure you have the below config added
 ## LiveSearch
 
 The action uses LiveSearch to list products from the store.
-PLEASE NOTE: LiveSearch has a hard limit: the maximum number of results that can be returned in a search query is 10,000. For further details, please see https://experienceleague.adobe.com/en/docs/commerce-merchant-services/live-search/boundaries-limits#query
+PLEASE NOTE that LiveSearch has a hard limit on the maximum number of results that can be returned in a search query: 10,000.
+For further details, please see https://experienceleague.adobe.com/en/docs/commerce-merchant-services/live-search/boundaries-limits#query
