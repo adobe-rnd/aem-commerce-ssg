@@ -39,9 +39,6 @@ application:
               # PDPURIPrefix: URI prefix for the Product Pages
               # i.e.: /products
               PDPURIPrefix: /products
-              # PLPURIPrefix: URI prefix for the Category/Product List Pages
-              # i.e.: /categories. null if no URI prefix is used for Categories
-              PLPURIPrefix: null
               authToken: ${AEM_ADMIN_API_AUTH_TOKEN}
             annotations:
               final: true

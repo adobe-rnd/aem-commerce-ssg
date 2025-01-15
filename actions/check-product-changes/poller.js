@@ -107,8 +107,6 @@ async function poll(params, stateLib) {
   const {
     siteName,
     PDPURIPrefix,
-    // eslint-disable-next-line no-unused-vars
-    PLPURIPrefix,
     orgName,
     configName,
     requestPerSecond = 5,
