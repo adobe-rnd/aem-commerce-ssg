@@ -60,6 +60,25 @@ You can generate this file using the command `aio app use`.
 ### `app.config.yaml`
 
 - Main configuration file that defines an application's implementation. 
+- Once ready, the action `check-product-changes` - in charge of detecting product changes, triggering generation and publishing of the respective Product Detail Pages - needs to be configured for periodic activation (every 1 minute); to do so, just comment out the following block from the yaml file:
+  ```yaml
+        # triggers:
+        #   everyMinTrigger:
+        #     feed: /whisk.system/alarms/interval
+        #     inputs: 
+        #       minutes: 1
+        # rules:
+        #   everyMinRule:
+        #   # When the action is invoked, it first checks
+        #   # that no instances of the same action are already
+        #   # running. If an instance is running, business logic
+        #   # execution is skipped; if no instances are running,
+        #   # it scans the Catalog to check for product changes.
+        #   # The above means that the actual logic is not
+        #   # necessarily executed every minute.
+        #     trigger: everyMinTrigger
+        #     action: check-product-changes
+  ```
 - More information on this file, application configuration, and extension configuration 
   can be found [here](https://developer.adobe.com/app-builder/docs/guides/appbuilder-configuration/#appconfigyaml)
 
