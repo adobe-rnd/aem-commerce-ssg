@@ -27,10 +27,16 @@ function getOffer(product, url) {
 }
 
 async function getVariants(baseProduct, url, axes, context) {
+  const { logger } = context;
   const variantsData = await requestSaaS(VariantsQuery, 'VariantsQuery', { sku: baseProduct.sku }, context);
   const variants = variantsData.data.variants.variants;
 
   return variants.map(variant => {
+    if (!variant.product) {
+      logger.error(`Variant of product ${baseProduct?.sku} is null. Variant data is not correctly synchronized.`, variant);
+      throw new Error('Product variant is null');
+    }
+
     const variantImage = getPrimaryImage(variant.product, null);
     const variantUrl = new URL(url);
     variantUrl.searchParams.append('optionsUIDs', variant.selections.sort().join(','));

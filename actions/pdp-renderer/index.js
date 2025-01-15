@@ -60,7 +60,7 @@ async function main (params) {
     const contentUrl = __ow_query?.contentUrl || HLX_CONTENT_URL;
     const storeUrl = __ow_query?.storeUrl || HLX_STORE_URL || contentUrl;
     const productsTemplate = __ow_query?.productsTemplate || HLX_PRODUCTS_TEMPLATE;
-    const context = { contentUrl, storeUrl, configName };
+    const context = { contentUrl, storeUrl, configName, logger };
 
     if (!sku || !contentUrl) {
       return errorResponse(400, 'Invalid path', logger);

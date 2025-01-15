@@ -10,13 +10,19 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
+const { graphql, HttpResponse } = require('msw');
+
 const { generateLdJson } = require('../actions/pdp-renderer/ldJson');
 const { useMockServer, handlers } = require('./mock-server.js');
 
 describe('ldJson', () => {
 
-    const mockContext = { contentUrl: 'https://content.com', storeUrl: 'https://example.com', configName: 'config' };
+    const mockContext = { contentUrl: 'https://content.com', storeUrl: 'https://example.com', configName: 'config', logger: { error: jest.fn() } };
     const server = useMockServer();
+
+    beforeEach(() => {
+        mockContext.logger.error.mockClear();
+    });
 
     test('generate ldJson for simple product', async () => {
         const product = {
@@ -164,4 +170,44 @@ describe('ldJson', () => {
         const context = {};
         await expect(generateLdJson(product, context)).rejects.toThrow('Unsupported product type');
     });
+
+    test('fail for null variant', async () => {
+        const product = {
+            __typename: 'ComplexProductView',
+            name: 'Complex Product',
+            sku: 'complex-sku',
+            urlKey: 'complex-product',
+            shortDescription: 'short description',
+            metaDescription: 'meta description',
+            description: 'full description',
+            options: [
+                { id: 'color' },
+                { id: 'size' }
+            ],
+            priceRange: {},
+            inStock: true,
+            images: [
+                { url: 'image1.jpg', roles: ['image'] }
+            ]
+        };
+
+        server.use(graphql.query('VariantsQuery', () => HttpResponse.json({
+            data: {
+                variants: {
+                    variants: [
+                        {
+                            selections: [
+                                'color-green',
+                                'size-l'
+                            ],
+                            product: null
+                        }
+                    ]
+                }
+            }
+        })));
+
+        await expect(generateLdJson(product, mockContext)).rejects.toThrow('Product variant is null');
+        expect(mockContext.logger.error).toHaveBeenCalled();
+    })
 });
