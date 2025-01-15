@@ -10,7 +10,7 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
-const { performRequest } = require('./util');
+const { request } = require('../../utils');
 
 /**
  * Fetches data from a specified spreadsheet (or index).
@@ -31,7 +31,7 @@ async function getSpreadsheet(name, context, options = {}) {
     if (sheet) {
         indexURL += `?sheet=${sheet}`;
     }
-    return performRequest(context, 'spreadsheet', indexURL);
+    return request('spreadsheet', indexURL);
 }
 
 /**
@@ -160,7 +160,7 @@ class AdminAPI {
         if (this.authToken) {
             req.headers['x-auth-token'] = this.authToken;
         }
-        return performRequest(this.context, route, adminUrl, req);
+        return request(route, adminUrl, req);
     }
 
     doPreview(item) {

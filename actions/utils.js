@@ -161,6 +161,8 @@ async function request(name, url, req, timeout = 60000) {
   // clear the abort timeout if the request passed
   clearTimeout(abortTimeout);
 
+  let responseText = '';
+
   if (resp.ok) {
     if (resp.status < 204) {
       // ok with content
@@ -169,9 +171,14 @@ async function request(name, url, req, timeout = 60000) {
       // ok but no content
       return null;
     }
+  } else {
+    try {
+      responseText = await resp.text();
+    // eslint-disable-next-line no-unused-vars
+    } catch (e) { /* nothing to be done */ }
   }
 
-  throw new Error(`Request '${name}' to '${url}' failed (${resp.status}): ${resp.headers.get('x-error') || resp.statusText}`);
+  throw new Error(`Request '${name}' to '${url}' failed (${resp.status}): ${resp.headers.get('x-error') || resp.statusText}${responseText.length > 0 ? ` responseText: ${responseText}` : ''}`);
 }
 
 /**
@@ -257,6 +264,21 @@ async function requestSaaS(query, operationName, variables, context, configOverr
   );
 }
 
+
+/**
+ * Checks if a given string is a valid URL.
+ *
+ * @param {string} string - The string to be checked.
+ * @returns {boolean} - Returns true if the string is a valid URL, otherwise false.
+ */
+function isValidUrl(string) {
+  try {
+    return Boolean(new URL(string));
+  } catch {
+    return false;
+  }
+}
+
 module.exports = {
   errorResponse,
   getBearerToken,
@@ -266,4 +288,5 @@ module.exports = {
   getConfig,
   request,
   requestSpreadsheet,
+  isValidUrl,
 }

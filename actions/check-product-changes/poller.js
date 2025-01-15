@@ -11,8 +11,8 @@ governing permissions and limitations under the License.
 */
 
 const { Timings, aggregate } = require('./lib/benchmark');
-const { AdminAPI, getSpreadsheet } = require('./lib/aem');
-const { queries, performSaaSQuery } = require('./lib/commerce');
+const { AdminAPI } = require('./lib/aem');
+const { queries, requestSaaS, requestSpreadsheet } = require('../utils');
 const { isValidUrl } = require('./lib/util');
 const { Core } = require('@adobe/aio-sdk');
 
@@ -149,10 +149,9 @@ async function poll(params, stateLib) {
       // check if the skus were last queried within the last 10 minutes
       if (timings.now - state.skusLastQueriedAt >= skusRefreshInterval) {
         state.skusLastQueriedAt = new Date();
-        const allSkusResp = await performSaaSQuery(queries.getAllSkus, 'getAllSkus', {}, context);
+        const allSkusResp = await requestSaaS(queries.getAllSkus, 'getAllSkus', {}, context);
         const allSkus = allSkusResp.data.productSearch.items
           .map(({ productView }) => productView || {})
-          .map(({ sku }) => sku?.toUpperCase()) // enforce uppercase
           .filter(Boolean);
         // add new skus to state if any
         for (const sku of allSkus) {
@@ -167,7 +166,7 @@ async function poll(params, stateLib) {
 
       // get last modified dates
       const skus = Object.keys(state.skus);
-      const lastModifiedResp = await performSaaSQuery(queries.getLastModified, 'getLastModified', { skus }, context);
+      const lastModifiedResp = await requestSaaS(queries.getLastModified, 'getLastModified', { skus }, context);
       timings.sample('fetchedLastModifiedDates');
       log.info(`Fetched last modified date for ${lastModifiedResp.data.products.length} skus, total ${skus.length}`);
 
@@ -218,7 +217,7 @@ async function poll(params, stateLib) {
       // have been disabled/deleted
       if (skus.length) {
         try {
-          const publishedProducts = await getSpreadsheet('published-products-index', null, context);
+          const publishedProducts = await requestSpreadsheet('published-products-index', null, context);
           // if any of the indexed PDPs is in the remaining list of skus that were not returned by the catalog service
           // consider them deleted
           const deletedProducts = publishedProducts.data.filter(({ sku }) => skus.includes(sku));
