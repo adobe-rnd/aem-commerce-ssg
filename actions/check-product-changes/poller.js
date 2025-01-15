@@ -219,7 +219,7 @@ async function poll(params, stateLib) {
           }
         }
         await saveState(state, stateLib);
-      })
+      }
 
       timings.sample('publishedPaths');
 
