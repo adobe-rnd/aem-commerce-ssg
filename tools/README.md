@@ -93,7 +93,7 @@ This script is used to download and display poller statistics from Adobe I/O Run
 
 2. Run the script using Node.js:
     ```bash
-    node tools/download-poller-stats.js
+    node download-poller-stats.js
     ```
 
 3. The script will output the poller statistics in CSV format.
