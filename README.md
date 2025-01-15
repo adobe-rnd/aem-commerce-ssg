@@ -12,10 +12,6 @@ Welcome to my Adobe I/O Application!
     target: s3://published-products-index.json
     include:
       - 'products/**'
-    exclude:
-      - 'drafts/**'
-      - 'enrichment/**'
-      - 'fragments/**'
     properties:
       sku:
         select: head > meta[name="sku"]
