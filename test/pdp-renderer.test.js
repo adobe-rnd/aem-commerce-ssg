@@ -10,6 +10,7 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
+const cheerio = require('cheerio');
 const { useMockServer, handlers } = require('./mock-server.js');
 
 jest.mock('@adobe/aio-sdk', () => ({
@@ -36,7 +37,7 @@ beforeEach(() => {
 })
 
 const fakeParams = {
-  __ow_headers: { },
+  __ow_headers: {},
 };
 
 describe('pdp-renderer', () => {
@@ -63,86 +64,212 @@ describe('pdp-renderer', () => {
     })
   })
 
-  test('returns correct template', async () => {
-    const sku = '24-MB03';
-
-    let passedSku;
-    let calledUrl;
+  test('render with product template', async () => {
     server.use(handlers.defaultProductTemplate);
-    server.use(handlers.defaultProduct(({ variables, request }) => {
-      calledUrl = request.url;
-      passedSku = variables.sku;
-    }));
+    server.use(handlers.defaultProduct());
 
     const response = await action.main({
       HLX_STORE_URL: 'https://store.com',
       HLX_CONTENT_URL: 'https://content.com',
       HLX_CONFIG_NAME: 'config',
-      __ow_path: `/products/crown-summit-backpack/${sku}`,
+      HLX_PRODUCTS_TEMPLATE: "https://content.com/products/default",
+      __ow_path: `/products/crown-summit-backpack/24-MB03`,
     });
 
-    expect(calledUrl).toBe('https://www.aemshop.net/cs-graphql');
-    expect(passedSku).toBe(sku);
-    expect(response.statusCode).toEqual(200);
-    expect(response.body).toMatchInlineSnapshot(`
-"<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Crown Summit Backpack</title>
+    // Validate that product recommendations block is there
+    const $ = cheerio.load(response.body);
+    expect($('.product-recommendations')).toHaveLength(1);
+    expect($('body > main > div')).toHaveLength(2);
+  });
 
-  <meta name="description" content="The Crown Summit Backpack is equally at home in a gym locker, study cube or a pup tent, so be sure yours is packed with books, a bag lunch, water bottles, yoga block, laptop, or whatever else you want in hand. Rugged enough for day hikes and camping trips, it has two large zippered compartments and padded, adjustable shoulder straps.Top handle.Grommet holes.Two-way zippers.H 20&quot; x W 14&quot; x D 12&quot;.Weight: 2 lbs, 8 oz. Volume: 29 L."><meta name="image" content="http://www.aemshop.net/media/catalog/product/m/b/mb03-black-0.jpg"><meta name="id" content="7"><meta name="sku" content="24-MB03"><meta name="x-cs-lastModifiedAt" content="2024-10-03T15:26:48.850Z"><meta property="og:type" content="og:product">
+  test('render without product template', async () => {
+    server.use(handlers.defaultProduct());
 
-  <script type="application/ld+json">{"@context":"http://schema.org","@type":"Product","sku":"24-MB03","name":"Crown Summit Backpack","gtin":"","description":"The Crown Summit Backpack is equally at home in a gym locker, study cube or a pup tent, so be sure yours is packed with books, a bag lunch, water bottles, yoga block, laptop, or whatever else you want in hand. Rugged enough for day hikes and camping trips, it has two large zippered compartments and padded, adjustable shoulder straps.Top handle.Grommet holes.Two-way zippers.H 20\\" x W 14\\" x D 12\\".Weight: 2 lbs, 8 oz. Volume: 29 L.","@id":"https://store.com/products/crown-summit-backpack/24-MB03","offers":[{"@type":"Offer","sku":"24-MB03","url":"https://store.com/products/crown-summit-backpack/24-MB03","availability":"https://schema.org/InStock","price":38,"priceCurrency":"USD","itemCondition":"https://schema.org/NewCondition"}],"image":"http://www.aemshop.net/media/catalog/product/m/b/mb03-black-0.jpg"}</script>
-</head>
+    const response = await action.main({
+      HLX_STORE_URL: 'https://store.com',
+      HLX_CONTENT_URL: 'https://content.com',
+      HLX_CONFIG_NAME: 'config',
+      __ow_path: `/products/crown-summit-backpack/24-MB03`,
+    });
 
-<body>
-  <header></header>
-  <main>
-    <div>
-      <div class="product-details">
-        <div>
-          <div>
-            <h1>Crown Summit Backpack</h1>
-          </div>
-        </div>
-        <div>
-          <div>Image</div>
-          <div>
-            <img src="http://www.aemshop.net/media/catalog/product/m/b/mb03-black-0.jpg" />
-          </div>
-        </div>
-        <div>
-          <div>Description</div>
-          <div><p>The Crown Summit Backpack is equally at home in a gym locker, study cube or a pup tent, so be sure yours is packed with books, a bag lunch, water bottles, yoga block, laptop, or whatever else you want in hand. Rugged enough for day hikes and camping trips, it has two large zippered compartments and padded, adjustable shoulder straps.</p>
-      <ul>
-      <li>Top handle.</li>
-      <li>Grommet holes.</li>
-      <li>Two-way zippers.</li>
-      <li>H 20" x W 14" x D 12".</li>
-      <li>Weight: 2 lbs, 8 oz. Volume: 29 L.</li>
-      <ul></div>
-        </div>
-        <div>
-          <div>Price</div>
-          <div>$38.00</div>
-        </div>
-      </div></div>
-    <div>
-      <div class="product-recommendations">
-        <div>
-          <div></div>
-        </div>
-      </div>
-    </div>
-  </main>
-  <footer></footer>
-</body>
-</html>"
+    // Validate that product details is the only block in body
+    const $ = cheerio.load(response.body);
+    expect($('body > main > div')).toHaveLength(1);
+  });
+
+  test('render image', async () => {
+    server.use(handlers.defaultProduct());
+
+    const response = await action.main({
+      HLX_STORE_URL: 'https://store.com',
+      HLX_CONTENT_URL: 'https://content.com',
+      HLX_CONFIG_NAME: 'config',
+      __ow_path: `/products/crown-summit-backpack/24-MB03`,
+    });
+
+    const $ = cheerio.load(response.body);
+    expect($('body > main > div.product-details img').attr('src')).toBe('http://www.aemshop.net/media/catalog/product/m/b/mb03-black-0.jpg');
+  });
+
+  test('render description', async () => {
+    server.use(handlers.defaultProduct());
+
+    const response = await action.main({
+      HLX_STORE_URL: 'https://store.com',
+      HLX_CONTENT_URL: 'https://content.com',
+      HLX_CONFIG_NAME: 'config',
+      __ow_path: `/products/crown-summit-backpack/24-MB03`,
+    });
+
+    const $ = cheerio.load(response.body);
+    expect($('body > main > div.product-details > div > div:contains("Description")').next().html().trim()).toMatchInlineSnapshot(`
+"<p>The Crown Summit Backpack is equally at home in a gym locker, study cube or a pup tent, so be sure yours is packed with books, a bag lunch, water bottles, yoga block, laptop, or whatever else you want in hand. Rugged enough for day hikes and camping trips, it has two large zippered compartments and padded, adjustable shoulder straps.</p>
+    <ul>
+    <li>Top handle.</li>
+    <li>Grommet holes.</li>
+    <li>Two-way zippers.</li>
+    <li>H 20" x W 14" x D 12".</li>
+    <li>Weight: 2 lbs, 8 oz. Volume: 29 L.</li>
+    <ul></ul></ul>"
 `);
   });
 
-  test('returns 404 if product doesnt exist', async () => {
+  test('render price', async () => {
+    server.use(handlers.defaultProduct());
+
+    const response = await action.main({
+      HLX_STORE_URL: 'https://store.com',
+      HLX_CONTENT_URL: 'https://content.com',
+      HLX_CONFIG_NAME: 'config',
+      __ow_path: `/products/crown-summit-backpack/24-MB03`,
+    });
+
+    const $ = cheerio.load(response.body);
+    expect($('body > main > div.product-details > div > div:contains("Price")').next().text()).toBe('$38.00');
+  });
+
+  test('render title', async () => {
+    server.use(handlers.defaultProduct());
+
+    const response = await action.main({
+      HLX_STORE_URL: 'https://store.com',
+      HLX_CONTENT_URL: 'https://content.com',
+      HLX_CONFIG_NAME: 'config',
+      __ow_path: `/products/crown-summit-backpack/24-MB03`,
+    });
+
+    const $ = cheerio.load(response.body);
+    expect($('body > main > div.product-details > div > div > h1').text()).toEqual('Crown Summit Backpack');
+  });
+
+  test('render product without options', async () => {
+    server.use(handlers.defaultProduct());
+
+    const response = await action.main({
+      HLX_STORE_URL: 'https://store.com',
+      HLX_CONTENT_URL: 'https://content.com',
+      HLX_CONFIG_NAME: 'config',
+      __ow_path: `/products/crown-summit-backpack/24-MB03`,
+    });
+
+    const $ = cheerio.load(response.body);
+    expect($('body > main > div.product-details > div > div:contains("Options")')).toHaveLength(0);
+  });
+
+  test('render product with options', async () => {
+    server.use(handlers.defaultComplexProduct());
+    server.use(handlers.defaultVariant());
+
+    const response = await action.main({
+      HLX_STORE_URL: 'https://store.com',
+      HLX_CONTENT_URL: 'https://content.com',
+      HLX_CONFIG_NAME: 'config',
+      __ow_path: `/products/crown-summit-backpack/24-MB03`,
+    });
+
+    const $ = cheerio.load(response.body);
+    expect($('body > main > div.product-details > div > div:contains("Options")')).toHaveLength(1);
+    expect($('body > main > div.product-details > div > div:contains("Options")').next().html().trim()).toMatchInlineSnapshot(`
+"<ul>
+            <li>
+              Size
+              <ul>
+                <li>XS</li>
+                <li>S</li>
+                <li>M</li>
+                <li>L</li>
+                <li>XL</li>
+              </ul>
+            </li>
+            <li>
+              Color
+              <ul>
+                <li>Green</li>
+                <li>Red</li>
+                <li>White</li>
+              </ul>
+            </li>
+          </ul>"
+`);
+  });
+
+  test('render metadata', async () => {
+    server.use(handlers.defaultProduct());
+
+    const response = await action.main({
+      HLX_STORE_URL: 'https://store.com',
+      HLX_CONTENT_URL: 'https://content.com',
+      HLX_CONFIG_NAME: 'config',
+      __ow_path: `/products/crown-summit-backpack/24-MB03`,
+    });
+
+    const $ = cheerio.load(response.body);
+    expect($('head > meta')).toHaveLength(8);
+    expect($('head > meta[name="description"]').attr('content')).toMatchInlineSnapshot(`"The Crown Summit Backpack is equally at home in a gym locker, study cube or a pup tent, so be sure yours is packed with books, a bag lunch, water bottles, yoga block, laptop, or whatever else you want in hand. Rugged enough for day hikes and camping trips, it has two large zippered compartments and padded, adjustable shoulder straps.Top handle.Grommet holes.Two-way zippers.H 20" x W 14" x D 12".Weight: 2 lbs, 8 oz. Volume: 29 L."`);
+    expect($('head > meta[name="keywords"]').attr('content')).toEqual('backpack, hiking, camping');
+    expect($('head > meta[name="image"]').attr('content')).toEqual('http://www.aemshop.net/media/catalog/product/m/b/mb03-black-0.jpg');
+    expect($('head > meta[name="id"]').attr('content')).toEqual('7');
+    expect($('head > meta[name="sku"]').attr('content')).toEqual('24-MB03');
+    expect($('head > meta[name="x-cs-lastModifiedAt"]').attr('content')).toEqual('2024-10-03T15:26:48.850Z');
+    expect($('head > meta[property="og:type"]').attr('content')).toEqual('og:product');
+  });
+
+  test('render ld+json', async () => {
+    server.use(handlers.defaultProduct());
+
+    const response = await action.main({
+      HLX_STORE_URL: 'https://store.com',
+      HLX_CONTENT_URL: 'https://content.com',
+      HLX_CONFIG_NAME: 'config',
+      __ow_path: `/products/crown-summit-backpack/24-MB03`,
+    });
+
+    const $ = cheerio.load(response.body);
+    const ldJson = JSON.parse($('script[type="application/ld+json"]').html());
+    expect(ldJson).toEqual({
+      "@context": "http://schema.org",
+      "@id": "https://store.com/products/crown-summit-backpack/24-MB03",
+      "@type": "Product",
+      "description": 'The Crown Summit Backpack is equally at home in a gym locker, study cube or a pup tent, so be sure yours is packed with books, a bag lunch, water bottles, yoga block, laptop, or whatever else you want in hand. Rugged enough for day hikes and camping trips, it has two large zippered compartments and padded, adjustable shoulder straps.Top handle.Grommet holes.Two-way zippers.H 20" x W 14" x D 12".Weight: 2 lbs, 8 oz. Volume: 29 L.',
+      "gtin": "",
+      "image": "http://www.aemshop.net/media/catalog/product/m/b/mb03-black-0.jpg",
+      "name": "Crown Summit Backpack",
+      "offers": [
+        {
+          "@type": "Offer",
+          "availability": "https://schema.org/InStock",
+          "itemCondition": "https://schema.org/NewCondition",
+          "price": 38,
+          "priceCurrency": "USD",
+          "sku": "24-MB03",
+          "url": "https://store.com/products/crown-summit-backpack/24-MB03",
+        },
+      ],
+      "sku": "24-MB03",
+    });
+  });
+
+  test('returns 404 if product does not exist', async () => {
     server.use(handlers.return404());
 
     const response = await action.main({

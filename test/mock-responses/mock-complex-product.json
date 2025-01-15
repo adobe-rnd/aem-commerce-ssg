@@ -1,0 +1,234 @@
+{
+    "data": {
+        "products": [
+            {
+                "__typename": "ComplexProductView",
+                "id": "VFVnd05RAFpHVm1ZWFZzZEEAWmpNNFlUQmtaVEF0TnpZMFlpMDBNV1poTFdKa01tTXROV0pqTW1Zell6ZGlNemxoAGJXRnBibDkzWldKemFYUmxYM04wYjNKbABZbUZ6WlEAVFVGSE1EQTFNell4TnpJNQ",
+                "sku": "MH05",
+                "name": "Hollister Backyard Sweatshirt",
+                "url": "http://www.aemshop.net/hollister-backyard-sweatshirt.html",
+                "description": "<p>Kick off your weekend in the Hollister Backyard Sweatshirt. Whether you're raking leaves or flipping burgers, this comfy layer blocks the bite of the crisp autumn air. Puffy thick from hood to hem, it traps heat against your core.</p>\n<p>&bull; Cream crewneck sweatshirt with navy sleeves/trim.<br />&bull; Relaxed fit. <br />&bull; Ribbed cuffs and hem. <br />&bull; Machine wash/dry.</p>",
+                "shortDescription": "",
+                "metaDescription": "",
+                "metaKeyword": "",
+                "metaTitle": "",
+                "urlKey": "hollister-backyard-sweatshirt",
+                "inStock": true,
+                "externalId": "394",
+                "lastModifiedAt": "2024-10-03T15:26:48.850Z",
+                "images": [
+                    {
+                        "url": "http://www.aemshop.net/media/catalog/product/m/h/mh05-white_main_1.jpg",
+                        "label": "",
+                        "roles": [
+                            "image",
+                            "small_image",
+                            "thumbnail"
+                        ]
+                    },
+                    {
+                        "url": "http://www.aemshop.net/media/catalog/product/m/h/mh05-white_alt1_1.jpg",
+                        "label": "",
+                        "roles": []
+                    },
+                    {
+                        "url": "http://www.aemshop.net/media/catalog/product/m/h/mh05-white_back_1.jpg",
+                        "label": "",
+                        "roles": []
+                    }
+                ],
+                "attributes": [
+                    {
+                        "name": "climate",
+                        "label": "Climate",
+                        "value": "Cool",
+                        "roles": [
+                            "visible_in_pdp",
+                            "visible_in_search"
+                        ]
+                    },
+                    {
+                        "name": "eco_collection",
+                        "label": "Eco Collection",
+                        "value": "no",
+                        "roles": [
+                            "visible_in_pdp"
+                        ]
+                    },
+                    {
+                        "name": "erin_recommends",
+                        "label": "Erin Recommends",
+                        "value": "no",
+                        "roles": [
+                            "visible_in_pdp"
+                        ]
+                    },
+                    {
+                        "name": "material",
+                        "label": "Material",
+                        "value": [
+                            "Wool",
+                            "Polyester",
+                            "Nylon"
+                        ],
+                        "roles": [
+                            "visible_in_pdp",
+                            "visible_in_search"
+                        ]
+                    },
+                    {
+                        "name": "new",
+                        "label": "New",
+                        "value": "no",
+                        "roles": [
+                            "visible_in_pdp"
+                        ]
+                    },
+                    {
+                        "name": "pattern",
+                        "label": "Pattern",
+                        "value": "Color-Blocked",
+                        "roles": [
+                            "visible_in_pdp",
+                            "visible_in_search"
+                        ]
+                    },
+                    {
+                        "name": "performance_fabric",
+                        "label": "Performance Fabric",
+                        "value": "no",
+                        "roles": [
+                            "visible_in_pdp"
+                        ]
+                    },
+                    {
+                        "name": "sale",
+                        "label": "Sale",
+                        "value": "no",
+                        "roles": [
+                            "visible_in_pdp"
+                        ]
+                    }
+                ],
+                "options": [
+                    {
+                        "id": "size",
+                        "title": "Size",
+                        "required": false,
+                        "multi": null,
+                        "values": [
+                            {
+                                "id": "Y29uZmlndXJhYmxlLzU1Ni81MjM=",
+                                "title": "XS",
+                                "inStock": true,
+                                "__typename": "ProductViewOptionValueSwatch",
+                                "type": "TEXT",
+                                "value": "XS"
+                            },
+                            {
+                                "id": "Y29uZmlndXJhYmxlLzU1Ni81MjY=",
+                                "title": "S",
+                                "inStock": true,
+                                "__typename": "ProductViewOptionValueSwatch",
+                                "type": "TEXT",
+                                "value": "S"
+                            },
+                            {
+                                "id": "Y29uZmlndXJhYmxlLzU1Ni81Mjk=",
+                                "title": "M",
+                                "inStock": true,
+                                "__typename": "ProductViewOptionValueSwatch",
+                                "type": "TEXT",
+                                "value": "M"
+                            },
+                            {
+                                "id": "Y29uZmlndXJhYmxlLzU1Ni81MzI=",
+                                "title": "L",
+                                "inStock": true,
+                                "__typename": "ProductViewOptionValueSwatch",
+                                "type": "TEXT",
+                                "value": "L"
+                            },
+                            {
+                                "id": "Y29uZmlndXJhYmxlLzU1Ni81MzU=",
+                                "title": "XL",
+                                "inStock": true,
+                                "__typename": "ProductViewOptionValueSwatch",
+                                "type": "TEXT",
+                                "value": "XL"
+                            }
+                        ]
+                    },
+                    {
+                        "id": "color",
+                        "title": "Color",
+                        "required": false,
+                        "multi": null,
+                        "values": [
+                            {
+                                "id": "Y29uZmlndXJhYmxlLzI3Ny8xODQ=",
+                                "title": "Green",
+                                "inStock": true,
+                                "__typename": "ProductViewOptionValueSwatch",
+                                "type": "COLOR_HEX",
+                                "value": "#53a828"
+                            },
+                            {
+                                "id": "Y29uZmlndXJhYmxlLzI3Ny8xOTk=",
+                                "title": "Red",
+                                "inStock": true,
+                                "__typename": "ProductViewOptionValueSwatch",
+                                "type": "COLOR_HEX",
+                                "value": "#ff0000"
+                            },
+                            {
+                                "id": "Y29uZmlndXJhYmxlLzI3Ny8yMDI=",
+                                "title": "White",
+                                "inStock": true,
+                                "__typename": "ProductViewOptionValueSwatch",
+                                "type": "COLOR_HEX",
+                                "value": "#ffffff"
+                            }
+                        ]
+                    }
+                ],
+                "priceRange": {
+                    "maximum": {
+                        "final": {
+                            "amount": {
+                                "value": 52.0,
+                                "currency": "USD"
+                            }
+                        },
+                        "regular": {
+                            "amount": {
+                                "value": 52.0,
+                                "currency": "USD"
+                            }
+                        },
+                        "roles": [
+                            "visible"
+                        ]
+                    },
+                    "minimum": {
+                        "final": {
+                            "amount": {
+                                "value": 2.0,
+                                "currency": "USD"
+                            }
+                        },
+                        "regular": {
+                            "amount": {
+                                "value": 2.0,
+                                "currency": "USD"
+                            }
+                        },
+                        "roles": [
+                            "visible"
+                        ]
+                    }
+                }
+            }
+        ]
+    }
+}
