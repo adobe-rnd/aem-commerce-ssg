@@ -208,7 +208,7 @@ async function poll(params, stateLib) {
         });
 
       // preview batches , then save state in case we get interrupted
-      batches.forEach(async (batch) => {
+      for (const batch of batches) {
         const response = await Promise.all(batch);
         for (const { sku, previewedAt, publishedAt } of response) {
           if (previewedAt && publishedAt) {
@@ -223,75 +223,75 @@ async function poll(params, stateLib) {
 
       timings.sample('publishedPaths');
 
-      // if there are still skus left, they were not in Catalog Service and may
-      // have been disabled/deleted
-      if (skus.length) {
-        try {
-          const publishedProducts = await requestSpreadsheet('published-products-index', null, context);
-          // if any of the indexed PDPs is in the remaining list of skus that were not returned by the catalog service
-          // consider them deleted
-          const deletedProducts = publishedProducts.data.filter(({ sku }) => skus.includes(sku));
-          // we batch the deleted products to avoid the risk of HTTP 429 from the AEM Admin API
-          if (deletedProducts.length) {
-            // delete in batches of BATCH_SIZE, then save state in case we get interrupted
-            let batch = [];
-            for (const product of deletedProducts) {
-              batch.push(product);
-              if (batch.length === BATCH_SIZE) {
-                // deleteBatch has side effects on state and counts, by design
-                await deleteBatch({ counts, batch, state, adminApi });
-                batch = [];
-              }
-            }
-            if (batch.length > 0) {
+    // if there are still skus left, they were not in Catalog Service and may
+    // have been disabled/deleted
+    if (skus.length) {
+      try {
+        const publishedProducts = await requestSpreadsheet('published-products-index', null, context);
+        // if any of the indexed PDPs is in the remaining list of skus that were not returned by the catalog service
+        // consider them deleted
+        const deletedProducts = publishedProducts.data.filter(({ sku }) => skus.includes(sku));
+        // we batch the deleted products to avoid the risk of HTTP 429 from the AEM Admin API
+        if (deletedProducts.length) {
+          // delete in batches of BATCH_SIZE, then save state in case we get interrupted
+          let batch = [];
+          for (const product of deletedProducts) {
+            batch.push(product);
+            if (batch.length === BATCH_SIZE) {
+              // deleteBatch has side effects on state and counts, by design
               await deleteBatch({ counts, batch, state, adminApi });
+              batch = [];
             }
-            // save state after deletes
-            await saveState(state, stateLib);
           }
-        } catch (e) {
-          // in case the index doesn't yet exist or any other error
-          log.error(e);
+          if (batch.length > 0) {
+            await deleteBatch({ counts, batch, state, adminApi });
+          }
+          // save state after deletes
+          await saveState(state, stateLib);
         }
-
-        timings.sample('unpublishedPaths');
-      } else {
-        timings.sample('unpublishedPaths', 0);
+      } catch (e) {
+        // in case the index doesn't yet exist or any other error
+        log.error(e);
       }
 
-      return timings.measures;
-    }));
-
-    await adminApi.stopProcessing();
-
-    // aggregate timings
-    for (const measure of results) {
-      for (const [name, value] of Object.entries(measure)) {
-        if (!timings.measures[name]) timings.measures[name] = [];
-        if (!Array.isArray(timings.measures[name])) timings.measures[name] = [timings.measures[name]];
-        timings.measures[name].push(value);
-      }
+      timings.sample('unpublishedPaths');
+    } else {
+      timings.sample('unpublishedPaths', 0);
     }
-    for (const [name, values] of Object.entries(timings.measures)) {
-      timings.measures[name] = aggregate(values);
+
+    return timings.measures;
+  }));
+
+  await adminApi.stopProcessing();
+
+  // aggregate timings
+  for (const measure of results) {
+    for (const [name, value] of Object.entries(measure)) {
+      if (!timings.measures[name]) timings.measures[name] = [];
+      if (!Array.isArray(timings.measures[name])) timings.measures[name] = [timings.measures[name]];
+      timings.measures[name].push(value);
     }
-    timings.measures.previewDuration = aggregate(adminApi.previewDurations);
-  } catch (e) {
-    log.error(e);
-    // wait for queues to finish, even in error case
-    await adminApi.stopProcessing();
   }
+  for (const [name, values] of Object.entries(timings.measures)) {
+    timings.measures[name] = aggregate(values);
+  }
+  timings.measures.previewDuration = aggregate(adminApi.previewDurations);
+} catch (e) {
+  log.error(e);
+  // wait for queues to finish, even in error case
+  await adminApi.stopProcessing();
+}
 
-  const elapsed = new Date() - timings.now;
+const elapsed = new Date() - timings.now;
 
-  log.info(`Finished polling, elapsed: ${elapsed}ms`);
+log.info(`Finished polling, elapsed: ${elapsed}ms`);
 
-  return {
-    state: 'completed',
-    elapsed,
-    status: { ...counts },
-    timings: timings.measures,
-  };
+return {
+  state: 'completed',
+  elapsed,
+  status: { ...counts },
+  timings: timings.measures,
+};
 }
 
 module.exports = { poll, loadState, saveState };
