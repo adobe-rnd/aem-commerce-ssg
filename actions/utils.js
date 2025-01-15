@@ -224,7 +224,7 @@ async function getConfig(context) {
  * @returns {Promise<object>} GraphQL response as parsed object.
  */
 async function requestSaaS(query, operationName, variables, context, configOverrides = {}) {
-  const { storeUrl } = context;
+  const { storeUrl, logger } = context;
   const config = {
     ... (await getConfig(context)),
     ...configOverrides
@@ -242,7 +242,8 @@ async function requestSaaS(query, operationName, variables, context, configOverr
     'Magento-Is-Preview': true,
   };
   const method = 'POST';
-  return request(
+
+  const response = await request(
     `${operationName}(${JSON.stringify(variables)})`,
     config['commerce-endpoint'],
     {
@@ -255,6 +256,15 @@ async function requestSaaS(query, operationName, variables, context, configOverr
       })
     }
   );
+
+  // Log GraphQL errors
+  if (response?.errors) {
+    for (const error of response.errors) {
+      logger.error(`Request '${operationName}' returned GraphQL error`, error);
+    }
+  }
+
+  return response;
 }
 
 module.exports = {

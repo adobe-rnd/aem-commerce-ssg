@@ -132,7 +132,7 @@ describe('request', () => {
     const config = await getConfig(context);
     expect(config).toEqual({ testKey: 'testValue' });
   });
-  
+
   test('requestSaaS', async () => {
     let requestHeaders;
     server.use(http.post('https://commerce-endpoint.com', async ({ request }) => {
@@ -170,7 +170,46 @@ describe('request', () => {
     expect(requestHeaders.get('x-api-key')).toBe('api-key');
     expect(requestHeaders.get('Magento-Is-Preview')).toBe('true');
   });
-  
+
+  test('requestSaaS with errors in GraphQL response', async () => {
+    const graphqlError = {
+      "message": "The field at path '/_entities' was declared as a non null type, but the code involved in retrieving data has wrongly returned a null value.  The graphql specification requires that the parent field be set to null, or if that is non nullable that it bubble up null to its parent and so on. The non-nullable type is '[_Entity]' within parent type 'Query'",
+      "path": ["categories", "@"],
+    };
+    server.use(http.post('https://commerce-endpoint.com', async () => {
+      return HttpResponse.json({
+        data: {
+          result: 'success'
+        },
+        errors: [
+          graphqlError
+        ],
+      });
+    }));
+
+    const context = {
+      storeUrl: 'https://store.com',
+      config: {
+        'commerce-endpoint': 'https://commerce-endpoint.com',
+        'commerce-customer-group': 'customer-group',
+        'commerce-environment-id': 'environment-id',
+        'commerce-store-code': 'store-code',
+        'commerce-store-view-code': 'store-view-code',
+        'commerce-website-code': 'website-code',
+        'commerce-x-api-key': 'api-key'
+      },
+      logger: { error: jest.fn() }
+    };
+
+    const query = 'query { test }';
+    const operationName = 'TestOperation';
+    const variables = { var1: 'value1' };
+
+    const response = await requestSaaS(query, operationName, variables, context);
+    expect(response).toEqual({ data: { result: 'success' }, errors: [graphqlError] });
+    expect(context.logger.error).toHaveBeenCalledWith(`Request 'TestOperation' returned GraphQL error`, graphqlError);
+  });
+
   test('requestSpreadsheet', async () => {
     server.use(http.get('https://content.com/test/config.json', async () => {
       return HttpResponse.json({ data: [{ key: 'testKey', value: 'testValue' }] });
@@ -201,7 +240,7 @@ describe('request', () => {
     const response = await request('testRequest', 'https://example.com/success', {});
     expect(response).toEqual({ data: 'success' });
   });
-  
+
   test('error request', async () => {
     server.use(http.get('https://example.com/not-found', async () => {
       return new HttpResponse(null, { status: 404, statusText: 'Not Found' });
