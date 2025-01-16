@@ -19,3 +19,43 @@ application:
               final: true
             include:
               - ["actions/pdp-renderer/templates/*.hbs", "templates/"]
+          check-product-changes:
+            function: actions/check-product-changes/index.js
+            web: 'no'
+            runtime: nodejs:22
+            limits:
+              memorySize: 128
+              timeout: 3600000
+            inputs:
+              LOG_LEVEL: debug
+              storeUrl: https://www.aemshop.net
+              orgName: hlxsites
+              siteName: aem-boilerplate-commerce
+              configName: configs
+              # storeCodes: comma-seprated list of store codes.
+              # i.e. us,uk,it,de,fr,es - or just one
+              # null if there is a single store and no
+              # URI prefixes are used
+              storeCodes: null
+              # PDPURIPrefix: URI prefix for the Product Pages
+              # i.e.: /products
+              PDPURIPrefix: /products
+              authToken: ${AEM_ADMIN_API_AUTH_TOKEN}
+            annotations:
+              final: true
+        # triggers:
+        #   everyMinTrigger:
+        #     feed: /whisk.system/alarms/interval
+        #     inputs: 
+        #       minutes: 1
+        # rules:
+        #   everyMinRule:
+        #   # When the action is invoked, it first checks
+        #   # that no instances of the same action are already
+        #   # running. If an instance is running, business logic
+        #   # execution is skipped; if no instances are running,
+        #   # it scans the Catalog to check for product changes.
+        #   # The above means that the actual logic is not
+        #   # necessarily executed every minute.
+        #     trigger: everyMinTrigger
+        #     action: check-product-changes

@@ -33,8 +33,13 @@ test('simple product markup', async () => {
   // Validate price
   expect($('.product-details > div > div:contains("Price")').next().text()).toEqual('$38.00');
 
-  // Validate image
-  expect($('.product-details > div > div:contains("Image")').next().find('img').attr('src')).toEqual('http://www.aemshop.net/media/catalog/product/m/b/mb03-black-0.jpg');
+  // Validate images
+  expect($('.product-details > div > div:contains("Images")').next().find('a').map((_, e) => $(e).prop('outerHTML')).toArray()).toMatchInlineSnapshot(`
+[
+  "<a href="http://www.aemshop.net/media/catalog/product/m/b/mb03-black-0.jpg">http://www.aemshop.net/media/catalog/product/m/b/mb03-black-0.jpg</a>",
+  "<a href="http://www.aemshop.net/media/catalog/product/m/b/mb03-black-0_alt1.jpg">http://www.aemshop.net/media/catalog/product/m/b/mb03-black-0_alt1.jpg</a>",
+]
+`);
 
   // Validate no options
   expect($('.product-details > div > div:contains("Options")')).toHaveLength(0);
@@ -90,8 +95,14 @@ test('complex product markup', async () => {
   // Validate price
   expect($('.product-details > div > div:contains("Price")').next().text()).toEqual('$2.00-$52.00');
 
-  // Validate image
-  expect($('.product-details > div > div:contains("Image")').next().find('img').attr('src')).toEqual('http://www.aemshop.net/media/catalog/product/m/h/mh05-white_main_1.jpg');
+  // Validate images
+  expect($('.product-details > div > div:contains("Images")').next().find('a').map((_, e) => $(e).prop('outerHTML')).toArray()).toMatchInlineSnapshot(`
+[
+  "<a href="http://www.aemshop.net/media/catalog/product/m/h/mh05-white_main_1.jpg">http://www.aemshop.net/media/catalog/product/m/h/mh05-white_main_1.jpg</a>",
+  "<a href="http://www.aemshop.net/media/catalog/product/m/h/mh05-white_alt1_1.jpg">http://www.aemshop.net/media/catalog/product/m/h/mh05-white_alt1_1.jpg</a>",
+  "<a href="http://www.aemshop.net/media/catalog/product/m/h/mh05-white_back_1.jpg">http://www.aemshop.net/media/catalog/product/m/h/mh05-white_back_1.jpg</a>",
+]
+`);
 
   // Validate options
   expect($('.product-details > div > div:contains("Options")')).toHaveLength(1);

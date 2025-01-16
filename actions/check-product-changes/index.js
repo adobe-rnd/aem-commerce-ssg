@@ -1,6 +1,3 @@
-const jest = require('jest');
-const { beforeEach, afterEach } = require('@jest/globals');
-
 /*
 Copyright 2025 Adobe. All rights reserved.
 This file is licensed to you under the Apache License, Version 2.0 (the "License");
@@ -13,7 +10,23 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
-jest.setTimeout(10000);
+const { stateLib } = require('@adobe/aio-lib-state');
+const { poll } = require('./poller');
 
-beforeEach(() => { });
-afterEach(() => { });
+async function main(params) {
+  const state = await stateLib.init();
+  const running = await state.get('running');
+
+  if (running?.value === 'true') {
+    return { state: 'skipped' };
+  }
+
+  try {
+    await state.put('running', 'true');
+    return await poll(params, state);
+  } finally {
+    await state.put('running', 'false');
+  }
+}
+
+exports.main = main

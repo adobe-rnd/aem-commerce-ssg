@@ -144,12 +144,12 @@ describe('request', () => {
       storeUrl: 'https://store.com',
       config: {
         'commerce-endpoint': 'https://commerce-endpoint.com',
-        'commerce-customer-group': 'customer-group',
-        'commerce-environment-id': 'environment-id',
-        'commerce-store-code': 'store-code',
-        'commerce-store-view-code': 'store-view-code',
-        'commerce-website-code': 'website-code',
-        'commerce-x-api-key': 'api-key'
+        'commerce.headers.cs.Magento-Customer-Group': 'customer-group',
+        'commerce.headers.cs.Magento-Environment-Id': 'environment-id',
+        'commerce.headers.cs.Magento-Store-Code': 'store-code',
+        'commerce.headers.cs.Magento-Store-View-Code': 'store-view-code',
+        'commerce.headers.cs.Magento-Website-Code': 'website-code',
+        'commerce.headers.cs.x-api-key': 'api-key'
       }
     };
 
