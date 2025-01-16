@@ -155,4 +155,23 @@ function generatePriceString(product) {
   return priceString;
 }
 
-module.exports = { extractPathDetails, getProductUrl, findDescription, getPrimaryImage, prepareBaseTemplate, generatePriceString };
+/**
+ * Generates a list of image URLs for a product, ensuring the primary image is first.
+ * 
+ * @param {string} primary The URL of the primary image.
+ * @param {Array<Object>} images The list of image objects.
+ * @returns {Array<string>} The list of image URLs with the primary image first.
+ */
+function getImageList(primary, images) {
+  const imageList = images?.map(img => img.url);
+  if (primary) {
+    const primaryImageIndex = imageList.indexOf(primary);
+    if (primaryImageIndex > -1) {
+      imageList.splice(primaryImageIndex, 1);
+      imageList.unshift(primary);
+    }
+  }
+  return imageList;
+}
+
+module.exports = { extractPathDetails, getProductUrl, findDescription, getPrimaryImage, prepareBaseTemplate, generatePriceString, getImageList };

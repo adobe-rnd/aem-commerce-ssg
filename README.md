@@ -5,6 +5,25 @@ Welcome to my Adobe I/O Application!
 ## Setup
 
 - Populate the `.env` file in the project root and fill it as shown [below](#env)
+- Add the folllowing to [helix-query](https://www.aem.live/docs/admin.html#schema/IndexConfig) config:
+  ```yaml
+  index-published-products:
+    # adjust paths based on your specific requirements (i.e. storeCode, routes, ...)
+    target: s3://published-products-index.json
+    include:
+      - 'products/**'
+    properties:
+      sku:
+        select: head > meta[name="sku"]
+        value: attribute(el, "content")
+      last-modified:
+        select: none
+        value: parseTimestamp(headers["last-modified"], "ddd, DD MMM YYYY hh:mm:ss GMT")
+      # for benchmarking in the AppBuilder action
+      product-last-modified:
+        select: head > meta[name="x-cs-lastModifiedAt"]
+        value: parseTimestamp(attribute(el, "content"), "YYYY-MM-DDTHH:mm:ss.SSSZ")
+  ```
 
 ## Local Dev
 
@@ -41,6 +60,25 @@ You can generate this file using the command `aio app use`.
 ### `app.config.yaml`
 
 - Main configuration file that defines an application's implementation. 
+- Once ready, the action `check-product-changes` - in charge of detecting product changes, triggering generation and publishing of the respective Product Detail Pages - needs to be configured for periodic activation (every 1 minute); to do so, just comment out the following block from the yaml file:
+  ```yaml
+        # triggers:
+        #   everyMinTrigger:
+        #     feed: /whisk.system/alarms/interval
+        #     inputs: 
+        #       minutes: 1
+        # rules:
+        #   everyMinRule:
+        #   # When the action is invoked, it first checks
+        #   # that no instances of the same action are already
+        #   # running. If an instance is running, business logic
+        #   # execution is skipped; if no instances are running,
+        #   # it scans the Catalog to check for product changes.
+        #   # The above means that the actual logic is not
+        #   # necessarily executed every minute.
+        #     trigger: everyMinTrigger
+        #     action: check-product-changes
+  ```
 - More information on this file, application configuration, and extension configuration 
   can be found [here](https://developer.adobe.com/app-builder/docs/guides/appbuilder-configuration/#appconfigyaml)
 
@@ -79,3 +117,8 @@ and make sure you have the below config added
     }
   } 
 ```
+## LiveSearch
+
+The action uses LiveSearch to list products from the store.
+PLEASE NOTE that LiveSearch has a hard limit on the maximum number of results that can be returned in a search query: 10,000.
+For further details, please see https://experienceleague.adobe.com/en/docs/commerce-merchant-services/live-search/boundaries-limits#query

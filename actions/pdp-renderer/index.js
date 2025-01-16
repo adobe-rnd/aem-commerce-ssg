@@ -17,7 +17,7 @@ const { Core } = require('@adobe/aio-sdk')
 const Handlebars = require('handlebars');
 
 const { errorResponse, stringParameters, requestSaaS } = require('../utils');
-const { extractPathDetails, findDescription, prepareBaseTemplate, getPrimaryImage, generatePriceString } = require('./lib');
+const { extractPathDetails, findDescription, prepareBaseTemplate, getPrimaryImage, generatePriceString, getImageList } = require('./lib');
 const { ProductQuery } = require('./queries');
 const { generateLdJson } = require('./ldJson');
 
@@ -25,6 +25,8 @@ function toTemplateProductData(baseProduct) {
   const templateProductData = { ...baseProduct };
   const primaryImage = getPrimaryImage(baseProduct)?.url;
 
+  templateProductData.hasImages = baseProduct.images?.length > 0;
+  templateProductData.imageList = getImageList(primaryImage, baseProduct.images);
   templateProductData.priceString = generatePriceString(baseProduct);
   templateProductData.metaDescription = findDescription(baseProduct);
   templateProductData.metaImage = primaryImage;
@@ -60,7 +62,7 @@ async function main (params) {
     const contentUrl = __ow_query?.contentUrl || HLX_CONTENT_URL;
     const storeUrl = __ow_query?.storeUrl || HLX_STORE_URL || contentUrl;
     const productsTemplate = __ow_query?.productsTemplate || HLX_PRODUCTS_TEMPLATE;
-    const context = { contentUrl, storeUrl, configName };
+    const context = { contentUrl, storeUrl, configName, logger };
 
     if (!sku || !contentUrl) {
       return errorResponse(400, 'Invalid path', logger);

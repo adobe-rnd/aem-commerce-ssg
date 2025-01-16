@@ -97,7 +97,7 @@ describe('pdp-renderer', () => {
     expect($('body > main > div')).toHaveLength(1);
   });
 
-  test('render image', async () => {
+  test('render images', async () => {
     server.use(handlers.defaultProduct());
 
     const response = await action.main({
@@ -108,7 +108,10 @@ describe('pdp-renderer', () => {
     });
 
     const $ = cheerio.load(response.body);
-    expect($('body > main > div.product-details img').attr('src')).toBe('http://www.aemshop.net/media/catalog/product/m/b/mb03-black-0.jpg');
+    expect($('body > main > div.product-details > div > div:contains("Images")').next().find('a').map((_,e) => $(e).prop('outerHTML')).toArray()).toEqual([
+      '<a href="http://www.aemshop.net/media/catalog/product/m/b/mb03-black-0.jpg">http://www.aemshop.net/media/catalog/product/m/b/mb03-black-0.jpg</a>',
+      '<a href="http://www.aemshop.net/media/catalog/product/m/b/mb03-black-0_alt1.jpg">http://www.aemshop.net/media/catalog/product/m/b/mb03-black-0_alt1.jpg</a>'
+    ]);
   });
 
   test('render description', async () => {
