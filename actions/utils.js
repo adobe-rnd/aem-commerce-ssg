@@ -232,12 +232,12 @@ async function requestSaaS(query, operationName, variables, context, configOverr
   const headers = {
     'Content-Type': 'application/json',
     'origin': storeUrl,
-    'magento-customer-group': config['commerce-customer-group'],
-    'magento-environment-id': config['commerce-environment-id'],
-    'magento-store-code': config['commerce-store-code'],
-    'magento-store-view-code': config['commerce-store-view-code'],
-    'magento-website-code': config['commerce-website-code'],
-    'x-api-key': config['commerce-x-api-key'],
+    'magento-customer-group': config['commerce.headers.cs.Magento-Customer-Group'],
+    'magento-environment-id': config['commerce.headers.cs.Magento-Environment-Id'],
+    'magento-store-code': config['commerce.headers.cs.Magento-Store-Code'],
+    'magento-store-view-code': config['commerce.headers.cs.Magento-Store-View-Code'],
+    'magento-website-code': config['commerce.headers.cs.Magento-Website-Code'],
+    'x-api-key': config['commerce.headers.cs.x-api-key'],
     // bypass LiveSearch cache
     'Magento-Is-Preview': true,
   };

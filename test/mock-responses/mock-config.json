@@ -8,27 +8,27 @@
             "value": "https://www.aemshop.net/cs-graphql"
         },
         {
-            "key": "commerce-environment-id",
+            "key": "commerce.headers.cs.Magento-Environment-Id",
             "value": "f38a0de0-764b-41fa-bd2c-5bc2f3c7b39a"
         },
         {
-            "key": "commerce-website-code",
+            "key": "commerce.headers.cs.Magento-Website-Code",
             "value": "base"
         },
         {
-            "key": "commerce-store-view-code",
+            "key": "commerce.headers.cs.Magento-Store-View-Code",
             "value": "default"
         },
         {
-            "key": "commerce-store-code",
+            "key": "commerce.headers.cs.Magento-Store-Code",
             "value": "main_website_store"
         },
         {
-            "key": "commerce-customer-group",
+            "key": "commerce.headers.cs.Magento-Customer-Group",
             "value": "b6589fc6ab0dc82cf12099d1c2d40ab994e8410c"
         },
         {
-            "key": "commerce-x-api-key",
+            "key": "commerce.headers.cs.x-api-key",
             "value": "4dfa19c9fe6f4cccade55cc5b3da94f7"
         },
         {
