@@ -13,7 +13,7 @@ governing permissions and limitations under the License.
 const { Timings, aggregate } = require('./lib/benchmark');
 const { AdminAPI } = require('./lib/aem');
 const { requestSaaS, requestSpreadsheet, isValidUrl } = require('../utils');
-const { GetAllSkusQuery, GetLastModifiedQuery } = require('./queries');
+const { GetAllSkusQuery, GetLastModifiedQuery } = require('../queries');
 const { Core } = require('@adobe/aio-sdk');
 
 const BATCH_SIZE = 50;
