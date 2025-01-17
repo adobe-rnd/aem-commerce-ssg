@@ -12,7 +12,8 @@ governing permissions and limitations under the License.
 
 const { Timings, aggregate } = require('./lib/benchmark');
 const { AdminAPI } = require('./lib/aem');
-const { queries, requestSaaS, requestSpreadsheet, isValidUrl } = require('../utils');
+const { requestSaaS, requestSpreadsheet, isValidUrl } = require('../utils');
+const { GetAllSkusQuery, GetLastModifiedQuery } = require('./queries');
 const { Core } = require('@adobe/aio-sdk');
 
 const BATCH_SIZE = 50;
@@ -153,7 +154,7 @@ async function poll(params, stateLib) {
       // check if the skus were last queried within the last 10 minutes
       if (timings.now - state.skusLastQueriedAt >= skusRefreshInterval) {
         state.skusLastQueriedAt = new Date();
-        const allSkusResp = await requestSaaS(queries.getAllSkus, 'getAllSkus', {}, context);
+        const allSkusResp = await requestSaaS(GetAllSkusQuery, 'getAllSkus', {}, context);
         const allSkus = allSkusResp.data.productSearch.items
           .map(({ productView }) => productView || {})
           .filter(Boolean);
@@ -170,7 +171,7 @@ async function poll(params, stateLib) {
 
       // get last modified dates
       const skus = Object.keys(state.skus);
-      const lastModifiedResp = await requestSaaS(queries.getLastModified, 'getLastModified', { skus }, context);
+      const lastModifiedResp = await requestSaaS(GetLastModifiedQuery, 'getLastModified', { skus }, context);
       timings.sample('fetchedLastModifiedDates');
       log.info(`Fetched last modified date for ${lastModifiedResp.data.products.length} skus, total ${skus.length}`);
 

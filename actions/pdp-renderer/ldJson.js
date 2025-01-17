@@ -1,6 +1,6 @@
 const { requestSaaS } = require('../utils');
 const { getProductUrl, findDescription, getPrimaryImage } = require('./lib');
-const { VariantsQuery } = require('./queries');
+const { VariantsQuery } = require('../queries');
 
 function getOffer(product, url) {
   const { sku, inStock, price } = product;

@@ -12,8 +12,8 @@ governing permissions and limitations under the License.
 
 require('dotenv').config();
 
-const { performSaaSQuery, queries } = require('../actions/check-product-changes/lib/commerce');
-const { getSpreadsheet } = require('../actions/check-product-changes/lib/aem');
+const { requestSaaS, requestSpreadsheet } = require('../actions/utils');
+const { GetAllSkusPaginatedQuery } = require('../actions/queries');
 
 async function main() {
     // TODO: fetch from app.config.yaml (incl. mapped env vars)?
@@ -26,10 +26,10 @@ async function main() {
     } = process.env;
 
     const context = { storeCode, storeUrl, configName };
-    const { total: actualCount } = await getSpreadsheet('published-products-index', context);
+    const { total: actualCount } = await requestSpreadsheet('published-products-index', context);
     let [productsCount, currentPage, expectedCount] = [-1, 1, 0];
     while (productsCount !== 0) {
-        const { data: { productSearch: { items: products } } } = await performSaaSQuery(queries.getAllSkusPaginated, 'getAllSkusPaginated', { currentPage }, context);
+        const { data: { productSearch: { items: products } } } = await requestSaaS(GetAllSkusPaginatedQuery, 'getAllSkusPaginated', { currentPage }, context);
         productsCount = products.length;
         expectedCount += productsCount;
         currentPage++;
