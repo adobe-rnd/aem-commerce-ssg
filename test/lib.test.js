@@ -42,13 +42,26 @@ describe('lib', () => {
         expect(getPrimaryImage({ images: [] })).toBeUndefined();
     });
 
-    test('extractPathDetails', () => {
-        expect(extractPathDetails('/products/urlKey/sku')).toEqual({ sku: 'SKU' });
-        expect(extractPathDetails('products/urlKey/sku')).toEqual({ sku: 'SKU' });
-        expect(() => extractPathDetails('/products/urlKey/sku/extra')).toThrow(`Invalid path. Expected '/products/{urlKey}/{sku}'`);
-        expect(() => extractPathDetails('/product/urlKey/sku')).toThrow(`Invalid path. Expected '/products/{urlKey}/{sku}'`);
-        expect(extractPathDetails('')).toEqual({});
-        expect(extractPathDetails(null)).toEqual({});
+
+    describe('extractPathDetails', () => {
+        test('extract sku and urlKey from path', () => {
+            expect(extractPathDetails('/products/my-url-key/my-sku', '/products/{urlKey}/{sku}')).toEqual({ sku: 'my-sku', urlKey: 'my-url-key' });
+        });
+        test('extract urlKey from path', () => {
+            expect(extractPathDetails('/my-url-key', '/{urlKey}')).toEqual({ urlKey: 'my-url-key' });
+        });
+        test('throw error if path is too long', () => {
+            expect(() => extractPathDetails('/products/my-url-key/my-sku', '/products/{urlKey}')).toThrow(`Invalid path. Expected '/products/{urlKey}' format.`);
+        });
+        test('throw error if static part of path does not match', () => {
+            expect(() => extractPathDetails('/product/my-sku', '/products/{sku}')).toThrow(`Invalid path. Expected '/products/{sku}' format.`);
+        });
+        test('empty object for empty path', () => {
+            expect(extractPathDetails('')).toEqual({});
+        });
+        test('empty object for null path', () => {
+            expect(extractPathDetails(null)).toEqual({});
+        });
     });
 
     test('getProductUrl', () => {

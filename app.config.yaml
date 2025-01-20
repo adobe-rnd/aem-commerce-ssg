@@ -15,6 +15,7 @@ application:
               HLX_PRODUCTS_TEMPLATE: "https://main--aem-boilerplate-commerce--hlxsites.aem.live/products/default"
               HLX_STORE_URL: "https://www.aemshop.net"
               HLX_CONFIG_NAME: "configs"
+              HLX_PATH_FORMAT: "/products/{urlKey}/{sku}"
             annotations:
               final: true
             include:

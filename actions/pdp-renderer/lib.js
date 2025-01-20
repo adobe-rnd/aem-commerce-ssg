@@ -2,30 +2,35 @@ const striptags = require('striptags');
 const cheerio = require('cheerio');
 
 /**
- * Extracts the SKU from the path.
+ * Extracts details from the path based on the provided format.
  * @param {string} path The path.
- * @returns {Object} An object containing the SKU.
+ * @param {string} format The format to extract details from the path.
+ * @returns {Object} An object containing the extracted details.
  * @throws Throws an error if the path is invalid.
  */
-function extractPathDetails(path) {
+function extractPathDetails(path, format) {
   if (!path) {
     return {};
   }
-  // TODO: Extend to support store code as well if configured
 
-  // Strip leading slash if present
-  if (path.startsWith('/')) {
-    path = path.substring(1);
+  const formatParts = format.split('/').filter(Boolean);
+  const pathParts = path.split('/').filter(Boolean);
+
+  if (formatParts.length !== pathParts.length) {
+    throw new Error(`Invalid path. Expected '${format}' format.`);
   }
 
-  const pathParts = path.split('/');
-  if (pathParts.length !== 3 || pathParts[0] !== 'products') {
-    throw new Error(`Invalid path. Expected '/products/{urlKey}/{sku}'`);
-  }
+  const result = {};
+  formatParts.forEach((part, index) => {
+    if (part.startsWith('{') && part.endsWith('}')) {
+      const key = part.substring(1, part.length - 1);
+      result[key] = pathParts[index];
+    } else if (part !== pathParts[index]) {
+      throw new Error(`Invalid path. Expected '${format}' format.`);
+    }
+  });
 
-  const sku = pathParts[2].toUpperCase();
-
-  return { sku };
+  return result;
 }
 
 /**
