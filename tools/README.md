@@ -91,9 +91,15 @@ This script is used to download and display poller statistics from Adobe I/O Run
     AIO_RUNTIME_AUTH=<your_auth_key>
     ```
 
-2. Run the script using Node.js:
-    ```bash
-    node download-poller-stats.js
+2. Usage:
+    ```
+    Usage: node download-poller-stats.js [options]
+
+    Options:
+        -d, --date <YYYY-MM-DD>                   Select data for a specific day. If not provided, defaults to today's date
+        -c, --chart <chart_filename.svg>          Generate a chart from the data, showing latency distribution and        
+                                                  correlation with other factors. In addition, generate a JSON file with corresponding data series.
+        -h, --help                                Display help for cli tool
+        -f, --file <records_filename.{csv,json}>  The filename to save the records to; JSON and CSV formats are supported.
     ```
 
-3. The script will output the poller statistics in CSV format.
