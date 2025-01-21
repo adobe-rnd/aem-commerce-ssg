@@ -36,14 +36,28 @@ function extractPathDetails(path, format) {
 /**
  * Constructs the URL of a product.
  *
- * @param {string} urlKey The url key of the product.
- * @param {string} sku The sku of the product.
- * @param {Object} context The context object containing the store URL.
- * @returns {string} The product url.
+ * @param {Object} product Product with sku and urlKey properties.
+ * @param {Object} context The context object containing the store URL and path format.
+ * @returns {string} The product url or null if storeUrl or pathFormat are missing.
  */
-function getProductUrl(urlKey, sku, context) {
-  const { storeUrl } = context;
-  return `${storeUrl}/products/${urlKey}/${sku}`;
+function getProductUrl(product, context) {
+  const { storeUrl, pathFormat } = context;
+  if (!storeUrl || !pathFormat) {
+    return null;
+  }
+
+  let path = pathFormat.split('/')
+    .filter(Boolean)
+    .map(part => {
+      if (part.startsWith('{') && part.endsWith('}')) {
+        const key = part.substring(1, part.length - 1);
+        return product[key];
+      }
+      return part;
+    });
+  path.unshift(storeUrl);
+
+  return path.join('/');
 }
 
 /**

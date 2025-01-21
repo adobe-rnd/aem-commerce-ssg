@@ -21,7 +21,7 @@ const runtimePackage = 'aem-commerce-ssg'
 const actionUrl = `https://${namespace}.${hostname}/api/v1/web/${runtimePackage}/pdp-renderer`
 
 test('simple product markup', async () => {
-  const res = await fetch(`${actionUrl}/products/crown-summit-backpack/24-MB03`);
+  const res = await fetch(`${actionUrl}/products/crown-summit-backpack/24-mb03`);
   const content = await res.text();
 
   // Parse markup and compare
@@ -83,7 +83,7 @@ test('simple product markup', async () => {
 });
 
 test('complex product markup', async () => {
-  const res = await fetch(`${actionUrl}/products/hollister-backyard-sweatshirt/MH05`);
+  const res = await fetch(`${actionUrl}/products/hollister-backyard-sweatshirt/mh05`);
   const content = await res.text();
 
   // Parse markup and compare
@@ -456,3 +456,14 @@ test('complex product markup', async () => {
   };
   expect(ldJson).toEqual(expected);
 });
+
+test('product by urlKey', async () => {
+  const res = await fetch(`${actionUrl}/crown-summit-backpack?pathFormat=/{urlKey}`);
+  const content = await res.text();
+
+  // Parse markup and compare
+  const $ = cheerio.load(content);
+
+  // Validate H1
+  expect($('h1').text()).toEqual('Crown Summit Backpack');
+})

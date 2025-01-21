@@ -64,9 +64,26 @@ describe('lib', () => {
         });
     });
 
-    test('getProductUrl', () => {
-        const context = { storeUrl: 'https://example.com' };
-        expect(getProductUrl('urlKey', 'sku', context)).toBe('https://example.com/products/urlKey/sku');
+    describe('getProductUrl', () => {
+        test('getProductUrl with urlKey and sku', () => {
+            const context = { storeUrl: 'https://example.com', pathFormat: '/products/{urlKey}/{sku}' };
+            expect(getProductUrl({ urlKey: 'my-url-key', sku: 'my-sku' }, context)).toBe('https://example.com/products/my-url-key/my-sku');
+        });
+
+        test('getProductUrl with urlKey', () => {
+            const context = { storeUrl: 'https://example.com', pathFormat: '/{urlKey}' };
+            expect(getProductUrl({ urlKey: 'my-url-key' }, context)).toBe('https://example.com/my-url-key');
+        });
+
+        test('return null for missing storeUrl', () => {
+            const context = { pathFormat: '/{urlKey}' };
+            expect(getProductUrl({ urlKey: 'my-url-key' }, context)).toBe(null);
+        });
+
+        test('return null for missing pathFormat', () => {
+            const context = { storeUrl: 'https://example.com' };
+            expect(getProductUrl({ urlKey: 'my-url-key' }, context)).toBe(null);
+        });
     });
 
     test('generatePriceString', () => {
