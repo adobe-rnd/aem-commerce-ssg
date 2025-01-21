@@ -191,12 +191,8 @@ async function request(name, url, req, timeout = 60000) {
  * @returns {Promise<object>} spreadsheet data as JSON.
  */
 async function requestSpreadsheet(name, sheet, context) {
-  const { contentUrl, storeCode } = context;
-  let storeRoot = contentUrl;
-  if (storeCode) {
-    storeRoot += `/${storeCode}`;
-  }
-  let sheetUrl = `${storeRoot}/${name}.json`
+  const { contentUrl } = context;
+  let sheetUrl = `${contentUrl}/${name}.json`
   if (sheet) {
     sheetUrl += `?sheet=${sheet}`;
   }
@@ -211,8 +207,9 @@ async function requestSpreadsheet(name, sheet, context) {
  * @returns {Promise<object>} configuration as object.
  */
 async function getConfig(context) {
-  const { configName = 'configs' } = context;
+  const { configName = 'configs', logger } = context;
   if (!context.config) {
+    logger.debug(`Fetching config ${configName}`);
     const configData = await requestSpreadsheet(configName, null, context);
     context.config = configData.data.reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {});
   }

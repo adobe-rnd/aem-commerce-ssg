@@ -128,7 +128,17 @@ describe('request', () => {
       return HttpResponse.json({ data: [{ key: 'testKey', value: 'testValue' }] });
     }));
 
-    const context = { contentUrl: 'https://content.com' };
+    const context = { contentUrl: 'https://content.com', logger: { debug: jest.fn() } };
+    const config = await getConfig(context);
+    expect(config).toEqual({ testKey: 'testValue' });
+  });
+
+  test('getConfig with subpath', async () => {
+    server.use(http.get('https://content.com/en/configs.json', async () => {
+      return HttpResponse.json({ data: [{ key: 'testKey', value: 'testValue' }] });
+    }));
+
+    const context = { configName: 'en/configs', contentUrl: 'https://content.com', logger: { debug: jest.fn() } };
     const config = await getConfig(context);
     expect(config).toEqual({ testKey: 'testValue' });
   });
@@ -211,25 +221,25 @@ describe('request', () => {
   });
 
   test('requestSpreadsheet', async () => {
-    server.use(http.get('https://content.com/test/config.json', async () => {
+    server.use(http.get('https://content.com/config.json', async () => {
       return HttpResponse.json({ data: [{ key: 'testKey', value: 'testValue' }] });
     }));
 
-    const context = { contentUrl: 'https://content.com', storeCode: 'test' };
+    const context = { contentUrl: 'https://content.com' };
     const data = await requestSpreadsheet('config', null, context);
     expect(data).toEqual({ data: [{ key: 'testKey', value: 'testValue' }] });
   });
 
   test('requestSpreadsheet with sheet', async () => {
     let requestUrl;
-    server.use(http.get('https://content.com/test2/config.json', async ({ request }) => {
+    server.use(http.get('https://content.com/config.json', async ({ request }) => {
       requestUrl = request.url;
       return HttpResponse.json({ data: [{ key: 'testKey', value: 'testValue' }] });
     }));
 
-    const context = { contentUrl: 'https://content.com', storeCode: 'test2' };
+    const context = { contentUrl: 'https://content.com' };
     await requestSpreadsheet('config', 'testSheet', context);
-    expect(requestUrl).toEqual('https://content.com/test2/config.json?sheet=testSheet');
+    expect(requestUrl).toEqual('https://content.com/config.json?sheet=testSheet');
   });
 
   test('successful request', async () => {

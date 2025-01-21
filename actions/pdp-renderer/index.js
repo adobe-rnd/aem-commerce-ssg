@@ -16,7 +16,7 @@ const path = require('path');
 const { Core } = require('@adobe/aio-sdk')
 const Handlebars = require('handlebars');
 const { errorResponse, stringParameters, requestSaaS } = require('../utils');
-const { extractPathDetails, findDescription, prepareBaseTemplate, getPrimaryImage, generatePriceString, getImageList } = require('./lib');
+const { extractPathDetails, findDescription, prepareBaseTemplate, getPrimaryImage, generatePriceString, getImageList, mapLocale } = require('./lib');
 const { ProductQuery, ProductByUrlKeyQuery } = require('../queries');
 const { generateLdJson } = require('./ldJson');
 
@@ -74,14 +74,19 @@ async function main (params) {
     const contentUrl = contentUrlQuery || HLX_CONTENT_URL;
     const storeUrl = storeUrlQuery || HLX_STORE_URL || contentUrl;
     const productsTemplate = productsTemplateQuery || HLX_PRODUCTS_TEMPLATE;
-    const context = { contentUrl, storeUrl, configName, logger, pathFormat };
+    let context = { contentUrl, storeUrl, configName, logger, pathFormat };
 
     const result = extractPathDetails(__ow_path, pathFormat);
     logger.debug('Path parse results', JSON.stringify(result, null, 4));
-    const { sku, urlKey } = result;
+    const { sku, urlKey, locale } = result;
 
     if ((!sku && !urlKey) || !contentUrl) {
       return errorResponse(400, 'Invalid path', logger);
+    }
+
+    // Map locale to context
+    if (locale) {
+      context = { ...context, ...mapLocale(locale, context) };
     }
 
     // Retrieve base product

@@ -4,18 +4,18 @@ application:
     packages:
       aem-commerce-ssg:
         license: Apache-2.0
+        inputs:
+          LOG_LEVEL: debug
+          HLX_CONTENT_URL: "https://main--aem-boilerplate-commerce--hlxsites.aem.live"
+          HLX_PRODUCTS_TEMPLATE: "https://main--aem-boilerplate-commerce--hlxsites.aem.live/products/default"
+          HLX_STORE_URL: "https://www.aemshop.net"
+          HLX_CONFIG_NAME: "configs"
+          HLX_PATH_FORMAT: "/products/{urlKey}/{sku}"
         actions:
           pdp-renderer:
             function: actions/pdp-renderer/index.js
             web: 'yes'
             runtime: nodejs:18
-            inputs:
-              LOG_LEVEL: debug
-              HLX_CONTENT_URL: "https://main--aem-boilerplate-commerce--hlxsites.aem.live"
-              HLX_PRODUCTS_TEMPLATE: "https://main--aem-boilerplate-commerce--hlxsites.aem.live/products/default"
-              HLX_STORE_URL: "https://www.aemshop.net"
-              HLX_CONFIG_NAME: "configs"
-              HLX_PATH_FORMAT: "/products/{urlKey}/{sku}"
             annotations:
               final: true
             include:

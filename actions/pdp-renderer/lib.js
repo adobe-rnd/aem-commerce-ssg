@@ -46,12 +46,18 @@ function getProductUrl(product, context) {
     return null;
   }
 
+  const availableParams = {
+    sku: product.sku,
+    urlKey: product.urlKey,
+    locale: context.locale,
+  };
+
   let path = pathFormat.split('/')
     .filter(Boolean)
     .map(part => {
       if (part.startsWith('{') && part.endsWith('}')) {
         const key = part.substring(1, part.length - 1);
-        return product[key];
+        return availableParams[key];
       }
       return part;
     });
@@ -193,4 +199,26 @@ function getImageList(primary, images) {
   return imageList;
 }
 
-module.exports = { extractPathDetails, getProductUrl, findDescription, getPrimaryImage, prepareBaseTemplate, generatePriceString, getImageList };
+/**
+ * Adjust the context according to the given locale.
+ * 
+ * TODO: Customize this function to match your multi store setup
+ * 
+ * @param {string} locale The locale to map.
+ * @returns {Object} An object containing the adjusted context.
+ */
+function mapLocale(locale, context) {
+  // List of allowed locales
+  const allowedLocales = ['en', 'fr'];
+  if (!locale || !allowedLocales.includes(locale)) {
+    locale = 'en';
+  }
+
+  // Example for dedicated config file per locale
+  return {
+    locale,
+    configName: [locale, context.configName].join('/'),
+  }
+}
+
+module.exports = { extractPathDetails, getProductUrl, findDescription, getPrimaryImage, prepareBaseTemplate, generatePriceString, getImageList, mapLocale };
