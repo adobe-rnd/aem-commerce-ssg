@@ -110,7 +110,7 @@ function shouldProcessProduct(product) {
 async function poll(params, stateLib) {
   checkParams(params);
 
-  const log = Core.Logger('main', { level: params.LOG_LEVEL || 'info' });
+  const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' });
   const {
     HLX_SITE_NAME: siteName,
     HLX_PATH_FORMAT: pathFormat,
@@ -127,7 +127,7 @@ async function poll(params, stateLib) {
     published: 0, unpublished: 0, ignored: 0, failed: 0,
   };
   const sharedContext = {
-    storeUrl, configName, log, counts, pathFormat,
+    storeUrl, configName, logger, counts, pathFormat,
   };
   const timings = new Timings();
   const adminApi = new AdminAPI({
@@ -135,7 +135,7 @@ async function poll(params, stateLib) {
     site: siteName,
   }, sharedContext, { requestPerSecond, authToken });
 
-  log.info(`Starting poll from ${storeUrl} for locales ${locales}`);
+  logger.info(`Starting poll from ${storeUrl} for locales ${locales}`);
 
   try {
     // start processing preview and publish queues
@@ -177,7 +177,7 @@ async function poll(params, stateLib) {
       const skus = Object.keys(state.skus);
       const lastModifiedResp = await requestSaaS(GetLastModifiedQuery, 'getLastModified', { skus }, context);
       timings.sample('fetchedLastModifiedDates');
-      log.info(`Fetched last modified date for ${lastModifiedResp.data.products.length} skus, total ${skus.length}`);
+      logger.info(`Fetched last modified date for ${lastModifiedResp.data.products.length} skus, total ${skus.length}`);
 
       // group preview in batches of 50
       let products = lastModifiedResp.data.products
@@ -202,7 +202,7 @@ async function poll(params, stateLib) {
       const batches = products.filter(shouldProcessProduct)
         .reduce((acc, product, i, arr) => {
           const { sku, urlKey } = product;
-          const path = getProductUrl({ urlKey, sku }, context).toLowerCase();
+          const path = getProductUrl({ urlKey, sku }, context, false).toLowerCase();
           const req = adminApi.previewAndPublish({ path, sku });
           acc.push(req);
           if (acc.length === BATCH_SIZE || i === arr.length - 1) {
@@ -255,7 +255,7 @@ async function poll(params, stateLib) {
         }
       } catch (e) {
         // in case the index doesn't yet exist or any other error
-        log.error(e);
+        logger.error(e);
       }
 
       timings.sample('unpublishedPaths');
@@ -281,14 +281,14 @@ async function poll(params, stateLib) {
   }
   timings.measures.previewDuration = aggregate(adminApi.previewDurations);
 } catch (e) {
-  log.error(e);
+  logger.error(e);
   // wait for queues to finish, even in error case
   await adminApi.stopProcessing();
 }
 
 const elapsed = new Date() - timings.now;
 
-log.info(`Finished polling, elapsed: ${elapsed}ms`);
+logger.info(`Finished polling, elapsed: ${elapsed}ms`);
 
 return {
   state: 'completed',

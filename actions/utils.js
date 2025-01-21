@@ -112,7 +112,7 @@ function getBearerToken (params) {
 
 /**
  *
- * Returns an error response object and attempts to log.info the status code and error message
+ * Returns an error response object and attempts to logger.info the status code and error message
  *
  * @param {number} statusCode the error status code.
  *        e.g. 400
