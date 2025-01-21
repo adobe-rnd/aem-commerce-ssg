@@ -24,12 +24,12 @@ async function main() {
     try {
         const fileContents = fs.readFileSync(filePath, 'utf8');
         const data = yaml.load(fileContents, 'utf8');
-        const envs = data?.application?.runtimeManifest?.packages['aem-commerce-ssg']?.env || {};
+        const parameters = data?.application?.runtimeManifest?.packages['aem-commerce-ssg']?.parameters || {};
         ({
             COMMERCE_STORE_CODE: storeCodeYaml,
             COMMERCE_STORE_URL: storeUrlYaml,
             COMMERCE_CONFIG_NAME: configNameYaml
-        } = envs);
+        } = parameters);
     } catch (e) {
         console.error('Error getting configuration from app.config.yaml file:', e);
     }
