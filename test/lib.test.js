@@ -10,7 +10,7 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
-const { findDescription, getPrimaryImage, extractPathDetails, getProductUrl, generatePriceString } = require('../actions/pdp-renderer/lib');
+const { findDescription, getPrimaryImage, extractPathDetails, generatePriceString } = require('../actions/pdp-renderer/lib');
 
 describe('lib', () => {
     test('findDescription', () => {
@@ -61,28 +61,6 @@ describe('lib', () => {
         });
         test('empty object for null path', () => {
             expect(extractPathDetails(null)).toEqual({});
-        });
-    });
-
-    describe('getProductUrl', () => {
-        test('getProductUrl with urlKey and sku', () => {
-            const context = { storeUrl: 'https://example.com', pathFormat: '/products/{urlKey}/{sku}' };
-            expect(getProductUrl({ urlKey: 'my-url-key', sku: 'my-sku' }, context)).toBe('https://example.com/products/my-url-key/my-sku');
-        });
-
-        test('getProductUrl with urlKey', () => {
-            const context = { storeUrl: 'https://example.com', pathFormat: '/{urlKey}' };
-            expect(getProductUrl({ urlKey: 'my-url-key' }, context)).toBe('https://example.com/my-url-key');
-        });
-
-        test('return null for missing storeUrl', () => {
-            const context = { pathFormat: '/{urlKey}' };
-            expect(getProductUrl({ urlKey: 'my-url-key' }, context)).toBe(null);
-        });
-
-        test('return null for missing pathFormat', () => {
-            const context = { storeUrl: 'https://example.com' };
-            expect(getProductUrl({ urlKey: 'my-url-key' }, context)).toBe(null);
         });
     });
 

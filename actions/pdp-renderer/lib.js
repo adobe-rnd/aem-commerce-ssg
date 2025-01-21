@@ -34,39 +34,6 @@ function extractPathDetails(path, format) {
 }
 
 /**
- * Constructs the URL of a product.
- *
- * @param {Object} product Product with sku and urlKey properties.
- * @param {Object} context The context object containing the store URL and path format.
- * @returns {string} The product url or null if storeUrl or pathFormat are missing.
- */
-function getProductUrl(product, context) {
-  const { storeUrl, pathFormat } = context;
-  if (!storeUrl || !pathFormat) {
-    return null;
-  }
-
-  const availableParams = {
-    sku: product.sku,
-    urlKey: product.urlKey,
-    locale: context.locale,
-  };
-
-  let path = pathFormat.split('/')
-    .filter(Boolean)
-    .map(part => {
-      if (part.startsWith('{') && part.endsWith('}')) {
-        const key = part.substring(1, part.length - 1);
-        return availableParams[key];
-      }
-      return part;
-    });
-  path.unshift(storeUrl);
-
-  return path.join('/');
-}
-
-/**
  * Finds the description of a product based on a priority list of fields.
  * @param {Object} product The product object.
  * @param {Array<string>} priority The list of fields to check for the description, in order of priority.
@@ -199,26 +166,4 @@ function getImageList(primary, images) {
   return imageList;
 }
 
-/**
- * Adjust the context according to the given locale.
- * 
- * TODO: Customize this function to match your multi store setup
- * 
- * @param {string} locale The locale to map.
- * @returns {Object} An object containing the adjusted context.
- */
-function mapLocale(locale, context) {
-  // List of allowed locales
-  const allowedLocales = ['en', 'fr'];
-  if (!locale || !allowedLocales.includes(locale)) {
-    locale = 'en';
-  }
-
-  // Example for dedicated config file per locale
-  return {
-    locale,
-    configName: [locale, context.configName].join('/'),
-  }
-}
-
-module.exports = { extractPathDetails, getProductUrl, findDescription, getPrimaryImage, prepareBaseTemplate, generatePriceString, getImageList, mapLocale };
+module.exports = { extractPathDetails, findDescription, getPrimaryImage, prepareBaseTemplate, generatePriceString, getImageList };

@@ -1,5 +1,5 @@
-const { requestSaaS } = require('../utils');
-const { getProductUrl, findDescription, getPrimaryImage } = require('./lib');
+const { requestSaaS, getProductUrl } = require('../utils');
+const { findDescription, getPrimaryImage } = require('./lib');
 const { VariantsQuery } = require('../queries');
 
 function getOffer(product, url) {

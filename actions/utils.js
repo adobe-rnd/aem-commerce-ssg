@@ -285,6 +285,65 @@ function isValidUrl(string) {
   }
 }
 
+/**
+ * Constructs the URL of a product.
+ *
+ * @param {Object} product Product with sku and urlKey properties.
+ * @param {Object} context The context object containing the store URL and path format.
+ * @returns {string} The product url or null if storeUrl or pathFormat are missing.
+ */
+function getProductUrl(product, context, addStore = true) {
+  const { storeUrl, pathFormat } = context;
+  if (!storeUrl || !pathFormat) {
+    return null;
+  }
+
+  const availableParams = {
+    sku: product.sku,
+    urlKey: product.urlKey,
+    locale: context.locale,
+  };
+
+  let path = pathFormat.split('/')
+    .filter(Boolean)
+    .map(part => {
+      if (part.startsWith('{') && part.endsWith('}')) {
+        const key = part.substring(1, part.length - 1);
+        return availableParams[key];
+      }
+      return part;
+    });
+
+  if (addStore) {
+    path.unshift(storeUrl);
+    return path.join('/');
+  }
+
+  return `/${path.join('/')}`;
+}
+
+/**
+ * Adjust the context according to the given locale.
+ * 
+ * TODO: Customize this function to match your multi store setup
+ * 
+ * @param {string} locale The locale to map.
+ * @returns {Object} An object containing the adjusted context.
+ */
+function mapLocale(locale, context) {
+  // List of allowed locales
+  const allowedLocales = ['en', 'fr'];
+  if (!locale || !allowedLocales.includes(locale)) {
+    locale = 'en';
+  }
+
+  // Example for dedicated config file per locale
+  return {
+    locale,
+    configName: [locale, context.configName].join('/'),
+  }
+}
+
 module.exports = {
   errorResponse,
   getBearerToken,
@@ -295,4 +354,6 @@ module.exports = {
   request,
   requestSpreadsheet,
   isValidUrl,
+  getProductUrl,
+  mapLocale,
 }

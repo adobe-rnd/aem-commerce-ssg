@@ -15,8 +15,8 @@ const path = require('path');
 
 const { Core } = require('@adobe/aio-sdk')
 const Handlebars = require('handlebars');
-const { errorResponse, stringParameters, requestSaaS } = require('../utils');
-const { extractPathDetails, findDescription, prepareBaseTemplate, getPrimaryImage, generatePriceString, getImageList, mapLocale } = require('./lib');
+const { errorResponse, stringParameters, requestSaaS, mapLocale } = require('../utils');
+const { extractPathDetails, findDescription, prepareBaseTemplate, getPrimaryImage, generatePriceString, getImageList } = require('./lib');
 const { ProductQuery, ProductByUrlKeyQuery } = require('../queries');
 const { generateLdJson } = require('./ldJson');
 
