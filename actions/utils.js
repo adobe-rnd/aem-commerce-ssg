@@ -223,12 +223,11 @@ async function getConfig(context) {
  * @param {string} operationName name of the operation.
  * @param {object} variables query variables.
  * @param {object} context the context object.
- * @param {object} [configOverrides] optional object to overwrite config values.
  *
  * @returns {Promise<object>} GraphQL response as parsed object.
  */
-async function requestSaaS(query, operationName, variables, context, configOverrides = {}) {
-  const { storeUrl, logger } = context;
+async function requestSaaS(query, operationName, variables, context) {
+  const { storeUrl, logger, configOverrides = {} } = context;
   const config = {
     ... (await getConfig(context)),
     ...configOverrides
