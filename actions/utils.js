@@ -332,7 +332,7 @@ function getProductUrl(product, context, addStore = true) {
  */
 function mapLocale(locale, context) {
   // List of allowed locales
-  const allowedLocales = ['en', 'fr'];
+  const allowedLocales = ['en', 'fr']; // Or use context.allowedLocales derived from HLX_LOCALES configuration
   if (!locale || !allowedLocales.includes(locale)) {
     locale = 'en';
   }

@@ -66,7 +66,8 @@ async function main (params) {
       HLX_CONTENT_URL,
       HLX_CONFIG_NAME,
       HLX_PRODUCTS_TEMPLATE,
-      HLX_PATH_FORMAT
+      HLX_PATH_FORMAT,
+      HLX_LOCALES,
     } = params;
 
     const pathFormat = pathFormatQuery || HLX_PATH_FORMAT || '/products/{urlKey}/{sku}';
@@ -74,7 +75,8 @@ async function main (params) {
     const contentUrl = contentUrlQuery || HLX_CONTENT_URL;
     const storeUrl = storeUrlQuery || HLX_STORE_URL || contentUrl;
     const productsTemplate = productsTemplateQuery || HLX_PRODUCTS_TEMPLATE;
-    let context = { contentUrl, storeUrl, configName, logger, pathFormat };
+    const allowedLocales = HLX_LOCALES ? HLX_LOCALES.split(',').map(a => a.trim()) : [];
+    let context = { contentUrl, storeUrl, configName, logger, pathFormat, allowedLocales };
 
     const result = extractPathDetails(__ow_path, pathFormat);
     logger.debug('Path parse results', JSON.stringify(result, null, 4));
