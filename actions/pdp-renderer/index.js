@@ -88,7 +88,12 @@ async function main (params) {
 
     // Map locale to context
     if (locale) {
+      try {
       context = { ...context, ...mapLocale(locale, context) };
+      // eslint-disable-next-line no-unused-vars
+      } catch(e) {
+        return errorResponse(400, 'Invalid locale', logger);
+      }
     }
 
     // Retrieve base product

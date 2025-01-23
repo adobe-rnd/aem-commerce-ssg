@@ -331,10 +331,10 @@ function getProductUrl(product, context, addStore = true) {
  * @returns {Object} An object containing the adjusted context.
  */
 function mapLocale(locale, context) {
-  // List of allowed locales
+  // Check if locale is valid
   const allowedLocales = ['en', 'fr']; // Or use context.allowedLocales derived from HLX_LOCALES configuration
   if (!locale || !allowedLocales.includes(locale)) {
-    locale = 'en';
+    throw new Error('Invalid locale');
   }
 
   // Example for dedicated config file per locale

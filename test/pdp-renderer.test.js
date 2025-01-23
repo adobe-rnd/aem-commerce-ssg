@@ -158,6 +158,18 @@ describe('pdp-renderer', () => {
     expect(ldJson.offers[0].url).toEqual('https://store.com/en/products/24-MB03');
   });
 
+  test('return 400 if locale is not supported', async () => {
+    const response = await action.main({
+      HLX_STORE_URL: 'https://store.com',
+      HLX_CONTENT_URL: 'https://content.com',
+      HLX_CONFIG_NAME: 'config',
+      HLX_PATH_FORMAT: '/{locale}/products/{sku}',
+      __ow_path: `/test/products/24-MB03`,
+    });
+
+    expect(response.error.statusCode).toEqual(400);
+  });
+
   test('return 400 if neither sku nor urlKey are provided', async () => {
     const response = await action.main({
       HLX_STORE_URL: 'https://store.com',
