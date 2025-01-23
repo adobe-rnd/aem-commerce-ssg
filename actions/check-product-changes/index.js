@@ -22,7 +22,10 @@ async function main(params) {
   }
 
   try {
-    await state.put('running', 'true');
+    // if there is any failure preventing a reset of the 'running' state key to 'false',
+    // this might not be updated and action execution could be permanently skipped
+    // a ttl == function timeout is a mitigation for this risk
+    await state.put('running', 'true', { ttl: 3600 });
     return await poll(params, state);
   } finally {
     await state.put('running', 'false');
