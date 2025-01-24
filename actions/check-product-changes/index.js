@@ -10,22 +10,23 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
-const { stateLib } = require('@adobe/aio-lib-state');
+const { State, Files } = require('@adobe/aio-sdk');
 const { poll } = require('./poller');
 
 async function main(params) {
-  const state = await stateLib.init();
-  const running = await state.get('running');
+  const stateLib = await State.init();
+  const filesLib = await Files.init();
+  const running = await stateLib.get('running');
 
   if (running?.value === 'true') {
     return { state: 'skipped' };
   }
 
   try {
-    await state.put('running', 'true');
-    return await poll(params, state);
+    await stateLib.put('running', 'true');
+    return await poll(params, filesLib);
   } finally {
-    await state.put('running', 'false');
+    await stateLib.put('running', 'false');
   }
 }
 

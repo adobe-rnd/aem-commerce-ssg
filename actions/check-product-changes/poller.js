@@ -17,11 +17,19 @@ const { GetAllSkusQuery, GetLastModifiedQuery } = require('../queries');
 const { Core } = require('@adobe/aio-sdk');
 
 const BATCH_SIZE = 50;
+const FILE_PREFIX = 'check-product-changes';
+const FILE_EXT = 'txt';
 
-async function loadState(storeCode, stateLib) {
+function getFileLocation(stateKey) {
+  return `${FILE_PREFIX}/${stateKey}.${FILE_EXT}`;
+}
+
+async function loadState(storeCode, filesLib) {
   const stateKey = storeCode ? `${storeCode}` : 'default';
-  const stateData = await stateLib.get(stateKey);
-  if (!stateData?.value) {
+  const fileLocation = getFileLocation(stateKey);
+  const buffer = await filesLib.read(fileLocation);
+  const stateData = buffer?.toString();
+  if (!stateData) {
     return {
       storeCode,
       skusLastQueriedAt: new Date(0),
@@ -32,7 +40,7 @@ async function loadState(storeCode, stateLib) {
   // <timestamp>,<sku1>,<timestamp>,<sku2>,<timestamp>,<sku3>,...,<timestamp>
   // the first timestamp is the last time the SKUs were fetched from Adobe Commerce
   // folloed by a pair of SKUs and timestamps which are the last preview times per SKU
-  const [catalogQueryTimestamp, ...skus] = stateData && stateData.value ? stateData.value.split(',') : [0];
+  const [catalogQueryTimestamp, ...skus] = stateData.split(',');
   return {
     storeCode,
     skusLastQueriedAt: new Date(parseInt(catalogQueryTimestamp)),
@@ -42,17 +50,18 @@ async function loadState(storeCode, stateLib) {
   };
 }
 
-async function saveState(state, stateLib) {
+async function saveState(state, filesLib) {
   let { storeCode } = state;
   if (!storeCode) {
     storeCode = 'default';
   }
   const stateKey = `${storeCode}`;
+  const fileLocation = getFileLocation(stateKey);
   const stateData = [
     state.skusLastQueriedAt.getTime(),
     ...Object.entries(state.skus).flatMap(([sku, lastPreviewedAt]) => [sku, lastPreviewedAt.getTime()]),
   ].join(',');
-  await stateLib.put(stateKey, stateData);
+  await filesLib.write(fileLocation, stateData);
 }
 
 /**
@@ -72,7 +81,7 @@ async function saveState(state, stateLib) {
  * @param {string} [params.storeUrl] - The store's base URL.
  * @param {string} [params.storeCodes] - Comma-separated list of store codes.
  * @param {string} [params.LOG_LEVEL] - The log level.
- * @param {Object} stateLib - The state provider object.
+ * @param {Object} filesLib - The files provider object.
  * @returns {Promise<Object>} The result of the polling action.
  */
 function checkParams(params) {
@@ -107,7 +116,7 @@ function shouldProcessProduct(product) {
   return urlKey?.match(/^[a-zA-Z0-9-]+$/) && lastModifiedDate >= lastPreviewDate;
 }
 
-async function poll(params, stateLib) {
+async function poll(params, filesLib) {
   checkParams(params);
 
   const log = Core.Logger('main', { level: params.LOG_LEVEL || 'info' });
@@ -144,7 +153,7 @@ async function poll(params, stateLib) {
     const results = await Promise.all(storeCodes.map(async (storeCode) => {
       const timings = new Timings();
       // load state
-      const state = await loadState(storeCode, stateLib);
+      const state = await loadState(storeCode, filesLib);
       timings.sample('loadedState');
       const context = { ...sharedContext, storeCode };
 
@@ -218,7 +227,7 @@ async function poll(params, stateLib) {
             counts.failed++;
           }
         }
-        await saveState(state, stateLib);
+        await saveState(state, filesLib);
       }
 
       timings.sample('publishedPaths');
@@ -247,7 +256,7 @@ async function poll(params, stateLib) {
             await deleteBatch({ counts, batch, state, adminApi });
           }
           // save state after deletes
-          await saveState(state, stateLib);
+          await saveState(state, filesLib);
         }
       } catch (e) {
         // in case the index doesn't yet exist or any other error
@@ -294,4 +303,4 @@ return {
 };
 }
 
-module.exports = { poll, loadState, saveState };
+module.exports = { poll, loadState, saveState, getFileLocation };
