@@ -10,7 +10,7 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
-const { findDescription, getPrimaryImage, extractPathDetails, getProductUrl, generatePriceString } = require('../actions/pdp-renderer/lib');
+const { findDescription, getPrimaryImage, extractPathDetails, generatePriceString } = require('../actions/pdp-renderer/lib');
 
 describe('lib', () => {
     test('findDescription', () => {
@@ -42,18 +42,26 @@ describe('lib', () => {
         expect(getPrimaryImage({ images: [] })).toBeUndefined();
     });
 
-    test('extractPathDetails', () => {
-        expect(extractPathDetails('/products/urlKey/sku')).toEqual({ sku: 'SKU' });
-        expect(extractPathDetails('products/urlKey/sku')).toEqual({ sku: 'SKU' });
-        expect(() => extractPathDetails('/products/urlKey/sku/extra')).toThrow(`Invalid path. Expected '/products/{urlKey}/{sku}'`);
-        expect(() => extractPathDetails('/product/urlKey/sku')).toThrow(`Invalid path. Expected '/products/{urlKey}/{sku}'`);
-        expect(extractPathDetails('')).toEqual({});
-        expect(extractPathDetails(null)).toEqual({});
-    });
 
-    test('getProductUrl', () => {
-        const context = { storeUrl: 'https://example.com' };
-        expect(getProductUrl('urlKey', 'sku', context)).toBe('https://example.com/products/urlKey/sku');
+    describe('extractPathDetails', () => {
+        test('extract sku and urlKey from path', () => {
+            expect(extractPathDetails('/products/my-url-key/my-sku', '/products/{urlKey}/{sku}')).toEqual({ sku: 'my-sku', urlKey: 'my-url-key' });
+        });
+        test('extract urlKey from path', () => {
+            expect(extractPathDetails('/my-url-key', '/{urlKey}')).toEqual({ urlKey: 'my-url-key' });
+        });
+        test('throw error if path is too long', () => {
+            expect(() => extractPathDetails('/products/my-url-key/my-sku', '/products/{urlKey}')).toThrow(`Invalid path. Expected '/products/{urlKey}' format.`);
+        });
+        test('throw error if static part of path does not match', () => {
+            expect(() => extractPathDetails('/product/my-sku', '/products/{sku}')).toThrow(`Invalid path. Expected '/products/{sku}' format.`);
+        });
+        test('empty object for empty path', () => {
+            expect(extractPathDetails('')).toEqual({});
+        });
+        test('empty object for null path', () => {
+            expect(extractPathDetails(null)).toEqual({});
+        });
     });
 
     test('generatePriceString', () => {

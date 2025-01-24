@@ -17,7 +17,7 @@ const { useMockServer, handlers } = require('./mock-server.js');
 
 describe('ldJson', () => {
 
-    const mockContext = { contentUrl: 'https://content.com', storeUrl: 'https://example.com', configName: 'config', logger: { error: jest.fn() } };
+    const mockContext = { contentUrl: 'https://content.com', storeUrl: 'https://example.com', configName: 'config', logger: { debug: jest.fn(), error: jest.fn() }, pathFormat: '/products/{urlKey}/{sku}' };
     const server = useMockServer();
 
     beforeEach(() => {

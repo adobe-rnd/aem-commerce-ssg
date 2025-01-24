@@ -17,6 +17,7 @@ const path = require('path');
 const mockConfig = require('./mock-responses/mock-config.json');
 const mockVariants = require('./mock-responses/mock-variants.json');
 const mockProduct = require('./mock-responses/mock-product.json');
+const mockProductLs = require('./mock-responses/mock-product-ls.json');
 const mockComplexProduct = require('./mock-responses/mock-complex-product.json');
 const mockProductTemplate = fs.readFileSync(path.resolve(__dirname, './mock-responses/product-default.html'), 'utf8');
 
@@ -32,6 +33,10 @@ const handlers = {
   defaultVariant: (matcher) => graphql.query('VariantsQuery', (req) => {
     matcher?.(req);
     return HttpResponse.json(mockVariants);
+  }),
+  defaultProductLiveSearch: (matcher) => graphql.query('ProductByUrlKey', (req) => {
+    matcher?.(req);
+    return HttpResponse.json(mockProductLs);
   }),
   return404: (matcher) => graphql.query('ProductQuery', (req) => {
     matcher?.(req);

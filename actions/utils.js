@@ -112,7 +112,7 @@ function getBearerToken (params) {
 
 /**
  *
- * Returns an error response object and attempts to log.info the status code and error message
+ * Returns an error response object and attempts to logger.info the status code and error message
  *
  * @param {number} statusCode the error status code.
  *        e.g. 400
@@ -191,12 +191,8 @@ async function request(name, url, req, timeout = 60000) {
  * @returns {Promise<object>} spreadsheet data as JSON.
  */
 async function requestSpreadsheet(name, sheet, context) {
-  const { contentUrl, storeCode } = context;
-  let storeRoot = contentUrl;
-  if (storeCode) {
-    storeRoot += `/${storeCode}`;
-  }
-  let sheetUrl = `${storeRoot}/${name}.json`
+  const { contentUrl } = context;
+  let sheetUrl = `${contentUrl}/${name}.json`
   if (sheet) {
     sheetUrl += `?sheet=${sheet}`;
   }
@@ -211,8 +207,9 @@ async function requestSpreadsheet(name, sheet, context) {
  * @returns {Promise<object>} configuration as object.
  */
 async function getConfig(context) {
-  const { configName = 'configs' } = context;
+  const { configName = 'configs', logger } = context;
   if (!context.config) {
+    logger.debug(`Fetching config ${configName}`);
     const configData = await requestSpreadsheet(configName, null, context);
     context.config = configData.data.reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {});
   }
@@ -226,12 +223,11 @@ async function getConfig(context) {
  * @param {string} operationName name of the operation.
  * @param {object} variables query variables.
  * @param {object} context the context object.
- * @param {object} [configOverrides] optional object to overwrite config values.
  *
  * @returns {Promise<object>} GraphQL response as parsed object.
  */
-async function requestSaaS(query, operationName, variables, context, configOverrides = {}) {
-  const { storeUrl, logger } = context;
+async function requestSaaS(query, operationName, variables, context) {
+  const { storeUrl, logger, configOverrides = {} } = context;
   const config = {
     ... (await getConfig(context)),
     ...configOverrides
@@ -289,6 +285,65 @@ function isValidUrl(string) {
   }
 }
 
+/**
+ * Constructs the URL of a product.
+ *
+ * @param {Object} product Product with sku and urlKey properties.
+ * @param {Object} context The context object containing the store URL and path format.
+ * @returns {string} The product url or null if storeUrl or pathFormat are missing.
+ */
+function getProductUrl(product, context, addStore = true) {
+  const { storeUrl, pathFormat } = context;
+  if (!storeUrl || !pathFormat) {
+    return null;
+  }
+
+  const availableParams = {
+    sku: product.sku,
+    urlKey: product.urlKey,
+    locale: context.locale,
+  };
+
+  let path = pathFormat.split('/')
+    .filter(Boolean)
+    .map(part => {
+      if (part.startsWith('{') && part.endsWith('}')) {
+        const key = part.substring(1, part.length - 1);
+        return availableParams[key];
+      }
+      return part;
+    });
+
+  if (addStore) {
+    path.unshift(storeUrl);
+    return path.join('/');
+  }
+
+  return `/${path.join('/')}`;
+}
+
+/**
+ * Adjust the context according to the given locale.
+ * 
+ * TODO: Customize this function to match your multi store setup
+ * 
+ * @param {string} locale The locale to map.
+ * @returns {Object} An object containing the adjusted context.
+ */
+function mapLocale(locale, context) {
+  // Check if locale is valid
+  const allowedLocales = ['en', 'fr']; // Or use context.allowedLocales derived from HLX_LOCALES configuration
+  if (!locale || !allowedLocales.includes(locale)) {
+    throw new Error('Invalid locale');
+  }
+
+  // Example for dedicated config file per locale
+  return {
+    locale,
+    configName: [locale, context.configName].join('/'),
+  }
+}
+
 module.exports = {
   errorResponse,
   getBearerToken,
@@ -299,4 +354,6 @@ module.exports = {
   request,
   requestSpreadsheet,
   isValidUrl,
+  getProductUrl,
+  mapLocale,
 }

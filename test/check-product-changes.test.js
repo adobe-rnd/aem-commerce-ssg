@@ -18,7 +18,7 @@ describe('Poller', () => {
     assert.deepEqual(
       state,
       {
-        storeCode: 'uk',
+        locale: 'uk',
         skus: {},
         skusLastQueriedAt: new Date(0),
       }
@@ -32,7 +32,7 @@ describe('Poller', () => {
     assert.deepEqual(
       state,
       {
-        storeCode: 'uk',
+        locale: 'uk',
         skus: {
           sku1: new Date(2),
           sku2: new Date(3),

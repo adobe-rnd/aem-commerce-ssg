@@ -11,6 +11,8 @@ governing permissions and limitations under the License.
 */
 
 const cheerio = require('cheerio');
+const { http, HttpResponse } = require('msw');
+
 const { useMockServer, handlers } = require('./mock-server.js');
 
 jest.mock('@adobe/aio-sdk', () => ({
@@ -95,6 +97,89 @@ describe('pdp-renderer', () => {
     // Validate that product details is the only block in body
     const $ = cheerio.load(response.body);
     expect($('body > main > div')).toHaveLength(1);
+  });
+
+  test('get product by sku', async () => {
+    server.use(handlers.defaultProduct());
+
+    const response = await action.main({
+      HLX_STORE_URL: 'https://store.com',
+      HLX_CONTENT_URL: 'https://content.com',
+      HLX_CONFIG_NAME: 'config',
+      HLX_PATH_FORMAT: '/products/{sku}',
+      __ow_path: `/products/24-MB03`,
+    });
+
+    const $ = cheerio.load(response.body);
+    expect($('body > main > div.product-details > div > div > h1').text()).toEqual('Crown Summit Backpack');
+  });
+
+  test('get product by urlKey', async () => {
+    server.use(handlers.defaultProductLiveSearch());
+
+    const response = await action.main({
+      HLX_STORE_URL: 'https://store.com',
+      HLX_CONTENT_URL: 'https://content.com',
+      HLX_CONFIG_NAME: 'config',
+      HLX_PATH_FORMAT: '/{urlKey}',
+      __ow_path: `/crown-summit-backpack`,
+    });
+   
+    const $ = cheerio.load(response.body);
+    expect($('body > main > div.product-details > div > div > h1').text()).toEqual('Crown Summit Backpack');
+  });
+
+  test('render product with locale', async () => {
+    server.use(handlers.defaultProduct());
+
+    let configRequestUrl;
+    const mockConfig = require('./mock-responses/mock-config.json');
+    server.use(http.get('https://content.com/en/config.json', async (req) => {
+      configRequestUrl = req.request.url;
+      return HttpResponse.json(mockConfig);
+    }));
+
+    const response = await action.main({
+      HLX_STORE_URL: 'https://store.com',
+      HLX_CONTENT_URL: 'https://content.com',
+      HLX_CONFIG_NAME: 'config',
+      HLX_PATH_FORMAT: '/{locale}/products/{sku}',
+      __ow_path: `/en/products/24-MB03`,
+    });
+
+    expect(configRequestUrl).toBe('https://content.com/en/config.json');
+
+    // Validate product
+    const $ = cheerio.load(response.body);
+    expect($('body > main > div.product-details > div > div > h1').text()).toEqual('Crown Summit Backpack');
+
+    // Validate product url in structured data
+    const ldJson = JSON.parse($('head > script[type="application/ld+json"]').html());
+    expect(ldJson.offers[0].url).toEqual('https://store.com/en/products/24-MB03');
+  });
+
+  test('return 400 if locale is not supported', async () => {
+    const response = await action.main({
+      HLX_STORE_URL: 'https://store.com',
+      HLX_CONTENT_URL: 'https://content.com',
+      HLX_CONFIG_NAME: 'config',
+      HLX_PATH_FORMAT: '/{locale}/products/{sku}',
+      __ow_path: `/test/products/24-MB03`,
+    });
+
+    expect(response.error.statusCode).toEqual(400);
+  });
+
+  test('return 400 if neither sku nor urlKey are provided', async () => {
+    const response = await action.main({
+      HLX_STORE_URL: 'https://store.com',
+      HLX_CONTENT_URL: 'https://content.com',
+      HLX_CONFIG_NAME: 'config',
+      HLX_PATH_FORMAT: '/{urlPath}',
+      __ow_path: `/crown-summit-backpack`,
+    });
+
+    expect(response.error.statusCode).toEqual(400);
   });
 
   test('render images', async () => {
