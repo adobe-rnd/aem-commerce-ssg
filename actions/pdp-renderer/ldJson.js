@@ -1,5 +1,5 @@
-const { requestSaaS } = require('../utils');
-const { getProductUrl, findDescription, getPrimaryImage } = require('./lib');
+const { requestSaaS, getProductUrl } = require('../utils');
+const { findDescription, getPrimaryImage } = require('./lib');
 const { VariantsQuery } = require('../queries');
 
 function getOffer(product, url) {
@@ -64,9 +64,9 @@ async function getVariants(baseProduct, url, axes, context) {
 }
 
 async function generateLdJson(product, context) {
-  const { name, sku, urlKey, __typename } = product;
+  const { name, sku, __typename } = product;
   const image = getPrimaryImage(product);
-  const url = getProductUrl(urlKey, sku, context);
+  const url = getProductUrl(product, context);
   const gtin = ''; // TODO: Add based on your data model (https://schema.org/gtin)
 
   let ldJson;

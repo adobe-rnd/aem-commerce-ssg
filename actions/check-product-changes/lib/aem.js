@@ -123,17 +123,17 @@ class AdminAPI {
 
     doPreview(item) {
         this.trackInFlight(`preview ${item.record.path}`, async (complete) => {
-            const { log } = this.context;
+            const { logger } = this.context;
             const { record } = item;
             const start = new Date();
 
             try {
                 record.previewedAt = new Date();
                 await this.execAdminRequest('POST', 'preview', record.path);
-                log.info(`Previewed ${record.path}`);
+                logger.info(`Previewed ${record.path}`);
                 this.publishQueue.push(item);
             } catch (e) {
-                log.error(e);
+                logger.error(e);
                 // only resolve the item promise in case of an error
                 item.resolve(record);
             } finally {
@@ -145,18 +145,18 @@ class AdminAPI {
 
     doPublish(items) {
         this.trackInFlight(`publish ${items.length}`, async (complete) => {
-            const { log } = this.context;
+            const { logger } = this.context;
 
             try {
                 const paths = items.map(({ record }) => record.path);
                 const body = { forceUpdate: false, paths };
                 await this.execAdminRequest('POST', 'live', '/*', body);
-                log.info(`Published ${items.length} items`);
+                logger.info(`Published ${items.length} items`);
 
                 // set published date after publishing done
                 items.forEach(({ record }) => record.publishedAt = new Date());
             } catch (e) {
-                log.error(e);
+                logger.error(e);
             } finally {
                 complete();
                 // resolve the original promises
@@ -167,16 +167,16 @@ class AdminAPI {
 
     doUnpublishAndDelete(item) {
         this.trackInFlight(`unpublish ${item.record.path}`, async (complete) => {
-            const { log } = this.context;
+            const { logger } = this.context;
             const { record } = item;
 
             try {
                 await this.execAdminRequest('DELETE', 'live', record.path);
                 await this.execAdminRequest('DELETE', 'preview', record.path);
-                log.info(`Unpublished ${record.path}`);
+                logger.info(`Unpublished ${record.path}`);
                 record.deletedAt = new Date();
             } catch (e) {
-                log.error(e);
+                logger.error(e);
             } finally {
                 complete();
                 item.resolve(record);
@@ -186,8 +186,8 @@ class AdminAPI {
 
     processQueues() {
         if (this.lastStatusLog < new Date() - 60000) {
-            const { log } = this.context;
-            log.info(`Queues: preview=${this.previewQueue.length},`
+            const { logger } = this.context;
+            logger.info(`Queues: preview=${this.previewQueue.length},`
                 + ` publish=${this.publishQueue.length},`
                 + ` unpublish=${this.unpublishQueue.length},`
                 + ` inflight=${this.inflight.length}`);

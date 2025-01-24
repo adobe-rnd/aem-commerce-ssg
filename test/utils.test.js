@@ -11,7 +11,7 @@ governing permissions and limitations under the License.
 */
 
 const { useMockServer } = require('./mock-server');
-const { errorResponse, stringParameters, checkMissingRequestInputs, getBearerToken, request, requestSpreadsheet, getConfig, requestSaaS } = require('./../actions/utils.js');
+const { errorResponse, stringParameters, checkMissingRequestInputs, getBearerToken, request, requestSpreadsheet, getConfig, requestSaaS, getProductUrl } = require('./../actions/utils.js');
 const { http, HttpResponse } = require('msw');
 
 test('interface', () => {
@@ -128,7 +128,17 @@ describe('request', () => {
       return HttpResponse.json({ data: [{ key: 'testKey', value: 'testValue' }] });
     }));
 
-    const context = { contentUrl: 'https://content.com' };
+    const context = { contentUrl: 'https://content.com', logger: { debug: jest.fn() } };
+    const config = await getConfig(context);
+    expect(config).toEqual({ testKey: 'testValue' });
+  });
+
+  test('getConfig with subpath', async () => {
+    server.use(http.get('https://content.com/en/configs.json', async () => {
+      return HttpResponse.json({ data: [{ key: 'testKey', value: 'testValue' }] });
+    }));
+
+    const context = { configName: 'en/configs', contentUrl: 'https://content.com', logger: { debug: jest.fn() } };
     const config = await getConfig(context);
     expect(config).toEqual({ testKey: 'testValue' });
   });
@@ -211,25 +221,25 @@ describe('request', () => {
   });
 
   test('requestSpreadsheet', async () => {
-    server.use(http.get('https://content.com/test/config.json', async () => {
+    server.use(http.get('https://content.com/config.json', async () => {
       return HttpResponse.json({ data: [{ key: 'testKey', value: 'testValue' }] });
     }));
 
-    const context = { contentUrl: 'https://content.com', storeCode: 'test' };
+    const context = { contentUrl: 'https://content.com' };
     const data = await requestSpreadsheet('config', null, context);
     expect(data).toEqual({ data: [{ key: 'testKey', value: 'testValue' }] });
   });
 
   test('requestSpreadsheet with sheet', async () => {
     let requestUrl;
-    server.use(http.get('https://content.com/test2/config.json', async ({ request }) => {
+    server.use(http.get('https://content.com/config.json', async ({ request }) => {
       requestUrl = request.url;
       return HttpResponse.json({ data: [{ key: 'testKey', value: 'testValue' }] });
     }));
 
-    const context = { contentUrl: 'https://content.com', storeCode: 'test2' };
+    const context = { contentUrl: 'https://content.com' };
     await requestSpreadsheet('config', 'testSheet', context);
-    expect(requestUrl).toEqual('https://content.com/test2/config.json?sheet=testSheet');
+    expect(requestUrl).toEqual('https://content.com/config.json?sheet=testSheet');
   });
 
   test('successful request', async () => {
@@ -255,5 +265,32 @@ describe('request', () => {
     }));
 
     await expect(request('testRequest', 'https://example.com/timeout', {}, 100)).rejects.toThrow('This operation was aborted');
+  });
+});
+
+describe('getProductUrl', () => {
+  test('getProductUrl with urlKey and sku', () => {
+      const context = { storeUrl: 'https://example.com', pathFormat: '/products/{urlKey}/{sku}' };
+      expect(getProductUrl({ urlKey: 'my-url-key', sku: 'my-sku' }, context)).toBe('https://example.com/products/my-url-key/my-sku');
+  });
+
+  test('getProductUrl with urlKey', () => {
+      const context = { storeUrl: 'https://example.com', pathFormat: '/{urlKey}' };
+      expect(getProductUrl({ urlKey: 'my-url-key' }, context)).toBe('https://example.com/my-url-key');
+  });
+
+  test('return null for missing storeUrl', () => {
+      const context = { pathFormat: '/{urlKey}' };
+      expect(getProductUrl({ urlKey: 'my-url-key' }, context)).toBe(null);
+  });
+
+  test('return null for missing pathFormat', () => {
+      const context = { storeUrl: 'https://example.com' };
+      expect(getProductUrl({ urlKey: 'my-url-key' }, context)).toBe(null);
+  });
+
+  test('getProductUrl with path only', () => {
+      const context = { storeUrl: 'https://example.com', pathFormat: '/{locale}/products/{urlKey}/{sku}', locale: 'de' };
+      expect(getProductUrl({ urlKey: 'my-url-key', sku: 'my-sku' }, context, false)).toBe('/de/products/my-url-key/my-sku');
   });
 });

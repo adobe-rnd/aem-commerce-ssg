@@ -4,17 +4,25 @@ application:
     packages:
       aem-commerce-ssg:
         license: Apache-2.0
+        inputs:
+          LOG_LEVEL: debug
+          HLX_CONTENT_URL: "https://main--aem-boilerplate-commerce--hlxsites.aem.live"
+          HLX_PRODUCTS_TEMPLATE: "https://main--aem-boilerplate-commerce--hlxsites.aem.live/products/default"
+          HLX_ORG_NAME: "hlxsites"
+          HLX_SITE_NAME: "aem-boilerplate-commerce"
+          HLX_STORE_URL: "https://www.aemshop.net"
+          HLX_CONFIG_NAME: "configs"
+          HLX_PATH_FORMAT: "/products/{urlKey}/{sku}"
+          # HLX_LOCALES: comma-seprated list of allowed locales.
+          # i.e. us,uk,it,de,fr,es - or just one
+          # null if there is a single store and no
+          # URI prefixes are used
+          HLX_LOCALES: null
         actions:
           pdp-renderer:
             function: actions/pdp-renderer/index.js
             web: 'yes'
             runtime: nodejs:18
-            inputs:
-              LOG_LEVEL: debug
-              HLX_CONTENT_URL: "https://main--aem-boilerplate-commerce--hlxsites.aem.live"
-              HLX_PRODUCTS_TEMPLATE: "https://main--aem-boilerplate-commerce--hlxsites.aem.live/products/default"
-              HLX_STORE_URL: "https://www.aemshop.net"
-              HLX_CONFIG_NAME: "configs"
             annotations:
               final: true
             include:
@@ -27,19 +35,6 @@ application:
               memorySize: 128
               timeout: 3600000
             inputs:
-              LOG_LEVEL: debug
-              storeUrl: https://www.aemshop.net
-              orgName: hlxsites
-              siteName: aem-boilerplate-commerce
-              configName: configs
-              # storeCodes: comma-seprated list of store codes.
-              # i.e. us,uk,it,de,fr,es - or just one
-              # null if there is a single store and no
-              # URI prefixes are used
-              storeCodes: null
-              # PDPURIPrefix: URI prefix for the Product Pages
-              # i.e.: /products
-              PDPURIPrefix: /products
               authToken: ${AEM_ADMIN_API_AUTH_TOKEN}
             annotations:
               final: true
