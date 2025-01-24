@@ -10,23 +10,29 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
-const { State, Files } = require('@adobe/aio-sdk');
+const { Core, State, Files } = require('@adobe/aio-sdk');
 const { poll } = require('./poller');
+const { StateManager } = require('./lib/state');
 
 async function main(params) {
+  const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' });
   const stateLib = await State.init();
   const filesLib = await Files.init();
-  const running = await stateLib.get('running');
+  const stateMgr = new StateManager(stateLib, { logger });
 
+  const running = await stateMgr.get('running');
   if (running?.value === 'true') {
     return { state: 'skipped' };
   }
 
   try {
-    await stateLib.put('running', 'true');
+    // if there is any failure preventing a reset of the 'running' state key to 'false',
+    // this might not be updated and action execution could be permanently skipped
+    // a ttl == function timeout is a mitigation for this risk
+    await stateMgr.put('running', 'true', 3600);
     return await poll(params, filesLib);
   } finally {
-    await stateLib.put('running', 'false');
+    await stateMgr.put('running', 'false');
   }
 }
 
