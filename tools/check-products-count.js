@@ -12,17 +12,33 @@ governing permissions and limitations under the License.
 
 require('dotenv').config();
 
+const fs = require('fs');
+const yaml = require('js-yaml');
+const path = require('path');
 const { requestSaaS, requestSpreadsheet } = require('../actions/utils');
 const { GetAllSkusPaginatedQuery } = require('../actions/queries');
+const filePath = path.resolve(__dirname, '..', 'app.config.yaml');
 
 async function main() {
-    // TODO: fetch from app.config.yaml (incl. mapped env vars)?
-    // https://jira.corp.adobe.com/browse/SITES-28254
+    let storeCodeYaml, storeUrlYaml, configNameYaml;
+    try {
+        const fileContents = fs.readFileSync(filePath, 'utf8');
+        const data = yaml.load(fileContents, 'utf8');
+        const parameters = data?.application?.runtimeManifest?.packages['aem-commerce-ssg']?.parameters || {};
+        ({
+            COMMERCE_STORE_CODE: storeCodeYaml,
+            COMMERCE_STORE_URL: storeUrlYaml,
+            COMMERCE_CONFIG_NAME: configNameYaml
+        } = parameters);
+    } catch (e) {
+        console.error('Error getting configuration from app.config.yaml file:', e);
+    }
+
     const {
-        COMMERCE_STORE_CODE: storeCode,
-        COMMERCE_STORE_URL: storeUrl,
-        COMMERCE_CONFIG_NAME: configName,
-    // eslint-disable-next-line no-undef
+        COMMERCE_STORE_CODE: storeCode = storeCodeYaml,
+        COMMERCE_STORE_URL: storeUrl = storeUrlYaml,
+        COMMERCE_CONFIG_NAME: configName = configNameYaml,
+        // eslint-disable-next-line no-undef
     } = process.env;
 
     const context = { storeCode, storeUrl, configName };
