@@ -12,18 +12,18 @@ governing permissions and limitations under the License.
 
 const { Timings, aggregate } = require('./lib/benchmark');
 const { AdminAPI } = require('./lib/aem');
-const { requestSaaS, requestSpreadsheet, isValidUrl } = require('../utils');
+const { requestSaaS, requestSpreadsheet, isValidUrl, getProductUrl, mapLocale } = require('../utils');
 const { GetAllSkusQuery, GetLastModifiedQuery } = require('../queries');
 const { Core } = require('@adobe/aio-sdk');
 
 const BATCH_SIZE = 50;
 
-async function loadState(storeCode, stateLib) {
-  const stateKey = storeCode ? `${storeCode}` : 'default';
+async function loadState(locale, stateLib) {
+  const stateKey = locale ? `${locale}` : 'default';
   const stateData = await stateLib.get(stateKey);
   if (!stateData?.value) {
     return {
-      storeCode,
+      locale,
       skusLastQueriedAt: new Date(0),
       skus: {},
     };
@@ -34,7 +34,7 @@ async function loadState(storeCode, stateLib) {
   // folloed by a pair of SKUs and timestamps which are the last preview times per SKU
   const [catalogQueryTimestamp, ...skus] = stateData && stateData.value ? stateData.value.split(',') : [0];
   return {
-    storeCode,
+    locale,
     skusLastQueriedAt: new Date(parseInt(catalogQueryTimestamp)),
     skus: Object.fromEntries(skus
       .map((sku, i, arr) => (i % 2 === 0 ? [sku, new Date(parseInt(arr[i + 1]))] : null))
@@ -43,11 +43,11 @@ async function loadState(storeCode, stateLib) {
 }
 
 async function saveState(state, stateLib) {
-  let { storeCode } = state;
-  if (!storeCode) {
-    storeCode = 'default';
+  let { locale } = state;
+  if (!locale) {
+    locale = 'default';
   }
-  const stateKey = `${storeCode}`;
+  const stateKey = `${locale}`;
   const stateData = [
     state.skusLastQueriedAt.getTime(),
     ...Object.entries(state.skus).flatMap(([sku, lastPreviewedAt]) => [sku, lastPreviewedAt.getTime()]),
@@ -61,28 +61,28 @@ async function saveState(state, stateLib) {
  * state accordingly.
  *
  * @param {Object} params - The parameters object.
- * @param {string} params.siteName - The name of the site (repo or repoless).
- * @param {string} params.PDPURIPrefix - The URI prefix for Product Detail Pages.
+ * @param {string} params.HLX_SITE_NAME - The name of the site (repo or repoless).
+ * @param {string} params.HLX_PATH_FORMAT - The URL format for product detail pages.
  * @param {string} params.PLPURIPrefix - The URI prefix for Product List Pages.
- * @param {string} params.orgName - The name of the organization.
- * @param {string} params.configName - The name of the configuration json/xlsx.
+ * @param {string} params.HLX_ORG_NAME - The name of the organization.
+ * @param {string} params.HLX_CONFIG_NAME - The name of the configuration json/xlsx.
  * @param {number} [params.requestPerSecond=5] - The number of requests per second allowed by the throttling logic.
  * @param {string} params.authToken - The authentication token.
  * @param {number} [params.skusRefreshInterval=600000] - The interval for refreshing SKUs in milliseconds.
- * @param {string} [params.storeUrl] - The store's base URL.
- * @param {string} [params.storeCodes] - Comma-separated list of store codes.
+ * @param {string} [params.HLX_STORE_URL] - The store's base URL.
+ * @param {string} [params.HLX_LOCALES] - Comma-separated list of allowed locales.
  * @param {string} [params.LOG_LEVEL] - The log level.
  * @param {Object} stateLib - The state provider object.
  * @returns {Promise<Object>} The result of the polling action.
  */
 function checkParams(params) {
-  const requiredParams = ['siteName', 'PDPURIPrefix', 'PLPURIPrefix', 'orgName', 'configName', 'authToken'];
+  const requiredParams = ['HLX_SITE_NAME', 'HLX_PATH_FORMAT', 'PLPURIPrefix', 'HLX_ORG_NAME', 'HLX_CONFIG_NAME', 'authToken'];
   const missingParams = requiredParams.filter(param => !params[param]);
   if (missingParams.length > 0) {
     throw new Error(`Missing required parameters: ${missingParams.join(', ')}`);
   }
 
-  if (params.storeUrl && !isValidUrl(params.storeUrl)) {
+  if (params.HLX_STORE_URL && !isValidUrl(params.HLX_STORE_URL)) {
     throw new Error('Invalid storeUrl');
   }
 }
@@ -110,24 +110,24 @@ function shouldProcessProduct(product) {
 async function poll(params, stateLib) {
   checkParams(params);
 
-  const log = Core.Logger('main', { level: params.LOG_LEVEL || 'info' });
+  const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' });
   const {
-    siteName,
-    PDPURIPrefix,
-    orgName,
-    configName,
+    HLX_SITE_NAME: siteName,
+    HLX_PATH_FORMAT: pathFormat,
+    HLX_ORG_NAME: orgName,
+    HLX_CONFIG_NAME: configName,
     requestPerSecond = 5,
     authToken,
     skusRefreshInterval = 600000,
   } = params;
-  const storeUrl = params.storeUrl ? params.storeUrl : `https://main--${siteName}--${orgName}.aem.live`;
-  const storeCodes = params.storeCodes ? params.storeCodes.split(',') : [null];
+  const storeUrl = params.HLX_STORE_URL ? params.HLX_STORE_URL : `https://main--${siteName}--${orgName}.aem.live`;
+  const locales = params.HLX_LOCALES ? params.HLX_LOCALES.split(',') : [null];
 
   const counts = {
     published: 0, unpublished: 0, ignored: 0, failed: 0,
   };
   const sharedContext = {
-    storeUrl, configName, log, counts,
+    storeUrl, configName, logger, counts, pathFormat,
   };
   const timings = new Timings();
   const adminApi = new AdminAPI({
@@ -135,18 +135,22 @@ async function poll(params, stateLib) {
     site: siteName,
   }, sharedContext, { requestPerSecond, authToken });
 
-  log.info(`Starting poll from ${storeUrl} for store codes ${storeCodes}`);
+  logger.info(`Starting poll from ${storeUrl} for locales ${locales}`);
 
   try {
     // start processing preview and publish queues
     await adminApi.startProcessing();
 
-    const results = await Promise.all(storeCodes.map(async (storeCode) => {
+    const results = await Promise.all(locales.map(async (locale) => {
       const timings = new Timings();
       // load state
-      const state = await loadState(storeCode, stateLib);
+      const state = await loadState(locale, stateLib);
       timings.sample('loadedState');
-      const context = { ...sharedContext, storeCode };
+
+      let context = { ...sharedContext };
+      if (locale) {
+        context = { ...context, ...mapLocale(locale, context) };
+      }
 
       // setup preview / publish queues
 
@@ -173,7 +177,7 @@ async function poll(params, stateLib) {
       const skus = Object.keys(state.skus);
       const lastModifiedResp = await requestSaaS(GetLastModifiedQuery, 'getLastModified', { skus }, context);
       timings.sample('fetchedLastModifiedDates');
-      log.info(`Fetched last modified date for ${lastModifiedResp.data.products.length} skus, total ${skus.length}`);
+      logger.info(`Fetched last modified date for ${lastModifiedResp.data.products.length} skus, total ${skus.length}`);
 
       // group preview in batches of 50
       let products = lastModifiedResp.data.products
@@ -198,7 +202,7 @@ async function poll(params, stateLib) {
       const batches = products.filter(shouldProcessProduct)
         .reduce((acc, product, i, arr) => {
           const { sku, urlKey } = product;
-          const path = (storeCode ? `/${storeCode}${PDPURIPrefix}/${urlKey}/${sku}` : `${PDPURIPrefix}/${urlKey}/${sku}`).toLowerCase();
+          const path = getProductUrl({ urlKey, sku }, context, false).toLowerCase();
           const req = adminApi.previewAndPublish({ path, sku });
           acc.push(req);
           if (acc.length === BATCH_SIZE || i === arr.length - 1) {
@@ -251,7 +255,7 @@ async function poll(params, stateLib) {
         }
       } catch (e) {
         // in case the index doesn't yet exist or any other error
-        log.error(e);
+        logger.error(e);
       }
 
       timings.sample('unpublishedPaths');
@@ -277,14 +281,14 @@ async function poll(params, stateLib) {
   }
   timings.measures.previewDuration = aggregate(adminApi.previewDurations);
 } catch (e) {
-  log.error(e);
+  logger.error(e);
   // wait for queues to finish, even in error case
   await adminApi.stopProcessing();
 }
 
 const elapsed = new Date() - timings.now;
 
-log.info(`Finished polling, elapsed: ${elapsed}ms`);
+logger.info(`Finished polling, elapsed: ${elapsed}ms`);
 
 return {
   state: 'completed',

@@ -9,7 +9,7 @@ describe('Poller', () => {
     assert.deepEqual(
       state,
       {
-        storeCode: 'uk',
+        locale: 'uk',
         skus: {},
         skusLastQueriedAt: new Date(0),
       }
@@ -23,7 +23,7 @@ describe('Poller', () => {
     assert.deepEqual(
       state,
       {
-        storeCode: 'uk',
+        locale: 'uk',
         skus: {
           sku1: new Date(2),
           sku2: new Date(3),
@@ -50,7 +50,7 @@ describe('Poller', () => {
     assert.deepEqual(newState, state);
   });
 
-  it('loadState after saveState with null storeCode', async () => {
+  it('loadState after saveState with null locale', async () => {
     const stateLib = new State(0);
     await stateLib.put('default', '1,sku1,2,sku2,3,sku3,4');
     const state = await loadState(null, stateLib);
