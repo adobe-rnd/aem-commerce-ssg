@@ -1,11 +1,20 @@
 const assert = require('node:assert/strict');
 const { loadState, saveState } = require('../actions/check-product-changes/poller.js');
-const State = require('./__mocks__/state.js');
+const { StateManager } = require('../actions/check-product-changes/lib/state.js');
+const { MockState } = require('./__mocks__/state.js');
+
+
+const logger = { debug: () => {}, info: () => {}, error: () => {} };
+
+const createStateManager = () => {
+  const stateLib = new MockState(0);
+  return new StateManager(stateLib, logger);
+}
 
 describe('Poller', () => {
   it('loadState returns default state', async () => {
-    const stateLib = new State(0);
-    const state = await loadState('uk', stateLib);
+    const stateMgr = createStateManager();
+    const state = await loadState('uk', stateMgr);
     assert.deepEqual(
       state,
       {
@@ -17,9 +26,9 @@ describe('Poller', () => {
   });
 
   it('loadState returns parsed state', async () => {
-    const stateLib = new State(0);
-    await stateLib.put('uk', '1,sku1,2,sku2,3,sku3,4');
-    const state = await loadState('uk', stateLib);
+    const stateMgr = createStateManager();
+    await stateMgr.put('uk', '1,sku1,2,sku2,3,sku3,4');
+    const state = await loadState('uk', stateMgr);
     assert.deepEqual(
       state,
       {
@@ -35,31 +44,31 @@ describe('Poller', () => {
   });
 
   it('loadState after saveState', async () => {
-    const stateLib = new State(0);
-    await stateLib.put('uk', '1,sku1,2,sku2,3,sku3,4');
-    const state = await loadState('uk', stateLib);
+    const stateMgr = createStateManager();
+    await stateMgr.put('uk', '1,sku1,2,sku2,3,sku3,4');
+    const state = await loadState('uk', stateMgr);
     state.skusLastQueriedAt = new Date(5);
     state.skus['sku1'] = new Date(5);
     state.skus['sku2'] = new Date(6);
-    await saveState(state, stateLib);
+    await saveState(state, stateMgr);
 
-    const serializedState = await stateLib.get('uk');
+    const serializedState = await stateMgr.get('uk');
     assert.equal(serializedState?.value, '5,sku1,5,sku2,6,sku3,4');
 
-    const newState = await loadState('uk', stateLib);
+    const newState = await loadState('uk', stateMgr);
     assert.deepEqual(newState, state);
   });
 
   it('loadState after saveState with null storeCode', async () => {
-    const stateLib = new State(0);
-    await stateLib.put('default', '1,sku1,2,sku2,3,sku3,4');
-    const state = await loadState(null, stateLib);
+    const stateMgr = createStateManager();
+    await stateMgr.put('default', '1,sku1,2,sku2,3,sku3,4');
+    const state = await loadState(null, stateMgr);
     state.skusLastQueriedAt = new Date(5);
     state.skus['sku1'] = new Date(5);
     state.skus['sku2'] = new Date(6);
-    await saveState(state, stateLib);
+    await saveState(state, stateMgr);
 
-    const serializedState = await stateLib.get('default');
+    const serializedState = await stateMgr.get('default');
     assert.equal(serializedState?.value, '5,sku1,5,sku2,6,sku3,4');
   });
 });

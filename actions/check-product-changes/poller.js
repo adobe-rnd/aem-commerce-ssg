@@ -18,9 +18,9 @@ const { Core } = require('@adobe/aio-sdk');
 
 const BATCH_SIZE = 50;
 
-async function loadState(storeCode, stateLib) {
+async function loadState(storeCode, stateMgr) {
   const stateKey = storeCode ? `${storeCode}` : 'default';
-  const stateData = await stateLib.get(stateKey);
+  const stateData = await stateMgr.get(stateKey);
   if (!stateData?.value) {
     return {
       storeCode,
@@ -42,7 +42,7 @@ async function loadState(storeCode, stateLib) {
   };
 }
 
-async function saveState(state, stateLib) {
+async function saveState(state, stateMgr) {
   let { storeCode } = state;
   if (!storeCode) {
     storeCode = 'default';
@@ -52,7 +52,7 @@ async function saveState(state, stateLib) {
     state.skusLastQueriedAt.getTime(),
     ...Object.entries(state.skus).flatMap(([sku, lastPreviewedAt]) => [sku, lastPreviewedAt.getTime()]),
   ].join(',');
-  await stateLib.put(stateKey, stateData);
+  await stateMgr.put(stateKey, stateData);
 }
 
 /**
@@ -72,7 +72,7 @@ async function saveState(state, stateLib) {
  * @param {string} [params.storeUrl] - The store's base URL.
  * @param {string} [params.storeCodes] - Comma-separated list of store codes.
  * @param {string} [params.LOG_LEVEL] - The log level.
- * @param {Object} stateLib - The state provider object.
+ * @param {Object} stateMgr - The StateManager instance object.
  * @returns {Promise<Object>} The result of the polling action.
  */
 function checkParams(params) {
@@ -107,7 +107,7 @@ function shouldProcessProduct(product) {
   return urlKey?.match(/^[a-zA-Z0-9-]+$/) && lastModifiedDate >= lastPreviewDate;
 }
 
-async function poll(params, stateLib) {
+async function poll(params, stateMgr) {
   checkParams(params);
 
   const log = Core.Logger('main', { level: params.LOG_LEVEL || 'info' });
@@ -144,7 +144,7 @@ async function poll(params, stateLib) {
     const results = await Promise.all(storeCodes.map(async (storeCode) => {
       const timings = new Timings();
       // load state
-      const state = await loadState(storeCode, stateLib);
+      const state = await loadState(storeCode, stateMgr);
       timings.sample('loadedState');
       const context = { ...sharedContext, storeCode };
 
@@ -218,7 +218,7 @@ async function poll(params, stateLib) {
             counts.failed++;
           }
         }
-        await saveState(state, stateLib);
+        await saveState(state, stateMgr);
       }
 
       timings.sample('publishedPaths');
@@ -247,7 +247,7 @@ async function poll(params, stateLib) {
             await deleteBatch({ counts, batch, state, adminApi });
           }
           // save state after deletes
-          await saveState(state, stateLib);
+          await saveState(state, stateMgr);
         }
       } catch (e) {
         // in case the index doesn't yet exist or any other error
