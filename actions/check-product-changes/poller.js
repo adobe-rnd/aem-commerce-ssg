@@ -24,8 +24,8 @@ function getFileLocation(stateKey) {
   return `${FILE_PREFIX}/${stateKey}.${FILE_EXT}`;
 }
 
-async function loadState(storeCode, filesLib) {
-  const stateKey = storeCode ? `${storeCode}` : 'default';
+async function loadState(locale, filesLib) {
+  const stateKey = locale ? `${locale}` : 'default';
   const fileLocation = getFileLocation(stateKey);
   const buffer = await filesLib.read(fileLocation);
   const stateData = buffer?.toString();
@@ -153,7 +153,7 @@ async function poll(params, filesLib) {
     const results = await Promise.all(locales.map(async (locale) => {
       const timings = new Timings();
       // load state
-      const state = await loadState(storeCode, filesLib);
+      const state = await loadState(locale, filesLib);
       timings.sample('loadedState');
 
       let context = { ...sharedContext };
