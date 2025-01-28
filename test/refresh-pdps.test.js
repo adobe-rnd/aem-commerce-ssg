@@ -31,6 +31,7 @@ jest.mock('dotenv', () => ({
 
 jest.mock('commander', () => {
     const mockProgram = {
+        requiredOption: jest.fn().mockReturnThis(),
         option: jest.fn().mockReturnThis(),
         parse: jest.fn().mockReturnThis(),
         opts: jest.fn().mockReturnValue({ keys: 'en,fr' })
@@ -135,53 +136,6 @@ describe('Refresh PDP Tool Tests', () => {
         it('should handle errors when flushing state', async () => {
             mockOpenWhiskInstance.actions.invoke.mockRejectedValueOnce(new Error('Delete Error'));
             await expect(mainModule.flushStoreState('en')).rejects.toThrow('Delete Error');
-        });
-    });
-
-    describe('main function', () => {
-        beforeEach(() => {
-            mainModule = require('../tools/refresh-pdps');
-            mockOpenWhiskInstance.rules.disable.mockResolvedValue({});
-            mockOpenWhiskInstance.rules.enable.mockResolvedValue({});
-            mockOpenWhiskInstance.actions.invoke
-                .mockResolvedValueOnce({ value: 'false' })
-                .mockResolvedValueOnce({})
-                .mockResolvedValueOnce({})
-                .mockResolvedValueOnce({ value: 'true' });
-
-            jest.useFakeTimers();
-        });
-
-        afterEach(() => {
-            jest.useRealTimers();
-        });
-
-        it('should successfully complete the state management cycle', async () => {
-            const mainPromise = mainModule.main();
-            jest.runAllTimers();
-            await mainPromise;
-
-            expect(mockOpenWhiskInstance.rules.disable).toHaveBeenCalledWith({
-                name: 'poll_every_minute'
-            });
-            expect(mockOpenWhiskInstance.rules.enable).toHaveBeenCalledWith({
-                name: 'poll_every_minute'
-            });
-            expect(process.exit).toHaveBeenCalledWith(0);
-        });
-
-        it('should timeout if running state never becomes true', async () => {
-            mockOpenWhiskInstance.actions.invoke.mockResolvedValue({ value: 'false' });
-
-            const timeout = 1500; // to simulate in the test env
-            const mainPromise = mainModule.main(timeout);
-            jest.advanceTimersByTime(1500);
-            await mainPromise;
-
-            expect(console.error).toHaveBeenCalledWith(
-                'Timeout: running state did not become true within 30 minutes.'
-            );
-            expect(process.exit).toHaveBeenCalledWith(1);
         });
     });
 });

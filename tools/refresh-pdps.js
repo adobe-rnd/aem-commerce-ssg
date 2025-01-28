@@ -69,9 +69,6 @@ async function flushStoreState(locale) {
 }
 
 async function main(timeout = 20 * 60 * 1000) {
-
-
-
     try {
         // Disable the rule
         await ow.rules.disable({ name: AIO_POLLER_RULE_NAME });
