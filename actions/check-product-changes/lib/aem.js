@@ -184,33 +184,23 @@ class AdminAPI {
         });
     }
 
-    processQueues() {
-        if (this.lastStatusLog < new Date() - 60000) {
-            const { logger } = this.context;
-            logger.info(`Queues: preview=${this.previewQueue.length},`
-                + ` publish=${this.publishQueue.length},`
-                + ` unpublish=${this.unpublishQueue.length},`
-                + ` inflight=${this.inflight.length}`);
-            this.lastStatusLog = new Date();
-        }
-
-        let rateLimitBudget = this.requestPerSecond;
-
-        // first drain the preview queue
+    drainPreviewQueue(rateLimitBudget) {
         while (this.previewQueue.length && rateLimitBudget > 0) {
             const item = this.previewQueue.shift();
             this.doPreview(item);
             rateLimitBudget -= 1;
         }
+    }
 
-        // then drain the unpublish queue
+    drainUnPublishQueue(rateLimitBudget) {
         while (this.unpublishQueue.length && rateLimitBudget > 0) {
             const item = this.unpublishQueue.shift();
             this.doUnpublishAndDelete(item);
             rateLimitBudget -= 1;
         }
+    }
 
-        // next drain the publish queues, but collect items to publish into buckets
+    drainPublishQueue(rateLimitBudget) {
         let publishBatch = [];
         while (this.publishQueue.length && rateLimitBudget > 0) {
             const item = this.publishQueue.shift();
@@ -228,9 +218,67 @@ class AdminAPI {
             this.doPublish(publishBatch);
         }
 
-        if (this.onQueuesProcessed) {
-            this.onQueuesProcessed();
+    }
+
+    processQueues() {
+        if (this.lastStatusLog < new Date() - 60000) {
+            const { log } = this.context;
+            log.info(`Queues: preview=${this.previewQueue.length},`
+                + ` publish=${this.publishQueue.length},`
+                + ` unpublish=${this.unpublishQueue.length},`
+                + ` inflight=${this.inflight.length}`);
+            this.lastStatusLog = new Date();
         }
+
+        let rateLimitBudget = this.requestPerSecond;
+        
+        this.drainPreviewQueue(rateLimitBudget)
+            .then(() => this.drainUnPublishQueue(rateLimitBudget))
+            .then(() => this.drainPublishQueue())
+            .catch((e) => {
+                console.error(e);
+            })
+            .finally(() => {
+                if (this.onQueuesProcessed) {
+                    this.onQueuesProcessed();
+                }
+            });
+
+        // // first drain the preview queue
+        // while (this.previewQueue.length && rateLimitBudget > 0) {
+        //     const item = this.previewQueue.shift();
+        //     this.doPreview(item);
+        //     rateLimitBudget -= 1;
+        // }
+
+        // // then drain the unpublish queue
+        // while (this.unpublishQueue.length && rateLimitBudget > 0) {
+        //     const item = this.unpublishQueue.shift();
+        //     this.doUnpublishAndDelete(item);
+        //     rateLimitBudget -= 1;
+        // }
+
+        // next drain the publish queues, but collect items to publish into buckets
+        // let publishBatch = [];
+        // while (this.publishQueue.length && rateLimitBudget > 0) {
+        //     const item = this.publishQueue.shift();
+        //     publishBatch.push(item);
+
+        //     if (publishBatch.length === this.publishBatchSize) {
+        //         this.doPublish(publishBatch);
+        //         rateLimitBudget -= 1;
+        //         publishBatch = [];
+        //     }
+        // }
+
+        // if (publishBatch.length) {
+        //     // publish remaining items
+        //     this.doPublish(publishBatch);
+        // }
+
+        // if (this.onQueuesProcessed) {
+        //     this.onQueuesProcessed();
+        // }
     }
 }
 
