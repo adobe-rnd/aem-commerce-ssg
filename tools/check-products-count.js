@@ -12,20 +12,27 @@ governing permissions and limitations under the License.
 
 require('dotenv').config();
 
+const { program } = require('commander');
 const { requestSaaS, requestSpreadsheet } = require('../actions/utils');
 const { GetAllSkusPaginatedQuery } = require('../actions/queries');
 
 async function main() {
     // TODO: fetch from app.config.yaml (incl. mapped env vars)?
     // https://jira.corp.adobe.com/browse/SITES-28254
-    const {
-        COMMERCE_STORE_CODE: storeCode,
-        COMMERCE_STORE_URL: storeUrl,
-        COMMERCE_CONFIG_NAME: configName,
-    // eslint-disable-next-line no-undef
-    } = process.env;
+    program
+        .option('-h, --help', 'Display help for cli')
+        .option('-s, --storecode <storecode>', 'Commerce Store Code')
+        .option('-c, --config <config>', 'Config name')
+        .option('-u, --url <url>', 'Root URL of the store')
 
-    const context = { storeCode, storeUrl, configName };
+    program.parse(process.argv);
+    const options = program.opts();
+
+    if (options.help || !options.storecode || !options.config || !options.url) {
+        program.help();
+    }
+
+    const context = { storeCode: options.storecode, storeUrl: options.url, configName: options.config };
     const { total: actualCount } = await requestSpreadsheet('published-products-index', context);
     let [productsCount, currentPage, expectedCount] = [-1, 1, 0];
     while (productsCount !== 0) {
