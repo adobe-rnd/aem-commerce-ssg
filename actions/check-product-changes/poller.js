@@ -214,7 +214,6 @@ async function poll(params, filesLib) {
           const path = getProductUrl({ urlKey, sku }, context, false).toLowerCase();
           const req = adminApi.previewAndPublish({ path, sku });
 
-          // Создаем новый батч, если текущий уже заполнен
           if (!acc.length || acc[acc.length - 1].length === BATCH_SIZE) {
             acc.push([]);
           }

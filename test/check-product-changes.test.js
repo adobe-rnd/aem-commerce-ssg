@@ -13,21 +13,16 @@ jest.mock('../actions/utils', () => ({
   mapLocale: jest.fn((locale) => ({ locale })),
 }));
 
-jest.mock('../actions/check-product-changes/lib/aem', () => ({
-  AdminAPI: jest.fn().mockImplementation(() => ({
-    startProcessing: jest.fn(),
-    stopProcessing: jest.fn(),
-    previewAndPublish: jest.fn().mockResolvedValue({ sku: 'test-sku', previewedAt: new Date(), publishedAt: new Date() }),
-    unpublishAndDelete: jest.fn().mockResolvedValue({ deletedAt: new Date() }),
-    previewDurations: [],
-  })),
-}));
+jest.spyOn(AdminAPI.prototype, 'startProcessing').mockImplementation(jest.fn());
+jest.spyOn(AdminAPI.prototype, 'stopProcessing').mockImplementation(jest.fn());
+jest.spyOn(AdminAPI.prototype, 'unpublishAndDelete').mockImplementation(jest.fn());
+jest.spyOn(AdminAPI.prototype, 'previewAndPublish').mockResolvedValue({
+  sku: 'test-sku',
+  previewedAt: new Date(),
+  publishedAt: new Date()
+});
 
 describe('Poller', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
   const filesLibMock = {
     read: jest.fn().mockResolvedValue(null),
     write: jest.fn().mockResolvedValue(null),
@@ -175,5 +170,9 @@ describe('Poller', () => {
         expect.anything()
     );
     expect(filesLibMock.write).toHaveBeenCalled();
+    expect(AdminAPI.prototype.startProcessing).toHaveBeenCalledTimes(1);
+    expect(AdminAPI.prototype.stopProcessing).toHaveBeenCalledTimes(1);
+    expect(AdminAPI.prototype.previewAndPublish).toHaveBeenCalled();
+    expect(AdminAPI.prototype.unpublishAndDelete).not.toHaveBeenCalled();
   });
 });
