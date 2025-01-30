@@ -24,6 +24,24 @@ function getFileLocation(stateKey) {
   return `${FILE_PREFIX}/${stateKey}.${FILE_EXT}`;
 }
 
+/**
+ * @typedef {Object} PollerState
+ * @property {string} locale - The locale (or store code).
+ * @property {Array<String>} skus - The SKUs to be saved.
+ * @property {Date} skusLastQueriedAt - Last time when the SKUs have been queried.
+ */
+
+/**
+ * @typedef {import('@adobe/aio-sdk').Files.Files} FilesProvider
+ */
+
+/**
+ * Saves the state to the cloud file system.
+ *
+ * @param {String} locale - The locale (or store code).
+ * @param {import('@adobe/aio-sdk').Files.Files} filesLib - The Files library instance from '@adobe/aio-sdk'.
+ * @returns {Promise<PollerState>} - A promise that resolves when the state is loaded, returning the state object.
+ */
 async function loadState(locale, filesLib) {
   const stateKey = locale ? `${locale}` : 'default';
   const fileLocation = getFileLocation(stateKey);
@@ -50,6 +68,13 @@ async function loadState(locale, filesLib) {
   };
 }
 
+/**
+ * Saves the state to the cloud file system.
+ *
+ * @param {PollerState} state - The object describing state and metadata.
+ * @param {FilesProvider} filesLib - The Files library instance from '@adobe/aio-sdk'.
+ * @returns {Promise<void>} - A promise that resolves when the state is saved.
+ */
 async function saveState(state, filesLib) {
   let { locale } = state;
   if (!locale) {
@@ -61,7 +86,20 @@ async function saveState(state, filesLib) {
     state.skusLastQueriedAt.getTime(),
     ...Object.entries(state.skus).flatMap(([sku, lastPreviewedAt]) => [sku, lastPreviewedAt.getTime()]),
   ].join(',');
-  await filesLib.write(fileLocation, stateData);
+  return filesLib.write(fileLocation, stateData);
+}
+
+/**
+ * Deletes the state from the cloud file system.
+ *
+ * @param {String} locale - The key of the state to be deleted.
+ * @param {FilesProvider} filesLib - The Files library instance from '@adobe/aio-sdk'.
+ * @returns {Promise<void>} - A promise that resolves when the state is deleted.
+ */
+async function deleteState(locale, filesLib) {
+  const stateKey = `${locale}`;
+  const fileLocation = getFileLocation(stateKey);
+  await filesLib.delete(fileLocation);
 }
 
 /**
@@ -81,7 +119,7 @@ async function saveState(state, filesLib) {
  * @param {string} [params.HLX_STORE_URL] - The store's base URL.
  * @param {string} [params.HLX_LOCALES] - Comma-separated list of allowed locales.
  * @param {string} [params.LOG_LEVEL] - The log level.
- * @param {Object} filesLib - The files provider object.
+ * @param {FilesProvider} filesLib - The files provider object.
  * @returns {Promise<Object>} The result of the polling action.
  */
 function checkParams(params) {
@@ -307,4 +345,4 @@ return {
 };
 }
 
-module.exports = { poll, loadState, saveState, getFileLocation };
+module.exports = { poll, deleteState, loadState, saveState, getFileLocation };

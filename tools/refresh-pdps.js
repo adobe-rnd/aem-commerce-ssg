@@ -116,7 +116,6 @@ module.exports = {
     targetLocales,
 };
 
-// Only call main if this file is being run directly
 if (require.main === module) {
     main();
 }

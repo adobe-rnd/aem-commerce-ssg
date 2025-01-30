@@ -10,32 +10,68 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
-const stateLib = require('@adobe/aio-lib-state');
+const { Core, State, Files } = require('@adobe/aio-sdk');
+const { loadState, saveState, deleteState } = require('../../actions/check-product-changes/poller.js');
+const { StateManager } = require('../../actions/check-product-changes/lib/state.js');
 
 async function main({ op, key, value }) {
-  const state = await stateLib.init();
+  const logger = Core.Logger('main', { level: process.env.LOG_LEVEL || 'info' });
+
+  const stateLib = await State.init();
+  const filesLib = await Files.init();
+  const stateMgr = new StateManager(stateLib, { logger });
+
   let result;
 
-  switch (op) {
-  case 'get':
-    result = await state.get(key);
-    break;
-  case 'put':
-    result = await state.put(key, value);
-    break;
-  case 'delete':
-    result = await state.delete(key);
-    break;
-  case 'stats':
-    result = await state.stats();
-  // eslint-disable-next-line no-fallthrough
-  case 'list':
-  default: {
-    result = [];
-    for await (const { keys } of state.list()) {
-      result.push(...keys);
+  if (Boolean(value) && key === 'running') {
+    switch (op) {
+      case 'get': {
+        result = await stateMgr.get(key);
+        break;
+      }
+      case 'put': {
+        result = await stateMgr.put(key, value, 3600);
+        break;
+      }
+      case 'delete': {
+        result = await stateMgr.delete(key);
+        break;
+      }
     }
-  }
+  } else {
+    switch (op) {
+      case 'get': {
+        // use aio-state for 'running' key
+        if (key === 'running') {
+          result = await stateMgr.get('running');
+          break;
+        }
+        const currentState = await loadState(key, filesLib);
+        result = currentState[key]
+        break;
+      }
+      case 'put': {
+        // use aio-state for 'running' key
+        if (key === 'running') {
+          result = await stateMgr.put('running', value, 3600);
+          break;
+        }
+        result = await saveState({ locale: key, ...value }, filesLib);
+        break;
+      }
+      case 'delete': {
+        result = await deleteState(key, filesLib);
+        break;
+      }
+      case 'stats':
+        result = {}
+      // eslint-disable-next-line no-fallthrough
+      case 'list':
+      default: {
+        const currentState = await loadState(stateMgr, filesLib);
+        result = Object.keys(currentState);
+      }
+    }
   }
 
   return { op, key, result };
