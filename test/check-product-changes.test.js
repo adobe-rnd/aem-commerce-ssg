@@ -16,10 +16,12 @@ jest.mock('../actions/utils', () => ({
 jest.spyOn(AdminAPI.prototype, 'startProcessing').mockImplementation(jest.fn());
 jest.spyOn(AdminAPI.prototype, 'stopProcessing').mockImplementation(jest.fn());
 jest.spyOn(AdminAPI.prototype, 'unpublishAndDelete').mockImplementation(jest.fn());
-jest.spyOn(AdminAPI.prototype, 'previewAndPublish').mockResolvedValue({
-  sku: 'test-sku',
-  previewedAt: new Date(),
-  publishedAt: new Date()
+jest.spyOn(AdminAPI.prototype, 'previewAndPublish').mockImplementation(({ sku }) => {
+  return Promise.resolve({
+    sku,
+    previewedAt: sku === 'sku-failed-due-preview' ? null: new Date(),
+    publishedAt: sku === 'sku-failed-due-publishing' ? null : new Date()
+  });
 });
 
 describe('Poller', () => {
@@ -116,7 +118,7 @@ describe('Poller', () => {
     await expect(poll(params, filesLibMock)).rejects.toThrow('Invalid storeUrl');
   });
 
-  it('Poller should fetch and process SKU updates', async () => {
+  it('Poller should fetch and process SKU updates and 2 sku failed', async () => {
     const params = {
       HLX_SITE_NAME: 'siteName',
       HLX_PATH_FORMAT: 'pathFormat',
@@ -130,7 +132,16 @@ describe('Poller', () => {
     requestSaaS.mockImplementation((query, operation) => {
       if (operation === 'getAllSkus') {
         return Promise.resolve({
-          data: { productSearch: { items: [{ productView: 'sku-123' }, { productView: 'sku-456' }] } },
+          data: {
+            productSearch: {
+              items: [
+                { productView: 'sku-123' },
+                { productView: 'sku-456' },
+                { productView: 'sku-failed-due-preview' },
+                { productView: 'sku-failed-due-publishing' }
+              ]
+            }
+          },
         });
       }
       if (operation === 'getLastModified') {
@@ -139,6 +150,8 @@ describe('Poller', () => {
             products: [
               { urlKey: 'url-sku-123', sku: 'sku-123', lastModifiedAt: new Date().getTime() - 5000 },
               { urlKey: 'url-sku-456', sku: 'sku-456', lastModifiedAt: new Date().getTime() - 10000 },
+              { urlKey: 'url-failed-due-preview', sku: 'sku-failed-due-preview', lastModifiedAt: new Date().getTime() - 20000 },
+              { urlKey: 'url-failed-due-publishing', sku: 'sku-failed-due-publishing', lastModifiedAt: new Date().getTime() - 20000 },
             ],
           },
         });
@@ -149,8 +162,10 @@ describe('Poller', () => {
     const result = await poll(params, filesLibMock);
 
     expect(result.state).toBe('completed');
-    expect(result.status.published).toBeGreaterThan(0);
-    expect(result.status.failed).toBe(0);
+    expect(result.status.published).toBe(2);
+    expect(result.status.failed).toBe(2);
+    expect(result.status.unpublished).toBe(0);
+    expect(result.status.ignored).toBe(0);
 
     expect(requestSaaS).toBeCalledTimes(2);
     expect(requestSaaS).toHaveBeenNthCalledWith(
@@ -169,6 +184,7 @@ describe('Poller', () => {
         }),
         expect.anything()
     );
+    expect(filesLibMock.read).toHaveBeenCalled();
     expect(filesLibMock.write).toHaveBeenCalled();
     expect(AdminAPI.prototype.startProcessing).toHaveBeenCalledTimes(1);
     expect(AdminAPI.prototype.stopProcessing).toHaveBeenCalledTimes(1);
