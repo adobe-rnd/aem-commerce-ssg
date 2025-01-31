@@ -30,6 +30,10 @@ describe('Poller', () => {
     write: jest.fn().mockResolvedValue(null),
   };
 
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('loadState returns default state', async () => {
     const filesLib = new Files(0);
     const state = await loadState('uk', filesLib);
@@ -189,6 +193,65 @@ describe('Poller', () => {
     expect(AdminAPI.prototype.startProcessing).toHaveBeenCalledTimes(1);
     expect(AdminAPI.prototype.stopProcessing).toHaveBeenCalledTimes(1);
     expect(AdminAPI.prototype.previewAndPublish).toHaveBeenCalled();
+    expect(AdminAPI.prototype.unpublishAndDelete).not.toHaveBeenCalled();
+  });
+
+  it('Poller should not fetch SKU and not process them', async () => {
+    filesLibMock.read.mockImplementationOnce(() => {
+      const lastQueriedAndPreviewedAt = new Date().getTime() - 10000;
+      return Promise.resolve(
+          `${lastQueriedAndPreviewedAt},sku-123,${lastQueriedAndPreviewedAt},sku-456,${lastQueriedAndPreviewedAt},sku-789,${lastQueriedAndPreviewedAt}`
+      )
+    });
+
+    const params = {
+      HLX_SITE_NAME: 'siteName',
+      HLX_PATH_FORMAT: 'pathFormat',
+      PLPURIPrefix: 'prefix',
+      HLX_ORG_NAME: 'orgName',
+      HLX_CONFIG_NAME: 'configName',
+      authToken: 'token',
+      skusRefreshInterval: 600000,
+    };
+
+    requestSaaS.mockImplementation((query, operation) => {
+      if (operation === 'getLastModified') {
+        return Promise.resolve({
+          data: {
+            products: [
+              { urlKey: 'url-sku-123', sku: 'sku-123', lastModifiedAt: new Date().getTime() - 20000 },
+              { urlKey: 'url-sku-456', sku: 'sku-456', lastModifiedAt: new Date().getTime() - 30000 },
+              { urlKey: null, sku: 'sku-789', lastModifiedAt: new Date().getTime() - 5000 },
+            ],
+          },
+        });
+      }
+      return Promise.resolve({});
+    });
+
+    const result = await poll(params, filesLibMock);
+
+    expect(result.state).toBe('completed');
+    expect(result.status.published).toBe(0);
+    expect(result.status.failed).toBe(0);
+    expect(result.status.unpublished).toBe(0);
+    expect(result.status.ignored).toBe(3);
+
+    expect(requestSaaS).toBeCalledTimes(1);
+    expect(requestSaaS).toHaveBeenNthCalledWith(
+        1,
+        expect.anything(),
+        'getLastModified',
+        expect.objectContaining({
+          skus: expect.arrayContaining(['sku-123', 'sku-456']),
+        }),
+        expect.anything()
+    );
+    expect(filesLibMock.read).toHaveBeenCalled();
+    expect(filesLibMock.write).not.toHaveBeenCalled();
+    expect(AdminAPI.prototype.startProcessing).toHaveBeenCalledTimes(1);
+    expect(AdminAPI.prototype.stopProcessing).toHaveBeenCalledTimes(1);
+    expect(AdminAPI.prototype.previewAndPublish).not.toHaveBeenCalled();
     expect(AdminAPI.prototype.unpublishAndDelete).not.toHaveBeenCalled();
   });
 });
