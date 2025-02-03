@@ -254,4 +254,63 @@ describe('Poller', () => {
     expect(AdminAPI.prototype.previewAndPublish).not.toHaveBeenCalled();
     expect(AdminAPI.prototype.unpublishAndDelete).not.toHaveBeenCalled();
   });
+
+  it('Poller should delete SKUs that are not in the catalog service, one of them is failed', async () => {
+    const params = {
+      HLX_SITE_NAME: 'siteName',
+      HLX_PATH_FORMAT: 'pathFormat',
+      PLPURIPrefix: 'prefix',
+      HLX_ORG_NAME: 'orgName',
+      HLX_CONFIG_NAME: 'configName',
+      authToken: 'token',
+      skusRefreshInterval: 600000,
+    };
+
+    filesLibMock.read.mockImplementationOnce(() => {
+      const lastQueriedAndPreviewedAt = new Date().getTime() - 10000;
+      return Promise.resolve(
+          `${lastQueriedAndPreviewedAt},sku-123,${lastQueriedAndPreviewedAt},sku-456,${lastQueriedAndPreviewedAt},sku-failed,${lastQueriedAndPreviewedAt}`
+      );
+    });
+
+    requestSaaS.mockImplementation((query, operation) => {
+      if (operation === 'getLastModified') {
+        return Promise.resolve({
+          data: {
+            products: [
+              { urlKey: 'url-sku-123', sku: 'sku-123', lastModifiedAt: new Date().getTime() - 20000 },
+            ],
+          },
+        });
+      }
+      return Promise.resolve({});
+    });
+
+    requestSpreadsheet.mockImplementation(() => {
+      return Promise.resolve({
+        data: [
+          { sku: 'sku-456' },
+          { sku: 'sku-failed' },
+        ],
+      });
+    });
+
+    AdminAPI.prototype.unpublishAndDelete.mockImplementation(({ path, sku }) => {
+      return Promise.resolve({ deletedAt: sku === 'sku-failed' ? null : new Date() });
+    });
+
+    const result = await poll(params, filesLibMock);
+
+    expect(result.state).toBe('completed');
+    expect(result.status.published).toBe(0);
+    expect(result.status.failed).toBe(1);
+    expect(result.status.unpublished).toBe(1);
+    expect(result.status.ignored).toBe(1);
+
+    expect(requestSaaS).toBeCalledTimes(1);
+    expect(requestSpreadsheet).toBeCalledTimes(1);
+    expect(AdminAPI.prototype.unpublishAndDelete).toBeCalledTimes(2);
+    expect(filesLibMock.read).toHaveBeenCalled();
+    expect(filesLibMock.write).toHaveBeenCalled();
+  });
 });
