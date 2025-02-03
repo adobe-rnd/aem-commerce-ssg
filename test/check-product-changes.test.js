@@ -307,7 +307,7 @@ describe('Poller', () => {
       });
     });
 
-    AdminAPI.prototype.unpublishAndDelete.mockImplementation(({ path, sku }) => {
+    AdminAPI.prototype.unpublishAndDelete.mockImplementation(({ sku }) => {
       return Promise.resolve({ deletedAt: sku === 'sku-failed' ? null : new Date() });
     });
 
