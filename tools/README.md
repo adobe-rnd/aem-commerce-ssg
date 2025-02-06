@@ -2,6 +2,15 @@
 
 This directory contains utility scripts for various tasks related to the AppBuilder package. Below are the details on how to use each script.
 
+## `refresh-pdps.js`
+
+This script gracefully pauses execution of the poller, and performs a 'cold start': the poller will then re-preview and re-publish all the products in the catalog.
+The operation happens in the background and the script checks that the cold start was successfully triggered, exiting 0.
+
+### Usage
+
+`-l, --locales <locales>: Comma-separated list of locales (or stores) to delete. For example: en,fr,de`
+
 ## `check-products-count.js`
 
 This script checks the product count consistency between the `published-products-index` and the Adobe Commerce store.
