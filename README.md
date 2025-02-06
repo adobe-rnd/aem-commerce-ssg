@@ -1,5 +1,7 @@
 # AppBuilder SSG Template for Edge Delivery Storefront
 
+_Please note: this is WIP and not ready for production use_
+
 ## Setup
 
 - Populate the `.env` file in the project root and fill it as shown [below](#env)

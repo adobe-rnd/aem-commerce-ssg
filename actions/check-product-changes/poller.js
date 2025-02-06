@@ -222,7 +222,7 @@ async function poll(params, filesLib) {
 
       // get last modified dates
       const skus = Object.keys(state.skus);
-      const lastModifiedResp = await requestSaaS(GetLastModifiedQuery, 'getLastModified', { skus }, context);
+      const lastModifiedResp = await requestSaaS(GetLastModifiedQuery, 'getLastModified', { skus: [...skus] }, context);
       timings.sample('fetchedLastModifiedDates');
       logger.info(`Fetched last modified date for ${lastModifiedResp.data.products.length} skus, total ${skus.length}`);
 
@@ -247,16 +247,18 @@ async function poll(params, filesLib) {
       })
 
       const batches = products.filter(shouldProcessProduct)
-        .reduce((acc, product, i, arr) => {
+        .reduce((acc, product) => {
           const { sku, urlKey } = product;
           const path = getProductUrl({ urlKey, sku }, context, false).toLowerCase();
           const req = adminApi.previewAndPublish({ path, sku });
-          acc.push(req);
-          if (acc.length === BATCH_SIZE || i === arr.length - 1) {
-            return [...acc];
+
+          if (!acc.length || acc[acc.length - 1].length === BATCH_SIZE) {
+            acc.push([]);
           }
+          acc[acc.length - 1].push(req);
+
           return acc;
-        });
+        }, []);
 
       // preview batches , then save state in case we get interrupted
       for (const batch of batches) {
