@@ -25,29 +25,37 @@ function getFileLocation(stateKey) {
 }
 
 async function loadState(locale, filesLib) {
-  const stateKey = locale ? `${locale}` : 'default';
-  const fileLocation = getFileLocation(stateKey);
-  const buffer = await filesLib.read(fileLocation);
-  const stateData = buffer?.toString();
-  if (!stateData) {
+  try {
+    const stateKey = locale ? `${locale}` : 'default';
+    const fileLocation = getFileLocation(stateKey);
+    const buffer = await filesLib.read(fileLocation);
+    const stateData = buffer?.toString();
+    if (!stateData) {
+      return {
+        locale,
+        skusLastQueriedAt: new Date(0),
+        skus: {},
+      };
+    }
+    // the format of the state object is:
+    // <timestamp>,<sku1>,<timestamp>,<sku2>,<timestamp>,<sku3>,...,<timestamp>
+    // the first timestamp is the last time the SKUs were fetched from Adobe Commerce
+    // folloed by a pair of SKUs and timestamps which are the last preview times per SKU
+    const [catalogQueryTimestamp, ...skus] = stateData.split(',');
+    return {
+      locale,
+      skusLastQueriedAt: new Date(parseInt(catalogQueryTimestamp)),
+      skus: Object.fromEntries(skus
+        .map((sku, i, arr) => (i % 2 === 0 ? [sku, new Date(parseInt(arr[i + 1]))] : null))
+        .filter(Boolean)),
+    };
+  } catch (e) {
     return {
       locale,
       skusLastQueriedAt: new Date(0),
       skus: {},
     };
   }
-  // the format of the state object is:
-  // <timestamp>,<sku1>,<timestamp>,<sku2>,<timestamp>,<sku3>,...,<timestamp>
-  // the first timestamp is the last time the SKUs were fetched from Adobe Commerce
-  // folloed by a pair of SKUs and timestamps which are the last preview times per SKU
-  const [catalogQueryTimestamp, ...skus] = stateData.split(',');
-  return {
-    locale,
-    skusLastQueriedAt: new Date(parseInt(catalogQueryTimestamp)),
-    skus: Object.fromEntries(skus
-      .map((sku, i, arr) => (i % 2 === 0 ? [sku, new Date(parseInt(arr[i + 1]))] : null))
-      .filter(Boolean)),
-  };
 }
 
 async function saveState(state, filesLib) {
