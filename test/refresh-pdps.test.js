@@ -13,6 +13,7 @@ governing permissions and limitations under the License.
 const stateLib = require('@adobe/aio-lib-state');
 const openwhisk = require('openwhisk');
 const { program } = require('commander');
+const { Files } = require('@adobe/aio-sdk');
 
 const {
     clearStoreState,
@@ -26,6 +27,11 @@ jest.setTimeout(60000);
 jest.mock('@adobe/aio-lib-state');
 jest.mock('openwhisk');
 jest.mock('commander');
+jest.mock('@adobe/aio-sdk', () => ({
+    Files: {
+        init: jest.fn()
+    }
+}));
 
 describe('State and Rule Management', () => {
     const mockState = {
@@ -38,24 +44,28 @@ describe('State and Rule Management', () => {
         delete: jest.fn((key) => { delete mockState._state[key]; }),
     };
 
+    const mockFiles = {
+        delete: jest.fn(),
+        init: jest.fn(),
+    };
+
     const mockOW = {
         rules: {
             enable: jest.fn(),
             disable: jest.fn(),
         },
+        namespace: 'test-namespace'
     };
 
     beforeEach(() => {
-        // Reset all mocks
         jest.clearAllMocks();
 
-        // Setup environment variables
         process.env.AIO_RUNTIME_NAMESPACE = 'test-namespace';
         process.env.AIO_RUNTIME_AUTH = 'test-auth';
 
-        // Setup mocks
         stateLib.init.mockResolvedValue(mockState);
         openwhisk.mockReturnValue(mockOW);
+        Files.init.mockResolvedValue(mockFiles);
         program.opts.mockReturnValue({
             debug: true,
             stores: 'us,uk',
@@ -63,16 +73,16 @@ describe('State and Rule Management', () => {
     });
 
     describe('State Management', () => {
-        test('clearStoreState deletes state for multiple stores', async () => {
+        test('clearStoreState deletes file-based state for multiple stores', async () => {
             const stores = ['us', 'uk'];
             await clearStoreState(mockState, stores);
-            expect(mockState.delete).toHaveBeenCalledTimes(2);
-            expect(mockState.delete).toHaveBeenCalledWith('us');
-            expect(mockState.delete).toHaveBeenCalledWith('uk');
+            expect(mockFiles.delete).toHaveBeenCalledTimes(2);
+            expect(mockFiles.delete).toHaveBeenCalledWith('check-product-changes/us.txt');
+            expect(mockFiles.delete).toHaveBeenCalledWith('check-product-changes/uk.txt');
         });
 
         test('getRunning returns false when state is not "true"', async () => {
-            mockState.get.mockResolvedValue('false');
+            mockState.get.mockResolvedValue({ value: 'false' });
             const result = await getRunning(mockState);
             expect(result).toBe(false);
         });

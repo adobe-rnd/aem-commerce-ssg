@@ -11,6 +11,8 @@ governing permissions and limitations under the License.
 */
 
 const stateLib = require('@adobe/aio-lib-state');
+const { Files } = require('@adobe/aio-sdk');
+const { deleteState } = require('../actions/check-product-changes/poller');
 const openwhisk = require('openwhisk');
 const { program } = require('commander');
 if (require.main === module) require('dotenv').config();
@@ -22,7 +24,7 @@ const {
     AIO_RUNTIME_AUTH,
 } = process.env;
 
-let stateInstance;
+let stateInstance, filesLib;
 const ow = openwhisk({
     api_key: AIO_RUNTIME_AUTH,
     namespace: AIO_RUNTIME_NAMESPACE,
@@ -44,20 +46,22 @@ async function disablePollRule() {
 
 async function initStateIfNull() {
     if (stateInstance) return;
-    console.info('Initializing state lib');
-    stateInstance = await stateLib.init({
+    console.info('Initializing state libs');
+    const cfg = {
         ow: {
             auth: AIO_RUNTIME_AUTH,
             namespace: AIO_RUNTIME_NAMESPACE,
         },
-    });
+    };
+    filesLib = await Files.init(cfg);
+    stateInstance = await stateLib.init(cfg);
 }
 
 async function clearStoreState(state, stores) {
     await initStateIfNull();
     for (const store of stores) {
-        await state.delete(store);
-        console.info(`state for store "${store}" deleted`);
+        await deleteState(store, filesLib);
+        console.info(`file-based state for store "${store}" deleted`);
     }
 }
 
