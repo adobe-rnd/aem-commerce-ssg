@@ -10,112 +10,123 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
+const stateLib = require('@adobe/aio-lib-state');
 const openwhisk = require('openwhisk');
 const { program } = require('commander');
-const { exit } = require('process');
+if (require.main === module) require('dotenv').config();
 
-require('dotenv').config();
+const RULE_POLL_EVERY_MINUTE = 'poll_every_minute';
 
 const {
     AIO_RUNTIME_NAMESPACE,
     AIO_RUNTIME_AUTH,
 } = process.env;
 
-if (!AIO_RUNTIME_NAMESPACE || !AIO_RUNTIME_AUTH) {
-    console.log('Missing required environment variables AIO_RUNTIME_AUTH and AIO_RUNTIME_NAMESPACE');
-    exit(1);
-}
-
-const [AIO_STATE_MANAGER_ACTION_NAME, AIO_POLLER_RULE_NAME] = ['state-manager', 'poll_every_minute'];
-
+let stateInstance;
 const ow = openwhisk({
-    apihost: 'https://adobeioruntime.net',
     api_key: AIO_RUNTIME_AUTH,
     namespace: AIO_RUNTIME_NAMESPACE,
 });
 
-let targetLocales = [];
-
-program
-    .requiredOption('-l, --locales <locales>', 'Comma-separated list of locales (or stores) to target. For example: en,fr,de')
-    .parse(process.argv);
-
-const options = program.opts();
-
-if (!options.keys) {
-    console.error('No locales provided to delete.');
-    exit(1);
-}
-
-targetLocales = options.keys.split(',');
-
-async function checkState(locale) {
-    const state = await ow.actions.invoke({
-        name: AIO_STATE_MANAGER_ACTION_NAME,
-        params: { key: locale, op: 'get' },
-        blocking: true,
-        result: true,
+async function enablePollRule() {
+    await ow.rules.enable({
+        name: RULE_POLL_EVERY_MINUTE,
     });
-    return state.value;
+    console.info(`rule "${RULE_POLL_EVERY_MINUTE}" enabled`);
 }
 
-async function flushStoreState(locale) {
-    await ow.actions.invoke({
-        name: AIO_STATE_MANAGER_ACTION_NAME,
-        params: { key: locale, op: 'delete' },
-        blocking: true,
-        result: true,
+async function disablePollRule() {
+    await ow.rules.disable({
+        name: RULE_POLL_EVERY_MINUTE,
+    });
+    console.info(`rule "${RULE_POLL_EVERY_MINUTE}" disabled`);
+}
+
+async function initStateIfNull() {
+    if (stateInstance) return;
+    console.info('Initializing state lib');
+    stateInstance = await stateLib.init({
+        ow: {
+            auth: AIO_RUNTIME_AUTH,
+            namespace: AIO_RUNTIME_NAMESPACE,
+        },
     });
 }
 
-async function main(timeout = 20 * 60 * 1000) {
-    try {
-        // Disable the rule
-        await ow.rules.disable({ name: AIO_POLLER_RULE_NAME });
-
-        // Wait until 'running' is not 'true'
-        let running = await checkState('running');
-        while (running === 'true') {
-            console.log('Waiting for running state to be false...');
-            await new Promise(resolve => setTimeout(resolve, 60000)); // Wait 1 minute
-            running = await checkState('running');
-        }
-
-        // Delete specified keys
-        for (const key of targetLocales) {
-            await flushStoreState(key);
-        }
-
-        // Re-enable the rule to trigger the poller cycle start
-        await ow.rules.enable({ name: AIO_POLLER_RULE_NAME });
-
-        // Check periodically until 'running' is 'true'
-        const startTime = Date.now();
-        while (true) {
-            running = await checkState('running');
-            if (running === 'true') {
-                console.log('Running state is true. Exiting...');
-                exit(0);
-            }
-            if (Date.now() - startTime > timeout) {
-                console.error('Timeout: running state did not become true within 30 minutes.');
-                exit(1);
-            }
-            await new Promise(resolve => setTimeout(resolve, 60000)); // Wait 1 minute
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        exit(1);
+async function clearStoreState(state, stores) {
+    await initStateIfNull();
+    for (const store of stores) {
+        await state.delete(store);
+        console.info(`state for store "${store}" deleted`);
     }
 }
 
-module.exports = {
-    checkState,
-    flushStoreState,
-    main,
-    targetLocales,
-};
+async function getRunning(state, key = 'running') {
+    await initStateIfNull();
+    return (await state.get(key))?.value === 'true';
+}
+
+async function getStoreState(state, store) {
+    await initStateIfNull();
+    const skusList = await state.get(store);
+    const running = (await state.get('running'))?.value === 'true';
+    return {
+        skusList,
+        running,
+    };
+}
+
+
+async function isPollerStopped(state, timeout) {
+    const start = Date.now();
+    while (Date.now() - start < timeout) {
+        const running = await state.get('running');
+        if (running !== 'true') {
+            return true;
+        }
+    }
+    throw new Error(`Timeout: poller did not stop within ${timeout} ms`);
+}
+
+
+async function main() {
+    program
+        .option('-d, --debug', 'Additionally prints out the state')
+        .requiredOption('-s, --stores <us,en,uk,...>', 'Comma separated list of locales');
+
+    const { debug, stores: storesString } = program.opts();
+    const stores = storesString.split(',');
+
+    if (debug) {
+        console.info('Debug mode enabled');
+        const storesState = {};
+        for (const store of stores) {
+            storesState[store] = await getStoreState(stateInstance, store);
+        }
+
+        console.log('storesState', storesState);
+        // 1. stop the poller. If the poller is already activated
+        //    it will be stopped until the next activation (step 4)
+        await disablePollRule();
+        // 2. wait for the poller to stop (timeout 30 min)
+        await isPollerStopped();
+        // 3. remove all SKUs from the state
+        await clearStoreState(stateInstance, stores);
+        // 4. restart the poller
+        await enablePollRule();
+    }
+}
 
 if (require.main === module) {
     main();
 }
+
+module.exports = {
+    enablePollRule,
+    disablePollRule,
+    initStateIfNull,
+    clearStoreState,
+    getRunning,
+    getStoreState,
+    isPollerStopped,
+};

@@ -10,132 +10,112 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
-// Mock modules before requiring the main file
-const mockOpenWhiskInstance = {
-    actions: {
-        invoke: jest.fn()
-    },
-    rules: {
-        disable: jest.fn(),
-        enable: jest.fn()
-    }
-};
+const stateLib = require('@adobe/aio-lib-state');
+const openwhisk = require('openwhisk');
+const { program } = require('commander');
 
-jest.mock('openwhisk', () => {
-    return jest.fn(() => mockOpenWhiskInstance);
-});
+const {
+    clearStoreState,
+    getRunning,
+    isPollerStopped,
+} = require('../tools/refresh-pdps');
 
-jest.mock('dotenv', () => ({
-    config: jest.fn()
-}));
+jest.setTimeout(60000);
 
-jest.mock('commander', () => {
-    const mockProgram = {
-        requiredOption: jest.fn().mockReturnThis(),
-        option: jest.fn().mockReturnThis(),
-        parse: jest.fn().mockReturnThis(),
-        opts: jest.fn().mockReturnValue({ keys: 'en,fr' })
+// Mock external dependencies
+jest.mock('@adobe/aio-lib-state');
+jest.mock('openwhisk');
+jest.mock('commander');
+
+describe('State and Rule Management', () => {
+    const mockState = {
+        _state: { running: 'true', us: '1234,1234455' },
+        put: jest.fn((key, value) => {
+            mockState._state[key] = value;
+        }),
+        init: jest.fn(),
+        get: jest.fn((key) => mockState._state[key]),
+        delete: jest.fn((key) => { delete mockState._state[key]; }),
     };
-    return { program: mockProgram };
-});
-// Store original process.env
-const originalEnv = process.env;
 
-describe('Refresh PDP Tool Tests', () => {
-    let mainModule;
+    const mockOW = {
+        rules: {
+            enable: jest.fn(),
+            disable: jest.fn(),
+        },
+    };
 
     beforeEach(() => {
-        // Reset process.env before each test
-        process.env = { ...originalEnv };
+        // Reset all mocks
+        jest.clearAllMocks();
+
+        // Setup environment variables
         process.env.AIO_RUNTIME_NAMESPACE = 'test-namespace';
         process.env.AIO_RUNTIME_AUTH = 'test-auth';
 
-        // Clear all mocks
-        jest.clearAllMocks();
-        jest.resetModules();
-
-        // Reset mock functions
-        mockOpenWhiskInstance.actions.invoke.mockReset();
-        mockOpenWhiskInstance.rules.disable.mockReset();
-        mockOpenWhiskInstance.rules.enable.mockReset();
-
-        // Mock exit and console
-        process.exit = jest.fn();
-        console.log = jest.fn();
-        console.error = jest.fn();
-    });
-
-    afterEach(() => {
-        process.env = originalEnv;
-    });
-
-    describe('Environment Variables', () => {
-        it('should exit if AIO_RUNTIME_NAMESPACE is missing', () => {
-            delete process.env.AIO_RUNTIME_NAMESPACE;
-            require('../tools/refresh-pdps');
-
-            expect(process.exit).toHaveBeenCalledWith(1);
-            expect(console.log).toHaveBeenCalledWith(
-                'Missing required environment variables AIO_RUNTIME_AUTH and AIO_RUNTIME_NAMESPACE'
-            );
-        });
-
-        it('should exit if AIO_RUNTIME_AUTH is missing', () => {
-            delete process.env.AIO_RUNTIME_AUTH;
-            require('../tools/refresh-pdps');
-
-            expect(process.exit).toHaveBeenCalledWith(1);
-            expect(console.log).toHaveBeenCalledWith(
-                'Missing required environment variables AIO_RUNTIME_AUTH and AIO_RUNTIME_NAMESPACE'
-            );
+        // Setup mocks
+        stateLib.init.mockResolvedValue(mockState);
+        openwhisk.mockReturnValue(mockOW);
+        program.opts.mockReturnValue({
+            debug: true,
+            stores: 'us,uk',
         });
     });
 
-    describe('checkState function', () => {
+    describe('State Management', () => {
+        test('clearStoreState deletes state for multiple stores', async () => {
+            const stores = ['us', 'uk'];
+            await clearStoreState(mockState, stores);
+            expect(mockState.delete).toHaveBeenCalledTimes(2);
+            expect(mockState.delete).toHaveBeenCalledWith('us');
+            expect(mockState.delete).toHaveBeenCalledWith('uk');
+        });
+
+        test('getRunning returns false when state is not "true"', async () => {
+            mockState.get.mockResolvedValue('false');
+            const result = await getRunning(mockState);
+            expect(result).toBe(false);
+        });
+    });
+
+    describe('Poller Management', () => {
         beforeEach(() => {
-            mainModule = require('../tools/refresh-pdps');
+            jest.useFakeTimers();
         });
 
-        it('should return state value for given locale', async () => {
-            const expectedState = { value: 'false' };
-            mockOpenWhiskInstance.actions.invoke.mockResolvedValueOnce(expectedState);
+        afterEach(() => {
+            jest.useRealTimers();
+        });
+        test('isPollerStopped resolves when poller stops', async () => {
+            const timeout = 2 * 1000;
 
-            const result = await mainModule.checkState('en');
+            // Mock initial state as running
+            mockState.get.mockResolvedValue('true');
 
-            expect(mockOpenWhiskInstance.actions.invoke).toHaveBeenCalledWith({
-                name: 'state-manager',
-                params: { key: 'en', op: 'get' },
-                blocking: true,
-                result: true
-            });
-            expect(result).toBe('false');
+            // After 1s, change state to not running 
+            setTimeout(() => {
+                mockState.get.mockResolvedValue(false);
+            }, 1000);
+
+            const pollerPromise = isPollerStopped(mockState, timeout);
+            jest.advanceTimersByTime(1500);
+            await pollerPromise;
+
+            expect(mockState.get).toHaveBeenCalledWith('running');
         });
 
-        it('should handle errors when checking state', async () => {
-            mockOpenWhiskInstance.actions.invoke.mockRejectedValueOnce(new Error('API Error'));
-            await expect(mainModule.checkState('en')).rejects.toThrow('API Error');
-        });
-    });
+        test('isPollerStopped throws error on timeout', async () => {
+            const timeout = 2 * 1000;
 
-    describe('flushStoreState function', () => {
-        beforeEach(() => {
-            mainModule = require('../tools/refresh-pdps');
-        });
+            // Mock state to always return running
+            mockState.get.mockResolvedValue('true');
 
-        it('should invoke delete operation for given locale', async () => {
-            await mainModule.flushStoreState('en');
+            const pollerPromise = isPollerStopped(mockState, timeout);
+            jest.advanceTimersByTime(timeout + 100);
 
-            expect(mockOpenWhiskInstance.actions.invoke).toHaveBeenCalledWith({
-                name: 'state-manager',
-                params: { key: 'en', op: 'delete' },
-                blocking: true,
-                result: true
-            });
-        });
-
-        it('should handle errors when flushing state', async () => {
-            mockOpenWhiskInstance.actions.invoke.mockRejectedValueOnce(new Error('Delete Error'));
-            await expect(mainModule.flushStoreState('en')).rejects.toThrow('Delete Error');
+            await expect(pollerPromise).rejects.toThrow(
+                `Timeout: poller did not stop within ${timeout} ms`
+            );
         });
     });
 });
