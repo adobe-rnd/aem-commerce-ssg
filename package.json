@@ -7,6 +7,7 @@
     "cheerio": "^1.0.0",
     "commander": "^13.1.0",
     "handlebars": "^4.7.8",
+    "js-yaml": "^4.1.0",
     "node-fetch": "^2.6.0",
     "striptags": "^3.2.0",
     "vega": "^5.30.0",

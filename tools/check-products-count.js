@@ -12,25 +12,34 @@ governing permissions and limitations under the License.
 
 require('dotenv').config();
 
-const { program } = require('commander');
+const fs = require('fs');
+const yaml = require('js-yaml');
+const path = require('path');
 const { requestSaaS, requestSpreadsheet } = require('../actions/utils');
 const { GetAllSkusPaginatedQuery } = require('../actions/queries');
+const filePath = path.resolve(__dirname, '..', 'app.config.yaml');
 
 async function main() {
-    // TODO: fetch from app.config.yaml (incl. mapped env vars)?
-    // https://jira.corp.adobe.com/browse/SITES-28254
-    program
-        .option('-h, --help', 'Display help for cli')
-        .option('-s, --storecode <storecode>', 'Commerce Store Code')
-        .option('-c, --config <config>', 'Config name')
-        .option('-u, --url <url>', 'Root URL of the store')
-
-    program.parse(process.argv);
-    const options = program.opts();
-
-    if (options.help || !options.storecode || !options.config || !options.url) {
-        program.help();
+    let storeCodeYaml, storeUrlYaml, configNameYaml;
+    try {
+        const fileContents = fs.readFileSync(filePath, 'utf8');
+        const data = yaml.load(fileContents, 'utf8');
+        const parameters = data?.application?.runtimeManifest?.packages['aem-commerce-ssg']?.parameters || {};
+        ({
+            COMMERCE_STORE_CODE: storeCodeYaml,
+            COMMERCE_STORE_URL: storeUrlYaml,
+            COMMERCE_CONFIG_NAME: configNameYaml
+        } = parameters);
+    } catch (e) {
+        console.error('Error getting configuration from app.config.yaml file:', e);
     }
+
+    const {
+        COMMERCE_STORE_CODE: storeCode = storeCodeYaml,
+        COMMERCE_STORE_URL: storeUrl = storeUrlYaml,
+        COMMERCE_CONFIG_NAME: configName = configNameYaml,
+        // eslint-disable-next-line no-undef
+    } = process.env;
 
     const context = { storeCode: options.storecode, storeUrl: options.url, configName: options.config };
     const { total: actualCount } = await requestSpreadsheet('published-products-index', context);

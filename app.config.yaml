@@ -38,10 +38,14 @@ application:
               authToken: ${AEM_ADMIN_API_AUTH_TOKEN}
             annotations:
               final: true
+        # parameters:
+        #   COMMERCE_STORE_CODE: "<your_store_code>"
+        #   COMMERCE_STORE_URL: "<your_store_url>"
+        #   COMMERCE_CONFIG_NAME: "<your_config_name>"
         # triggers:
         #   everyMinTrigger:
         #     feed: /whisk.system/alarms/interval
-        #     inputs: 
+        #     inputs:
         #       minutes: 1
         # rules:
         #   everyMinRule:
