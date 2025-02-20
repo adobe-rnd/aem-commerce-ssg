@@ -45,27 +45,37 @@ function getStateFileLocation(stateKey) {
 async function loadState(locale, filesLib) {
   const stateKey = locale ? `${locale}` : 'default';
   const fileLocation = getStateFileLocation(stateKey);
-  const buffer = await filesLib.read(fileLocation);
-  const stateData = buffer?.toString();
-  if (!stateData) {
+  const emptyState = {
+    locale,
+    skusLastQueriedAt: new Date(0),
+    skus: {},
+  };
+  try {
+    const buffer = await filesLib.read(fileLocation);
+    const stateData = buffer?.toString();
+    if (!stateData) {
+      return emptyState;
+    }
+
+    // the format of the state object is:
+    // <timestamp>,<sku1>,<timestamp>,<sku2>,<timestamp>,<sku3>,...,<timestamp>
+    // the first timestamp is the last time the SKUs were fetched from Adobe Commerce
+    // folloed by a pair of SKUs and timestamps which are the last preview times per SKU
+    const [catalogQueryTimestamp, ...skus] = stateData.split(',');
     return {
       locale,
-      skusLastQueriedAt: new Date(0),
-      skus: {},
+      skusLastQueriedAt: new Date(parseInt(catalogQueryTimestamp)),
+      skus: Object.fromEntries(skus
+          .map((sku, i, arr) => (i % 2 === 0 ? [sku, new Date(parseInt(arr[i + 1]))] : null))
+          .filter(Boolean)),
     };
+  } catch (error) {
+    if (error.code === 'ERROR_FILE_NOT_EXISTS') {
+      return emptyState;
+    } else {
+      throw error;
+    }
   }
-  // the format of the state object is:
-  // <timestamp>,<sku1>,<timestamp>,<sku2>,<timestamp>,<sku3>,...,<timestamp>
-  // the first timestamp is the last time the SKUs were fetched from Adobe Commerce
-  // folloed by a pair of SKUs and timestamps which are the last preview times per SKU
-  const [catalogQueryTimestamp, ...skus] = stateData.split(',');
-  return {
-    locale,
-    skusLastQueriedAt: new Date(parseInt(catalogQueryTimestamp)),
-    skus: Object.fromEntries(skus
-      .map((sku, i, arr) => (i % 2 === 0 ? [sku, new Date(parseInt(arr[i + 1]))] : null))
-      .filter(Boolean)),
-  };
 }
 
 /**
@@ -110,7 +120,6 @@ async function deleteState(locale, filesLib) {
  * @param {Object} params - The parameters object.
  * @param {string} params.HLX_SITE_NAME - The name of the site (repo or repoless).
  * @param {string} params.HLX_PATH_FORMAT - The URL format for product detail pages.
- * @param {string} params.PLPURIPrefix - The URI prefix for Product List Pages.
  * @param {string} params.HLX_ORG_NAME - The name of the organization.
  * @param {string} params.HLX_CONFIG_NAME - The name of the configuration json/xlsx.
  * @param {number} [params.requestPerSecond=5] - The number of requests per second allowed by the throttling logic.
@@ -123,7 +132,7 @@ async function deleteState(locale, filesLib) {
  * @returns {Promise<Object>} The result of the polling action.
  */
 function checkParams(params) {
-  const requiredParams = ['HLX_SITE_NAME', 'HLX_PATH_FORMAT', 'PLPURIPrefix', 'HLX_ORG_NAME', 'HLX_CONFIG_NAME', 'authToken'];
+  const requiredParams = ['HLX_SITE_NAME', 'HLX_PATH_FORMAT', 'HLX_ORG_NAME', 'HLX_CONFIG_NAME', 'authToken'];
   const missingParams = requiredParams.filter(param => !params[param]);
   if (missingParams.length > 0) {
     throw new Error(`Missing required parameters: ${missingParams.join(', ')}`);
@@ -168,13 +177,14 @@ async function poll(params, filesLib) {
     skusRefreshInterval = 600000,
   } = params;
   const storeUrl = params.HLX_STORE_URL ? params.HLX_STORE_URL : `https://main--${siteName}--${orgName}.aem.live`;
+  const contentUrl = params.HLX_CONTENT_URL ? params.HLX_CONTENT_URL : `https://main--${siteName}--${orgName}.aem.live`;
   const locales = params.HLX_LOCALES ? params.HLX_LOCALES.split(',') : [null];
 
   const counts = {
     published: 0, unpublished: 0, ignored: 0, failed: 0,
   };
   const sharedContext = {
-    storeUrl, configName, logger, counts, pathFormat,
+    storeUrl, contentUrl, configName, logger, counts, pathFormat,
   };
   const timings = new Timings();
   const adminApi = new AdminAPI({
@@ -211,8 +221,8 @@ async function poll(params, filesLib) {
           .filter(Boolean);
         // add new skus to state if any
         for (const sku of allSkus) {
-          if (!state.skus[sku]) {
-            state.skus[sku] = new Date(0);
+          if (!state.skus[sku.sku]) {
+            state.skus[sku.sku] = new Date(0);
           }
         }
         timings.sample('fetchedSkus');
