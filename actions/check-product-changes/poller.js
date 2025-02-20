@@ -67,7 +67,7 @@ async function loadState(locale, filesLib) {
         .map((sku, i, arr) => (i % 2 === 0 ? [sku, new Date(parseInt(arr[i + 1]))] : null))
         .filter(Boolean)),
     };
-  } catch (e) {
+  } catch (_) {
     return {
       locale,
       skusLastQueriedAt: new Date(0),
