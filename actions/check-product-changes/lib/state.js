@@ -1,9 +1,17 @@
-
 class StateManager {
     /**
      * Constructs a new StateManager instance.
      * @param {number} [retryCount=5] - Number of retry attempts for failed operations (default: 5).
      * @param {number} [retryDelay=1] - Delay between retries in seconds (default: 10s).
+     */
+    /**
+     * Creates an instance of the class.
+     * 
+     * @param {require('@adobe/aio-sdk').State} state - The state object from @adobe/aio-sdk.
+     * @param {Object} options - The options object.
+     * @param {Object} options.logger - The logger object.
+     * @param {number} [retryCount=5] - The number of retry attempts.
+     * @param {number} [retryDelay=10] - The delay between retries in seconds.
      */
     constructor(state, { logger }, retryCount = 5, retryDelay = 10) {
         this.retryCount = retryCount > 0 ? retryCount : 1;
@@ -20,6 +28,16 @@ class StateManager {
      */
     async get(key) {
         return this._retry(async () => await this.state.get(key));
+    }
+
+    /**
+     * Deletes a value from the state library.
+     * @param {string} key - The item to delete.
+     * @returns {Promise<any>} - The result of the operation.
+     * @throws {Error} - If the operation fails after all retry attempts.
+     */
+    async delete(key) {
+        return this._retry(async () => await this.state.delete(key));
     }
 
     /**

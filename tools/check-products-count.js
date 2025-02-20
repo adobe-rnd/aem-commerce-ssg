@@ -41,7 +41,7 @@ async function main() {
         // eslint-disable-next-line no-undef
     } = process.env;
 
-    const context = { storeCode, storeUrl, configName };
+    const context = { storeCode: options.storecode, storeUrl: options.url, configName: options.config };
     const { total: actualCount } = await requestSpreadsheet('published-products-index', context);
     let [productsCount, currentPage, expectedCount] = [-1, 1, 0];
     while (productsCount !== 0) {

@@ -17,13 +17,31 @@ const { GetAllSkusQuery, GetLastModifiedQuery } = require('../queries');
 const { Core } = require('@adobe/aio-sdk');
 
 const BATCH_SIZE = 50;
-const FILE_PREFIX = 'check-product-changes';
-const FILE_EXT = 'txt';
+const STATE_FILE_PREFIX = 'check-product-changes';
+const STATE_FILE_EXT = 'txt';
 
-function getFileLocation(stateKey) {
-  return `${FILE_PREFIX}/${stateKey}.${FILE_EXT}`;
+function getStateFileLocation(stateKey) {
+  return `${STATE_FILE_PREFIX}/${stateKey}.${STATE_FILE_EXT}`;
 }
 
+/**
+ * @typedef {Object} PollerState
+ * @property {string} locale - The locale (or store code).
+ * @property {Array<String>} skus - The SKUs to be saved.
+ * @property {Date} skusLastQueriedAt - Last time when the SKUs have been queried.
+ */
+
+/**
+ * @typedef {import('@adobe/aio-sdk').Files.Files} FilesProvider
+ */
+
+/**
+ * Saves the state to the cloud file system.
+ *
+ * @param {String} locale - The locale (or store code).
+ * @param {import('@adobe/aio-sdk').Files.Files} filesLib - The Files library instance from '@adobe/aio-sdk'.
+ * @returns {Promise<PollerState>} - A promise that resolves when the state is loaded, returning the state object.
+ */
 async function loadState(locale, filesLib) {
   try {
     const stateKey = locale ? `${locale}` : 'default';
@@ -58,18 +76,38 @@ async function loadState(locale, filesLib) {
   }
 }
 
+/**
+ * Saves the state to the cloud file system.
+ *
+ * @param {PollerState} state - The object describing state and metadata.
+ * @param {FilesProvider} filesLib - The Files library instance from '@adobe/aio-sdk'.
+ * @returns {Promise<void>} - A promise that resolves when the state is saved.
+ */
 async function saveState(state, filesLib) {
   let { locale } = state;
   if (!locale) {
     locale = 'default';
   }
   const stateKey = `${locale}`;
-  const fileLocation = getFileLocation(stateKey);
+  const fileLocation = getStateFileLocation(stateKey);
   const stateData = [
     state.skusLastQueriedAt.getTime(),
     ...Object.entries(state.skus).flatMap(([sku, lastPreviewedAt]) => [sku, lastPreviewedAt.getTime()]),
   ].join(',');
-  await filesLib.write(fileLocation, stateData);
+  return filesLib.write(fileLocation, stateData);
+}
+
+/**
+ * Deletes the state from the cloud file system.
+ *
+ * @param {String} locale - The key of the state to be deleted.
+ * @param {FilesProvider} filesLib - The Files library instance from '@adobe/aio-sdk'.
+ * @returns {Promise<void>} - A promise that resolves when the state is deleted.
+ */
+async function deleteState(locale, filesLib) {
+  const stateKey = `${locale}`;
+  const fileLocation = getStateFileLocation(stateKey);
+  await filesLib.delete(fileLocation);
 }
 
 /**
@@ -89,7 +127,7 @@ async function saveState(state, filesLib) {
  * @param {string} [params.HLX_STORE_URL] - The store's base URL.
  * @param {string} [params.HLX_LOCALES] - Comma-separated list of allowed locales.
  * @param {string} [params.LOG_LEVEL] - The log level.
- * @param {Object} filesLib - The files provider object.
+ * @param {FilesProvider} filesLib - The files provider object.
  * @returns {Promise<Object>} The result of the polling action.
  */
 function checkParams(params) {
@@ -246,75 +284,81 @@ async function poll(params, filesLib) {
 
       timings.sample('publishedPaths');
 
-    // if there are still skus left, they were not in Catalog Service and may
-    // have been disabled/deleted
-    if (skus.length) {
-      try {
-        const publishedProducts = await requestSpreadsheet('published-products-index', null, context);
-        // if any of the indexed PDPs is in the remaining list of skus that were not returned by the catalog service
-        // consider them deleted
-        const deletedProducts = publishedProducts.data.filter(({ sku }) => skus.includes(sku));
-        // we batch the deleted products to avoid the risk of HTTP 429 from the AEM Admin API
-        if (deletedProducts.length) {
-          // delete in batches of BATCH_SIZE, then save state in case we get interrupted
-          let batch = [];
-          for (const product of deletedProducts) {
-            batch.push(product);
-            if (batch.length === BATCH_SIZE) {
-              // deleteBatch has side effects on state and counts, by design
-              await deleteBatch({ counts, batch, state, adminApi });
-              batch = [];
+      // if there are still skus left, they were not in Catalog Service and may
+      // have been disabled/deleted
+      if (skus.length) {
+        try {
+          const publishedProducts = await requestSpreadsheet('published-products-index', null, context);
+          // if any of the indexed PDPs is in the remaining list of skus that were not returned by the catalog service
+          // consider them deleted
+          const deletedProducts = publishedProducts.data.filter(({ sku }) => skus.includes(sku));
+          // we batch the deleted products to avoid the risk of HTTP 429 from the AEM Admin API
+          if (deletedProducts.length) {
+            // delete in batches of BATCH_SIZE, then save state in case we get interrupted
+            let batch = [];
+            for (const product of deletedProducts) {
+              batch.push(product);
+              if (batch.length === BATCH_SIZE) {
+                // deleteBatch has side effects on state and counts, by design
+                await deleteBatch({ counts, batch, state, adminApi });
+                batch = [];
+              }
             }
+            if (batch.length > 0) {
+              await deleteBatch({ counts, batch, state, adminApi });
+            }
+            // save state after deletes
+            await saveState(state, filesLib);
           }
-          if (batch.length > 0) {
-            await deleteBatch({ counts, batch, state, adminApi });
-          }
-          // save state after deletes
-          await saveState(state, filesLib);
+        } catch (e) {
+          // in case the index doesn't yet exist or any other error
+          logger.error(e);
         }
-      } catch (e) {
-        // in case the index doesn't yet exist or any other error
-        logger.error(e);
+
+        timings.sample('unpublishedPaths');
+      } else {
+        timings.sample('unpublishedPaths', 0);
       }
 
-      timings.sample('unpublishedPaths');
-    } else {
-      timings.sample('unpublishedPaths', 0);
+      return timings.measures;
+    }));
+
+    await adminApi.stopProcessing();
+
+    // aggregate timings
+    for (const measure of results) {
+      for (const [name, value] of Object.entries(measure)) {
+        if (!timings.measures[name]) timings.measures[name] = [];
+        if (!Array.isArray(timings.measures[name])) timings.measures[name] = [timings.measures[name]];
+        timings.measures[name].push(value);
+      }
     }
-
-    return timings.measures;
-  }));
-
-  await adminApi.stopProcessing();
-
-  // aggregate timings
-  for (const measure of results) {
-    for (const [name, value] of Object.entries(measure)) {
-      if (!timings.measures[name]) timings.measures[name] = [];
-      if (!Array.isArray(timings.measures[name])) timings.measures[name] = [timings.measures[name]];
-      timings.measures[name].push(value);
+    for (const [name, values] of Object.entries(timings.measures)) {
+      timings.measures[name] = aggregate(values);
     }
+    timings.measures.previewDuration = aggregate(adminApi.previewDurations);
+  } catch (e) {
+    logger.error(e);
+    // wait for queues to finish, even in error case
+    await adminApi.stopProcessing();
   }
-  for (const [name, values] of Object.entries(timings.measures)) {
-    timings.measures[name] = aggregate(values);
-  }
-  timings.measures.previewDuration = aggregate(adminApi.previewDurations);
-} catch (e) {
-  logger.error(e);
-  // wait for queues to finish, even in error case
-  await adminApi.stopProcessing();
+
+  const elapsed = new Date() - timings.now;
+
+  logger.info(`Finished polling, elapsed: ${elapsed}ms`);
+
+  return {
+    state: 'completed',
+    elapsed,
+    status: { ...counts },
+    timings: timings.measures,
+  };
 }
 
-const elapsed = new Date() - timings.now;
-
-logger.info(`Finished polling, elapsed: ${elapsed}ms`);
-
-return {
-  state: 'completed',
-  elapsed,
-  status: { ...counts },
-  timings: timings.measures,
+module.exports = {
+  poll,
+  deleteState,
+  loadState,
+  saveState,
+  getStateFileLocation,
 };
-}
-
-module.exports = { poll, loadState, saveState, getFileLocation };

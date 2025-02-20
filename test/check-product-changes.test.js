@@ -11,7 +11,7 @@ governing permissions and limitations under the License.
 */
 
 const assert = require('node:assert/strict');
-const { loadState, saveState, getFileLocation, poll } = require('../actions/check-product-changes/poller.js');
+const { loadState, saveState, getStateFileLocation, poll } = require('../actions/check-product-changes/poller.js');
 const Files = require('./__mocks__/files.js');
 const { AdminAPI } = require('../actions/check-product-changes/lib/aem');
 const { requestSaaS, requestSpreadsheet, isValidUrl} = require('../actions/utils');
@@ -61,7 +61,7 @@ describe('Poller', () => {
 
   it('loadState returns parsed state', async () => {
     const filesLib = new Files(0);
-    await filesLib.write(getFileLocation('uk'), '1,sku1,2,sku2,3,sku3,4');
+    await filesLib.write(getStateFileLocation('uk'), '1,sku1,2,sku2,3,sku3,4');
     const state = await loadState('uk', filesLib);
     assert.deepEqual(
       state,
@@ -79,14 +79,14 @@ describe('Poller', () => {
 
   it('loadState after saveState', async () => {
     const filesLib = new Files(0);
-    await filesLib.write(getFileLocation('uk'), '1,sku1,2,sku2,3,sku3,4');
+    await filesLib.write(getStateFileLocation('uk'), '1,sku1,2,sku2,3,sku3,4');
     const state = await loadState('uk', filesLib);
     state.skusLastQueriedAt = new Date(5);
     state.skus['sku1'] = new Date(5);
     state.skus['sku2'] = new Date(6);
     await saveState(state, filesLib);
 
-    const serializedState = await filesLib.read(getFileLocation('uk'));
+    const serializedState = await filesLib.read(getStateFileLocation('uk'));
     assert.equal(serializedState, '5,sku1,5,sku2,6,sku3,4');
 
     const newState = await loadState('uk', filesLib);
@@ -95,14 +95,14 @@ describe('Poller', () => {
 
   it('loadState after saveState with null storeCode', async () => {
     const filesLib = new Files(0);
-    await filesLib.write(getFileLocation('default'), '1,sku1,2,sku2,3,sku3,4');
+    await filesLib.write(getStateFileLocation('default'), '1,sku1,2,sku2,3,sku3,4');
     const state = await loadState(null, filesLib);
     state.skusLastQueriedAt = new Date(5);
     state.skus['sku1'] = new Date(5);
     state.skus['sku2'] = new Date(6);
     await saveState(state, filesLib);
 
-    const serializedState = await filesLib.read(getFileLocation('default'));
+    const serializedState = await filesLib.read(getStateFileLocation('default'));
     assert.equal(serializedState, '5,sku1,5,sku2,6,sku3,4');
   });
 
