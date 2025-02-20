@@ -45,7 +45,7 @@ function getStateFileLocation(stateKey) {
 async function loadState(locale, filesLib) {
   try {
     const stateKey = locale ? `${locale}` : 'default';
-    const fileLocation = getFileLocation(stateKey);
+    const fileLocation = getStateFileLocation(stateKey);
     const buffer = await filesLib.read(fileLocation);
     const stateData = buffer?.toString();
     if (!stateData) {
