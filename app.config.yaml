@@ -38,6 +38,13 @@ application:
               authToken: ${AEM_ADMIN_API_AUTH_TOKEN}
             annotations:
               final: true
+          live-search-pagination:
+            function: actions/live-search-pagination/index.js
+            web: 'yes'
+            runtime: nodejs:22
+            annotations:
+              final: true
+
         # parameters:
         #   COMMERCE_STORE_CODE: "<your_store_code>"
         #   COMMERCE_STORE_URL: "<your_store_url>"
