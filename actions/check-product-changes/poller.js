@@ -18,7 +18,7 @@ const { Core } = require('@adobe/aio-sdk');
 
 const BATCH_SIZE = 50;
 const STATE_FILE_PREFIX = 'check-product-changes';
-const STATE_FILE_EXT = 'txt';
+const STATE_FILE_EXT = 'csv';
 
 function getStateFileLocation(stateKey) {
   return `${STATE_FILE_PREFIX}/${stateKey}.${STATE_FILE_EXT}`;
