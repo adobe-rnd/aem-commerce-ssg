@@ -80,6 +80,7 @@ describe('AdminAPI Optimized Tests', () => {
             headers: {
                 'content-type': 'application/json',
                 'x-auth-token': 'testToken',
+                'User-Agent': 'trusted automation',
             },
             body: JSON.stringify({ data: 'test' }),
         });
