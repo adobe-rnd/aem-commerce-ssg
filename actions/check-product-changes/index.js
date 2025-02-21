@@ -30,7 +30,7 @@ async function main(params) {
     // this might not be updated and action execution could be permanently skipped
     // a ttl == function timeout is a mitigation for this risk
     await stateMgr.put('running', 'true', 3600);
-    return await poll(params, filesLib);
+    return await poll(params, { stateLib: stateMgr, filesLib });
   } finally {
     await stateMgr.put('running', 'false');
   }
