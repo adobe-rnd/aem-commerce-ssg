@@ -122,7 +122,6 @@ async function deleteState(locale, filesLib) {
  * @param {string} params.HLX_PATH_FORMAT - The URL format for product detail pages.
  * @param {string} params.HLX_ORG_NAME - The name of the organization.
  * @param {string} params.HLX_CONFIG_NAME - The name of the configuration json/xlsx.
- * @param {number} [params.requestPerSecond=5] - The number of requests per second allowed by the throttling logic.
  * @param {string} params.authToken - The authentication token.
  * @param {number} [params.skusRefreshInterval=600000] - The interval for refreshing SKUs in milliseconds.
  * @param {string} [params.HLX_STORE_URL] - The store's base URL.
@@ -172,7 +171,6 @@ async function poll(params, filesLib) {
     HLX_PATH_FORMAT: pathFormat,
     HLX_ORG_NAME: orgName,
     HLX_CONFIG_NAME: configName,
-    requestPerSecond = 5,
     authToken,
     skusRefreshInterval = 600000,
   } = params;
@@ -190,7 +188,7 @@ async function poll(params, filesLib) {
   const adminApi = new AdminAPI({
     org: orgName,
     site: siteName,
-  }, sharedContext, { requestPerSecond, authToken });
+  }, sharedContext, { authToken });
 
   logger.info(`Starting poll from ${storeUrl} for locales ${locales}`);
 
@@ -200,6 +198,7 @@ async function poll(params, filesLib) {
 
     const results = await Promise.all(locales.map(async (locale) => {
       const timings = new Timings();
+      logger.info(`Polling for locale ${locale}`);
       // load state
       const state = await loadState(locale, filesLib);
       timings.sample('loadedState');
@@ -256,39 +255,43 @@ async function poll(params, filesLib) {
         if (!shouldProcessProduct(product)) counts.ignored += 1;
       })
 
+      let batchNumber = 0;
       const batches = products.filter(shouldProcessProduct)
         .reduce((acc, product) => {
           const { sku, urlKey } = product;
           const path = getProductUrl({ urlKey, sku }, context, false).toLowerCase();
-          const req = adminApi.previewAndPublish({ path, sku });
 
           if (!acc.length || acc[acc.length - 1].length === BATCH_SIZE) {
             acc.push([]);
           }
-          acc[acc.length - 1].push(req);
+          acc[acc.length - 1].push({ path, sku });
 
+          return acc;
+        }, [])
+        .reduce((acc, batch) => {
+          batchNumber++;
+          acc.push(adminApi.previewAndPublish(batch, locale, batchNumber));
           return acc;
         }, []);
 
       // preview batches , then save state in case we get interrupted
-      for (const batch of batches) {
-        const response = await Promise.all(batch);
-        for (const { sku, previewedAt, publishedAt } of response) {
-          if (previewedAt && publishedAt) {
-            state.skus[sku] = previewedAt;
+      const response = await Promise.all(batches);
+      for (const { records, previewedAt, publishedAt } of response) {
+        if (previewedAt && publishedAt) {
+          records.map((record) => {
+            state.skus[record.sku] = previewedAt;
             counts.published++;
-          } else {
-            counts.failed++;
-          }
+          });
+        } else {
+          counts.failed += records.length;
         }
-        await saveState(state, filesLib);
       }
-
+      await saveState(state, filesLib);
       timings.sample('publishedPaths');
 
       // if there are still skus left, they were not in Catalog Service and may
       // have been disabled/deleted
-      if (skus.length) {
+      if (false) {//skus.length) {
         try {
           const publishedProducts = await requestSpreadsheet('published-products-index', null, context);
           // if any of the indexed PDPs is in the remaining list of skus that were not returned by the catalog service

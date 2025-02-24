@@ -16,7 +16,8 @@ const { main } = require('../actions/check-product-changes/index');
             HLX_PATH_FORMAT: process.env.HLX_PATH_FORMAT,
             HLX_ORG_NAME: process.env.HLX_ORG_NAME,
             HLX_CONTENT_URL: process.env.HLX_CONTENT_URL,
-            HLX_CONFIG_NAME: process.env.HLX_CONFIG_NAME
+            HLX_CONFIG_NAME: process.env.HLX_CONFIG_NAME,
+            LOG_LEVEL: 'debug'
         });
         console.log(resp);
     } catch (error) {
