@@ -77,8 +77,8 @@ describe('State and Rule Management', () => {
             const stores = ['us', 'uk'];
             await clearStoreState(mockState, stores);
             expect(mockFiles.delete).toHaveBeenCalledTimes(2);
-            expect(mockFiles.delete).toHaveBeenCalledWith('check-product-changes/us.txt');
-            expect(mockFiles.delete).toHaveBeenCalledWith('check-product-changes/uk.txt');
+            expect(mockFiles.delete).toHaveBeenCalledWith('check-product-changes/us.csv');
+            expect(mockFiles.delete).toHaveBeenCalledWith('check-product-changes/uk.csv');
         });
 
         test('getRunning returns false when state is not "true"', async () => {

@@ -18,10 +18,14 @@ const { Core } = require('@adobe/aio-sdk');
 
 const BATCH_SIZE = 50;
 const STATE_FILE_PREFIX = 'check-product-changes';
-const STATE_FILE_EXT = 'txt';
+const STATE_FILE_EXT = 'csv';
 
 function getStateFileLocation(stateKey) {
   return `${STATE_FILE_PREFIX}/${stateKey}.${STATE_FILE_EXT}`;
+}
+
+function getSkusLastQueriedStateKey(stateKey) {
+  return `${stateKey}.skusLastQueriedAt`;
 }
 
 /**
@@ -39,64 +43,66 @@ function getStateFileLocation(stateKey) {
  * Saves the state to the cloud file system.
  *
  * @param {String} locale - The locale (or store code).
- * @param {import('@adobe/aio-sdk').Files.Files} filesLib - The Files library instance from '@adobe/aio-sdk'.
+ * @param {Object} aioLibs - The libraries required for loading the state.
+ * @param {Object} aioLibs.filesLib - The file library for reading state files.
+ * @param {Object} aioLibs.stateLib - The state library for retrieving state information.
  * @returns {Promise<PollerState>} - A promise that resolves when the state is loaded, returning the state object.
  */
-async function loadState(locale, filesLib) {
-  const stateKey = locale ? `${locale}` : 'default';
-  const fileLocation = getStateFileLocation(stateKey);
-  const emptyState = {
-    locale,
-    skusLastQueriedAt: new Date(0),
-    skus: {},
-  };
+async function loadState(locale, aioLibs) {
+  const { filesLib, stateLib } = aioLibs;
+  const stateObj = { locale };
   try {
+    const stateKey = locale || 'default';
+    stateObj.skusLastQueriedAt = new Date(0);
+    const skusLastQueriedState = await stateLib.get(getSkusLastQueriedStateKey(stateKey));
+    if (skusLastQueriedState && skusLastQueriedState.value) {
+      stateObj.skusLastQueriedAt = new Date(parseInt(skusLastQueriedState.value));
+    }
+    const fileLocation = getStateFileLocation(stateKey);
     const buffer = await filesLib.read(fileLocation);
     const stateData = buffer?.toString();
-    if (!stateData) {
-      return emptyState;
-    }
-
-    // the format of the state object is:
-    // <timestamp>,<sku1>,<timestamp>,<sku2>,<timestamp>,<sku3>,...,<timestamp>
-    // the first timestamp is the last time the SKUs were fetched from Adobe Commerce
-    // folloed by a pair of SKUs and timestamps which are the last preview times per SKU
-    const [catalogQueryTimestamp, ...skus] = stateData.split(',');
-    return {
-      locale,
-      skusLastQueriedAt: new Date(parseInt(catalogQueryTimestamp)),
-      skus: Object.fromEntries(skus
-          .map((sku, i, arr) => (i % 2 === 0 ? [sku, new Date(parseInt(arr[i + 1]))] : null))
-          .filter(Boolean)),
-    };
-  } catch (error) {
-    if (error.code === 'ERROR_FILE_NOT_EXISTS') {
-      return emptyState;
+    if (stateData) {
+      const lines = stateData.split('\n');
+      stateObj.skus = lines.reduce((acc, line) => {
+        // the format of the state object is:
+        // <sku1>,<timestamp>,<hash>
+        // <sku2>,<timestamp>,<hash>
+        // ...
+        // each row is a set of SKUs, last previewed timestamp and hash
+        const [sku, time, hash] = line.split(',');
+        acc[sku] = { time: new Date(parseInt(time)), hash };
+        return acc;
+      }, {});
     } else {
-      throw error;
+      stateObj.skus = {};
     }
+  // eslint-disable-next-line no-unused-vars
+  } catch (e) {
+    stateObj.skus = {};
   }
+  return stateObj;
 }
 
 /**
  * Saves the state to the cloud file system.
  *
  * @param {PollerState} state - The object describing state and metadata.
- * @param {FilesProvider} filesLib - The Files library instance from '@adobe/aio-sdk'.
+ * @param {Object} aioLibs - The libraries required for loading the state.
+ * @param {Object} aioLibs.filesLib - The file library for reading state files.
+ * @param {Object} aioLibs.stateLib - The state library for retrieving state information.
  * @returns {Promise<void>} - A promise that resolves when the state is saved.
  */
-async function saveState(state, filesLib) {
+async function saveState(state, aioLibs) {
+  const { filesLib, stateLib } = aioLibs;
   let { locale } = state;
-  if (!locale) {
-    locale = 'default';
-  }
-  const stateKey = `${locale}`;
+  const stateKey = locale || 'default';
+  await stateLib.put(getSkusLastQueriedStateKey(stateKey), state.skusLastQueriedAt.getTime().toString());
   const fileLocation = getStateFileLocation(stateKey);
-  const stateData = [
-    state.skusLastQueriedAt.getTime(),
-    ...Object.entries(state.skus).flatMap(([sku, lastPreviewedAt]) => [sku, lastPreviewedAt.getTime()]),
-  ].join(',');
-  return filesLib.write(fileLocation, stateData);
+  const csvData = [
+    ...Object.entries(state.skus)
+      .map(([sku, { time, hash }]) => `${sku},${time.getTime()},${hash || ''}`),
+  ].join('\n');
+  return await filesLib.write(fileLocation, csvData);
 }
 
 /**
@@ -162,7 +168,7 @@ function shouldProcessProduct(product) {
   return urlKey?.match(/^[a-zA-Z0-9-]+$/) && lastModifiedDate >= lastPreviewDate;
 }
 
-async function poll(params, filesLib) {
+async function poll(params, aioLibs) {
   checkParams(params);
 
   const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' });
@@ -200,7 +206,7 @@ async function poll(params, filesLib) {
       const timings = new Timings();
       logger.info(`Polling for locale ${locale}`);
       // load state
-      const state = await loadState(locale, filesLib);
+      const state = await loadState(locale, aioLibs);
       timings.sample('loadedState');
 
       let context = { ...sharedContext };
@@ -220,8 +226,8 @@ async function poll(params, filesLib) {
           .filter(Boolean);
         // add new skus to state if any
         for (const sku of allSkus) {
-          if (!state.skus[sku.sku]) {
-            state.skus[sku.sku] = new Date(0);
+          if (!state.skus[sku]) {
+            state.skus[sku] = { time: new Date(0), hash: null };
           }
         }
         timings.sample('fetchedSkus');
@@ -239,7 +245,7 @@ async function poll(params, filesLib) {
       let products = lastModifiedResp.data.products
         .map((product) => {
           const { sku, lastModifiedAt } = product;
-          const lastPreviewedAt = state.skus[sku] || 0;
+          const lastPreviewedAt = state.skus[sku].time || 0;
           const lastPreviewDate = new Date(lastPreviewedAt);
           const lastModifiedDate = new Date(lastModifiedAt);
 
@@ -279,14 +285,14 @@ async function poll(params, filesLib) {
       for (const { records, previewedAt, publishedAt } of response) {
         if (previewedAt && publishedAt) {
           records.map((record) => {
-            state.skus[record.sku] = previewedAt;
+            state.skus[record.sku] = { time: previewedAt, hash: null };
             counts.published++;
           });
         } else {
           counts.failed += records.length;
         }
       }
-      await saveState(state, filesLib);
+      await saveState(state, aioLibs);
       timings.sample('publishedPaths');
 
       // if there are still skus left, they were not in Catalog Service and may
@@ -313,7 +319,7 @@ async function poll(params, filesLib) {
               await deleteBatch({ counts, batch, state, adminApi });
             }
             // save state after deletes
-            await saveState(state, filesLib);
+            await saveState(state, aioLibs);
           }
         } catch (e) {
           // in case the index doesn't yet exist or any other error
