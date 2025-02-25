@@ -30,7 +30,7 @@ async function main({ op, key, value }) {
         break;
       }
       case 'put': {
-        result = await stateMgr.put(key, value, 3600);
+        result = await stateMgr.put(key, value, { ttl: 3600 });
         break;
       }
       case 'delete': {
@@ -53,7 +53,7 @@ async function main({ op, key, value }) {
       case 'put': {
         // use aio-state for 'running' key
         if (key === 'running') {
-          result = await stateMgr.put('running', value, 3600);
+          result = await stateMgr.put('running', value, { ttl: 3600 });
           break;
         }
         result = await saveState({ locale: key, ...value }, filesLib);
