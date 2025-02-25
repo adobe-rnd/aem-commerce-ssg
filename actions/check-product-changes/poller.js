@@ -296,7 +296,7 @@ async function poll(params, aioLibs) {
     published: 0, unpublished: 0, ignored: 0, failed: 0,
   };
   const sharedContext = {
-    storeUrl, configName, logger, counts, pathFormat,
+    storeUrl, configName, logger, counts, pathFormat, productsTemplate,
   };
   const timings = new Timings();
   const adminApi = new AdminAPI({
