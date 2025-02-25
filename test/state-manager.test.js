@@ -36,7 +36,14 @@ describe('StateManager', () => {
     stateLibMock.put.mockResolvedValue('key');
     const result = await stateManager.put('key', 'value');
     expect(result).toBe('key');
-    expect(stateLibMock.put).toHaveBeenCalledWith('key', 'value', { ttl: 86400 });
+    expect(stateLibMock.put).toHaveBeenCalledWith('key', 'value', {});
+  });
+
+  test('should set a key-value pair in the state with custom options', async () => {
+    stateLibMock.put.mockResolvedValue('key');
+    const result = await stateManager.put('key', 'value', { test: 'a' });
+    expect(result).toBe('key');
+    expect(stateLibMock.put).toHaveBeenCalledWith('key', 'value', { test: 'a' });
   });
 
   test('should retry on failure', async () => {
