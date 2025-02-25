@@ -14,7 +14,7 @@ governing permissions and limitations under the License.
 
 const { CategoriesQuery, ProductCountQuery, ProductsQuery, } = require('../queries');
 const { Core } = require('@adobe/aio-sdk')
-const { requestSaaS } = require('../utils');
+const { requestSaaS, requestAPIMesh } = require('../utils');
 
 async function getSkus(categoryPath, context) {
   const productsResp = await requestSaaS(ProductsQuery, 'getProducts', { currentPage: 1, categoryPath }, context);
@@ -28,7 +28,7 @@ async function getSkus(categoryPath, context) {
   }
 
   for (let currentPage = 2; currentPage <= maxPage; currentPage++) {
-    const req = requestSaaS(ProductsQuery, 'getProducts', { currentPage, categoryPath }, context)
+    requestSaaS(ProductsQuery, 'getProducts', { currentPage, categoryPath }, context)
       .then((resp) => products.push(...resp.data.productSearch.items.map(({ productView }) => (
         productView.sku
       ))));
