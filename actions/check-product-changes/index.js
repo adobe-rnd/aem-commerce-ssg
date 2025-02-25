@@ -16,13 +16,13 @@ const { StateManager } = require('./lib/state');
 
 async function main(params) {
   const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' });
-  const stateLib = await State.init();
-  const filesLib = await Files.init();
+  const stateLib = await State.init(params.libInit || {});
+  const filesLib = await Files.init(params.libInit || {});
   const stateMgr = new StateManager(stateLib, { logger });
 
   const running = await stateMgr.get('running');
   if (running?.value === 'true') {
-    return { state: 'skipped' };
+    //return { state: 'skipped' };
   }
 
   try {
