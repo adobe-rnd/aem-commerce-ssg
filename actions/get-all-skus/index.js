@@ -18,7 +18,6 @@ const { requestSaaS } = require('../utils');
 
 async function getSkus(categoryPath, context) {
   const productsResp = await requestSaaS(ProductsQuery, 'getProducts', { currentPage: 1, categoryPath }, context);
-  console.log(productsResp.data.productSearch.items);
   const products = [...productsResp.data.productSearch.items.map(({ productView }) => (
     productView.sku
   ))];  let maxPage = productsResp.data.productSearch.page_info.total_pages;
@@ -75,7 +74,7 @@ async function getAllSkus(context) {
 
     if (productCount <= 10000) {
       // we can get everything from the default category
-      return getProducts('', context);
+      return getSkus('', context);
     }
 
     const products = new Set();
@@ -86,7 +85,7 @@ async function getAllSkus(context) {
       if (!category) continue;
       while (category.length) {
         const slice = category.splice(0, 50);
-        const fetchedProducts = await Promise.all(slice.map((category) => getProducts(category.urlPath, context)));
+        const fetchedProducts = await Promise.all(slice.map((category) => getSkus(category.urlPath, context)));
         fetchedProducts.flatMap((skus) => skus).forEach((sku) => products.add(sku));
         if (products.size >= productCount) {
           // break if we got all products already
