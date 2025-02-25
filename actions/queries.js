@@ -166,6 +166,62 @@ const GetAllSkusPaginatedQuery = `query getAllSkusPaginated($currentPage: Int!) 
 	}
 }`;
 
+const CategoriesQuery = `
+  query getCategories($currentPage: Int, $pageSize: Int) {
+      commerce_categories(filters: {}, include_in_menu: 0, pageSize: $pageSize, currentPage: $currentPage ) {
+        total_count
+        page_info {
+          current_page
+          total_pages
+        }
+        items {
+          error {
+            code
+            message
+          }
+          name
+          level
+          url_path
+        }
+      }
+    }
+`;
+
+const ProductCountQuery = `
+  query getProductCount($categoryPath: String!) {
+    productSearch(
+      phrase:"",
+      filter: [ { attribute: "categoryPath", eq: $categoryPath } ],
+      page_size: 1
+    ) {
+      page_info {
+        total_pages
+      }
+    }
+  }
+`;
+
+const ProductsQuery = `
+  query getProducts($currentPage: Int, $categoryPath: String!) {
+    productSearch(
+      phrase: "",
+      filter: [ { attribute: "categoryPath", eq: $categoryPath } ],
+      page_size: 500,
+      current_page: $currentPage
+    ) {
+      items {
+        productView {
+          sku
+        }
+      }
+      page_info {
+        current_page
+        total_pages
+      }
+    }
+  }
+`;
+
 module.exports = {
     ProductQuery,
     ProductByUrlKeyQuery,
@@ -173,4 +229,7 @@ module.exports = {
     GetAllSkusQuery,
     GetAllSkusPaginatedQuery,
     GetLastModifiedQuery,
+    CategoriesQuery,
+    ProductCountQuery,
+    ProductsQuery
 };

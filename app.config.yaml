@@ -38,8 +38,8 @@ application:
               authToken: ${AEM_ADMIN_API_AUTH_TOKEN}
             annotations:
               final: true
-          live-search-pagination:
-            function: actions/live-search-pagination/index.js
+          get-all-skus:
+            function: actions/get-all-skus/index.js
             web: 'yes'
             runtime: nodejs:22
             annotations:
