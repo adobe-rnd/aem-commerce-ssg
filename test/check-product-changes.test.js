@@ -16,6 +16,28 @@ const Files = require('./__mocks__/files.js');
 const { AdminAPI } = require('../actions/check-product-changes/lib/aem');
 const { requestSaaS, requestSpreadsheet, isValidUrl} = require('../actions/utils');
 const { GetAllSkusQuery } = require('../actions/queries');
+const { MockState } = require('./__mocks__/state.js');
+
+const EXAMPLE_STATE = 'sku1,1,\nsku2,2,\nsku3,3,';
+
+const EXAMPLE_EXPECTED_STATE = {
+  locale: 'uk',
+  skus: {
+    sku1: {
+      time: new Date(1),
+      hash: '',
+    },
+    sku2: {
+      time: new Date(2),
+      hash: '',
+    },
+    sku3: {
+      time: new Date(3),
+      hash: '',
+    },
+  },
+  skusLastQueriedAt: new Date(1),
+};
 
 jest.mock('../actions/utils', () => ({
   requestSaaS: jest.fn(),
@@ -42,13 +64,19 @@ describe('Poller', () => {
     write: jest.fn().mockResolvedValue(null),
   };
 
+  const stateLibMock = {
+    get: jest.fn().mockResolvedValue(null),
+    put: jest.fn().mockResolvedValue(null),
+  };
+
   afterEach(() => {
     jest.clearAllMocks();
   });
 
   it('loadState returns default state', async () => {
     const filesLib = new Files(0);
-    const state = await loadState('uk', filesLib);
+    const stateLib = new MockState(0);
+    const state = await loadState('uk', { filesLib, stateLib });
     assert.deepEqual(
       state,
       {
@@ -61,49 +89,66 @@ describe('Poller', () => {
 
   it('loadState returns parsed state', async () => {
     const filesLib = new Files(0);
-    await filesLib.write(getStateFileLocation('uk'), '1,sku1,2,sku2,3,sku3,4');
-    const state = await loadState('uk', filesLib);
-    assert.deepEqual(
-      state,
-      {
-        locale: 'uk',
-        skus: {
-          sku1: new Date(2),
-          sku2: new Date(3),
-          sku3: new Date(4),
-        },
-        skusLastQueriedAt: new Date(1),
-      }
-    );
+    const stateLib = new MockState(0);
+    await filesLib.write(getStateFileLocation('uk'), EXAMPLE_STATE);
+    await stateLib.put('uk.skusLastQueriedAt', 1);
+    const state = await loadState('uk', { filesLib, stateLib });
+    assert.deepEqual(state, EXAMPLE_EXPECTED_STATE);
   });
 
   it('loadState after saveState', async () => {
     const filesLib = new Files(0);
-    await filesLib.write(getStateFileLocation('uk'), '1,sku1,2,sku2,3,sku3,4');
-    const state = await loadState('uk', filesLib);
-    state.skusLastQueriedAt = new Date(5);
-    state.skus['sku1'] = new Date(5);
-    state.skus['sku2'] = new Date(6);
-    await saveState(state, filesLib);
+    const stateLib = new MockState(0);
+    await filesLib.write(getStateFileLocation('uk'), EXAMPLE_STATE);
+    await stateLib.put('uk.skusLastQueriedAt', 1);
+    const state = await loadState('uk', { filesLib, stateLib });
+    assert.deepEqual(state, EXAMPLE_EXPECTED_STATE);
+    state.skusLastQueriedAt = new Date(4);
+    state.skus['sku1'] = {
+      time: new Date(4),
+      hash: 'hash1',
+    };
+    state.skus['sku2'] = {
+      time: new Date(5),
+      hash: 'hash2',
+    };
+    await saveState(state, { filesLib, stateLib });
 
     const serializedState = await filesLib.read(getStateFileLocation('uk'));
-    assert.equal(serializedState, '5,sku1,5,sku2,6,sku3,4');
+    assert.equal(serializedState, 'sku1,4,hash1\nsku2,5,hash2\nsku3,3,');
+    const skusLastQueriedAt = await stateLib.get('uk.skusLastQueriedAt');
+    assert.equal(skusLastQueriedAt.value, "4");
 
-    const newState = await loadState('uk', filesLib);
+    const newState = await loadState('uk', { filesLib, stateLib });
     assert.deepEqual(newState, state);
   });
 
   it('loadState after saveState with null storeCode', async () => {
     const filesLib = new Files(0);
-    await filesLib.write(getStateFileLocation('default'), '1,sku1,2,sku2,3,sku3,4');
-    const state = await loadState(null, filesLib);
-    state.skusLastQueriedAt = new Date(5);
-    state.skus['sku1'] = new Date(5);
-    state.skus['sku2'] = new Date(6);
-    await saveState(state, filesLib);
+    const stateLib = new MockState(0);
+    await filesLib.write(getStateFileLocation('default'), EXAMPLE_STATE);
+    await stateLib.put('default.skusLastQueriedAt', 1);
+    const state = await loadState('default', { filesLib, stateLib });
+    const expectedState = {
+      ...EXAMPLE_EXPECTED_STATE,
+      locale: 'default',
+    };
+    assert.deepEqual(state, expectedState);
+    state.skusLastQueriedAt = new Date(4);
+    state.skus['sku1'] = {
+      time: new Date(4),
+      hash: 'hash1',
+    };
+    state.skus['sku2'] = {
+      time: new Date(5),
+      hash: 'hash2',
+    };
+    await saveState(state, { filesLib, stateLib });
 
     const serializedState = await filesLib.read(getStateFileLocation('default'));
-    assert.equal(serializedState, '5,sku1,5,sku2,6,sku3,4');
+    assert.equal(serializedState, 'sku1,4,hash1\nsku2,5,hash2\nsku3,3,');
+    const skusLastQueriedAt = await stateLib.get('default.skusLastQueriedAt');
+    assert.equal(skusLastQueriedAt.value, "4");
   });
 
   it('checkParams should throw an error if required parameters are missing', async () => {
@@ -116,7 +161,7 @@ describe('Poller', () => {
       authToken: 'token',
     };
 
-    await expect(poll(params, filesLibMock)).rejects.toThrow('Missing required parameters: HLX_CONFIG_NAME');
+    await expect(poll(params, { filesLib: filesLibMock, stateLib: stateLibMock })).rejects.toThrow('Missing required parameters: HLX_CONFIG_NAME');
   });
 
   it('checkParams should throw an error if HLX_STORE_URL is invalid', async () => {
@@ -131,7 +176,7 @@ describe('Poller', () => {
       HLX_STORE_URL: 'invalid-url',
     };
 
-    await expect(poll(params, filesLibMock)).rejects.toThrow('Invalid storeUrl');
+    await expect(poll(params, { filesLib: filesLibMock, stateLib: stateLibMock })).rejects.toThrow('Invalid storeUrl');
   });
 
   it('Poller should fetch and process SKU updates and 2 sku failed', async () => {
@@ -175,7 +220,7 @@ describe('Poller', () => {
       return Promise.resolve({});
     });
 
-    const result = await poll(params, filesLibMock);
+    const result = await poll(params, { filesLib: filesLibMock, stateLib: stateLibMock });
 
     expect(result.state).toBe('completed');
     expect(result.status.published).toBe(2);
@@ -201,7 +246,9 @@ describe('Poller', () => {
         expect.anything()
     );
     expect(filesLibMock.read).toHaveBeenCalled();
+    expect(stateLibMock.get).toHaveBeenCalled();
     expect(filesLibMock.write).toHaveBeenCalled();
+    expect(stateLibMock.put).toHaveBeenCalled();
     expect(AdminAPI.prototype.startProcessing).toHaveBeenCalledTimes(1);
     expect(AdminAPI.prototype.stopProcessing).toHaveBeenCalledTimes(1);
     expect(AdminAPI.prototype.previewAndPublish).toHaveBeenCalled();
@@ -210,11 +257,13 @@ describe('Poller', () => {
 
   it('Poller should not fetch SKU and not process them', async () => {
     filesLibMock.read.mockImplementationOnce(() => {
-      const lastQueriedAndPreviewedAt = new Date().getTime() - 10000;
+      const now = new Date().getTime();
       return Promise.resolve(
-          `${lastQueriedAndPreviewedAt},sku-123,${lastQueriedAndPreviewedAt},sku-456,${lastQueriedAndPreviewedAt},sku-789,${lastQueriedAndPreviewedAt}`
-      )
+          `sku-123,${now - 10000},\nsku-456,${now - 10000},\nsku-789,${now - 10000},`
+      );
     });
+    const stateLib = new MockState(0);
+    await stateLib.put('default.skusLastQueriedAt', new Date().getTime().toString());
 
     const params = {
       HLX_SITE_NAME: 'siteName',
@@ -241,7 +290,7 @@ describe('Poller', () => {
       return Promise.resolve({});
     });
 
-    const result = await poll(params, filesLibMock);
+    const result = await poll(params, { filesLib: filesLibMock, stateLib });
 
     expect(result.state).toBe('completed');
     expect(result.status.published).toBe(0);
@@ -279,11 +328,13 @@ describe('Poller', () => {
     };
 
     filesLibMock.read.mockImplementationOnce(() => {
-      const lastQueriedAndPreviewedAt = new Date().getTime() - 10000;
+      const now = new Date().getTime();
       return Promise.resolve(
-          `${lastQueriedAndPreviewedAt},sku-123,${lastQueriedAndPreviewedAt},sku-456,${lastQueriedAndPreviewedAt},sku-failed,${lastQueriedAndPreviewedAt}`
+          `sku-123,${now - 10000},\nsku-456,${now - 10000},\nsku-failed,${now - 10000},`
       );
     });
+    const stateLib = new MockState(0);
+    await stateLib.put('default.skusLastQueriedAt', new Date().getTime().toString());
 
     requestSaaS.mockImplementation((query, operation) => {
       if (operation === 'getLastModified') {
@@ -308,10 +359,13 @@ describe('Poller', () => {
     });
 
     AdminAPI.prototype.unpublishAndDelete.mockImplementation(({ sku }) => {
-      return Promise.resolve({ deletedAt: sku === 'sku-failed' ? null : new Date() });
+      return Promise.resolve({ 
+        sku,
+        deletedAt: sku === 'sku-failed' ? null : new Date() 
+      });
     });
 
-    const result = await poll(params, filesLibMock);
+    const result = await poll(params, { filesLib: filesLibMock, stateLib });
 
     expect(result.state).toBe('completed');
     expect(result.status.published).toBe(0);

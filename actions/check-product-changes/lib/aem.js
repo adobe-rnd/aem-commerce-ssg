@@ -111,6 +111,7 @@ class AdminAPI {
         const adminUrl = `https://admin.hlx.page/${route}/${this.org}/${this.site}/main${path}`;
 
         const req = { method, headers: {} };
+        req.headers['User-Agent'] = 'AEM Commerce Poller / 1.0';
         if (body) {
             req.body = JSON.stringify(body);
             req.headers['content-type'] = 'application/json';

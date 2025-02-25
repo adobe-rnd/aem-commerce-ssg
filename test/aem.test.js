@@ -80,6 +80,7 @@ describe('AdminAPI Optimized Tests', () => {
             headers: {
                 'content-type': 'application/json',
                 'x-auth-token': 'testToken',
+                'User-Agent': 'AEM Commerce Poller / 1.0',
             },
             body: JSON.stringify({ data: 'test' }),
         });
