@@ -26,6 +26,7 @@ class AdminAPI {
     previewQueue = [];
     publishQueue = [];
     unpublishQueue = [];
+    unpublishPreviewQueue = [];
     inflight = [];
     MAX_RETRIES = 3;
     RETRY_DELAY = 5000;
@@ -53,9 +54,9 @@ class AdminAPI {
         });
     }
 
-    unpublishAndDelete(record) {
+    unpublishAndDelete(records, locale, batchNumber) {
         return new Promise((resolve) => {
-            this.unpublishQueue.push({ record, resolve });
+            this.unpublishQueue.push({ records, resolve, locale, batchNumber });
         });
     }
 
@@ -77,7 +78,7 @@ class AdminAPI {
         if (!this.stopProcessing$) {
             this.stopProcessing$ = new Promise((resolve) => {
                 this.onQueuesProcessed = () => {
-                    if (this.previewQueue.length + this.publishQueue.length + this.unpublishQueue.length + this.inflight.length > 0) {
+                    if (this.previewQueue.length + this.publishQueue.length + this.unpublishQueue.length + this.unpublishPreviewQueue.length + this.inflight.length > 0) {
                         // still running
                         return;
                     }
@@ -275,7 +276,7 @@ class AdminAPI {
             }
 
             if (isErrored) {
-                logger.error(`Error previewing batch number ${batchNumber} for locale ${locale}`);
+                logger.error(`Error publishing batch number ${batchNumber} for locale ${locale}`);
             }
 
             // Complete the batch publish
@@ -291,21 +292,65 @@ class AdminAPI {
         });
     }
 
-    doUnpublishAndDelete(item) {
-        this.trackInFlight(`unpublish ${item.record.path}`, async (complete) => {
+    doBatchUnpublish(batch, route) {
+        this.trackInFlight(`unpublish ${route} ${batch.records.length} paths`, async (complete) => {
             const { logger } = this.context;
-            const { record } = item;
+            const { records, locale, batchNumber } = batch;
+            const body = {
+                forceUpdate: true,
+                paths: records.map(record => record.path),
+                delete: true
+            };
 
-            try {
-                await this.execAdminRequest('DELETE', 'live', record.path);
-                await this.execAdminRequest('DELETE', 'preview', record.path);
-                logger.info(`Unpublished ${record.path}`);
-                record.deletedAt = new Date();
-            } catch (e) {
-                logger.error(e);
-            } finally {
-                complete();
-                item.resolve(record);
+            // Try to unpublish live the batch using bulk publish API
+            const response = await this.runWithRetry(
+                async () => {
+                    return await this.execAdminRequest('POST', route, '/*', body);
+                },
+                `unpublish ${route} batch number ${batchNumber} for locale ${locale}`
+            );
+
+            let isErrored = false;
+            if (response?.job) {
+                const status = await this.runWithRetry(
+                    async () => {
+                        return await this.checkJobStatus(response.job);
+                    },
+                    `job status check for ${response.job.topic}/${response.job.name}`
+                );
+                if (status) {
+                    logger.info(`Unpublished ${route} batch number ${batchNumber} for locale ${locale}`);
+                    if (route === 'live') {
+                        batch.liveUnpublishedAt = new Date();
+                        this.unpublishPreviewQueue.push(batch);
+                    } else {
+                        batch.previewUnpublishedAt = new Date();
+                    }
+
+                } else {
+                    isErrored = true;
+                }
+            } else {
+                isErrored = true;
+            }
+
+            if (isErrored) {
+                logger.error(`Error unpublishing ${route} batch number ${batchNumber} for locale ${locale}`);
+                if (route === 'live') {
+                    // Resolve the original promises in case of an error
+                    batch.resolve({records, locale, batchNumber});
+                }
+            }
+
+            // Complete the batch unpublish
+            complete();
+            // Resolve the original promises
+            if (route === 'preview') {
+                batch.resolve({
+                    records,
+                    liveUnpublishedAt: batch.liveUnpublishedAt,
+                    previewUnpublishedAt: batch.previewUnpublishedAt
+                });
             }
         });
     }
@@ -315,7 +360,8 @@ class AdminAPI {
             const { logger } = this.context;
             logger.info(`Queues: preview=${this.previewQueue.length},`
                 + ` publish=${this.publishQueue.length},`
-                + ` unpublish=${this.unpublishQueue.length},`
+                + ` unpublish live=${this.unpublishQueue.length},`
+                + ` unpublish preview=${this.unpublishPreviewQueue.length},`
                 + ` inflight=${this.inflight.length},`
                 + ` in queue=${this.queue.length}`);
             this.lastStatusLog = new Date();
@@ -332,19 +378,18 @@ class AdminAPI {
             const batch = this.publishQueue.shift();
             this.doBatchPublish(batch);
         }
-/**
-        // then drain the unpublish queue
-        while (this.unpublishQueue.length && rateLimitBudget > 0) {
-            const item = this.unpublishQueue.shift();
-            this.doUnpublishAndDelete(item);
-            rateLimitBudget -= 1;
+
+        // then drain the unpublish live queue
+        if (this.unpublishQueue.length > 0) {
+            const batch = this.unpublishQueue.shift();
+            this.doBatchUnpublish(batch, 'live');
         }
 
-        if (publishBatch.length) {
-            // publish remaining items
-            this.doPublish(publishBatch);
+        // then drain the unpublish preview queue
+        if (this.unpublishPreviewQueue.length > 0) {
+            const batch = this.unpublishPreviewQueue.shift();
+            this.doBatchUnpublish(batch, 'preview');
         }
- */
 
         if (this.onQueuesProcessed) {
             this.onQueuesProcessed();

@@ -148,19 +148,36 @@ function checkParams(params) {
   }
 }
 
-async function deleteBatch({ counts, batch, state, adminApi }) {
-  return Promise.all(batch.map(async ({ path, sku }) => {
-    const result = await adminApi.unpublishAndDelete({ path, sku });
-    if (result.deletedAt) {
-      counts.unpublished++;
-    } else {
-      counts.failed++;
-    }
-    // always delete the sku from the state if it needs to be re-published this will happen automatically.
-    // If we remove it only if the delete was successful we might end up with a sku that is the state
-    // but was not fully un-published
-    delete state.skus[sku];
-  }));
+function createBatches(products, context) {
+  return products.reduce((acc, product) => {
+        const { sku, urlKey } = product;
+        const path = getProductUrl({ urlKey, sku }, context, false).toLowerCase();
+
+        if (!acc.length || acc[acc.length - 1].length === BATCH_SIZE) {
+          acc.push([]);
+        }
+        acc[acc.length - 1].push({ path, sku });
+
+        return acc;
+      }, []);
+}
+
+function previewAndPublish(batches, locale, adminApi) {
+  let batchNumber = 0;
+  return batches.reduce((acc, batch) => {
+    batchNumber++;
+    acc.push(adminApi.previewAndPublish(batch, locale, batchNumber));
+    return acc;
+  }, []);
+}
+
+function unpublishAndDelete(batches, locale, adminApi) {
+    let batchNumber = 0;
+    return batches.reduce((acc, batch) => {
+        batchNumber++;
+        acc.push(adminApi.unpublishAndDelete(batch, locale, batchNumber));
+        return acc;
+    }, []);
 }
 
 function shouldProcessProduct(product) {
@@ -261,27 +278,11 @@ async function poll(params, aioLibs) {
         if (!shouldProcessProduct(product)) counts.ignored += 1;
       })
 
-      let batchNumber = 0;
-      const batches = products.filter(shouldProcessProduct)
-        .reduce((acc, product) => {
-          const { sku, urlKey } = product;
-          const path = getProductUrl({ urlKey, sku }, context, false).toLowerCase();
-
-          if (!acc.length || acc[acc.length - 1].length === BATCH_SIZE) {
-            acc.push([]);
-          }
-          acc[acc.length - 1].push({ path, sku });
-
-          return acc;
-        }, [])
-        .reduce((acc, batch) => {
-          batchNumber++;
-          acc.push(adminApi.previewAndPublish(batch, locale, batchNumber));
-          return acc;
-        }, []);
+      const batches = createBatches(products.filter(shouldProcessProduct), context);
+      const promiseBatches = previewAndPublish(batches, locale, adminApi);
 
       // preview batches , then save state in case we get interrupted
-      const response = await Promise.all(batches);
+      const response = await Promise.all(promiseBatches);
       for (const { records, previewedAt, publishedAt } of response) {
         if (previewedAt && publishedAt) {
           records.map((record) => {
@@ -291,13 +292,13 @@ async function poll(params, aioLibs) {
         } else {
           counts.failed += records.length;
         }
+        await saveState(state, aioLibs);
       }
-      await saveState(state, aioLibs);
       timings.sample('publishedPaths');
 
       // if there are still skus left, they were not in Catalog Service and may
       // have been disabled/deleted
-      if (false) {//skus.length) {
+      if (skus.length) {
         try {
           const publishedProducts = await requestSpreadsheet('published-products-index', null, context);
           // if any of the indexed PDPs is in the remaining list of skus that were not returned by the catalog service
@@ -306,20 +307,21 @@ async function poll(params, aioLibs) {
           // we batch the deleted products to avoid the risk of HTTP 429 from the AEM Admin API
           if (deletedProducts.length) {
             // delete in batches of BATCH_SIZE, then save state in case we get interrupted
-            let batch = [];
-            for (const product of deletedProducts) {
-              batch.push(product);
-              if (batch.length === BATCH_SIZE) {
-                // deleteBatch has side effects on state and counts, by design
-                await deleteBatch({ counts, batch, state, adminApi });
-                batch = [];
+            const batches = createBatches(deletedProducts, context);
+            const promiseBatches = unpublishAndDelete(batches, locale, adminApi);
+
+            const response = await Promise.all(promiseBatches);
+            for (const { records, liveUnpublishedAt, previewUnpublishedAt } of response) {
+              if (liveUnpublishedAt && previewUnpublishedAt) {
+                records.map((record) => {
+                  delete state.skus[record.sku];
+                  counts.unpublished++;
+                });
+              } else {
+                counts.failed += records.length;
               }
+              await saveState(state, aioLibs);
             }
-            if (batch.length > 0) {
-              await deleteBatch({ counts, batch, state, adminApi });
-            }
-            // save state after deletes
-            await saveState(state, aioLibs);
           }
         } catch (e) {
           // in case the index doesn't yet exist or any other error
