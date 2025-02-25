@@ -49,8 +49,8 @@ class StateManager {
      * @returns {Promise<string>} - Key for entry
      * @throws {Error} - If the operation fails after all retry attempts.
      */
-    async put(key, value, ttl = 86400) {
-        return this._retry(async () => await this.state.put(key, value, { ttl: ttl }));
+    async put(key, value, { ttl: 86400 }) {
+        return this._retry(async () => await this.state.put(key, value, { ttl }));
     }
 
     /**
