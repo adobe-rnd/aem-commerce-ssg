@@ -14,7 +14,7 @@ governing permissions and limitations under the License.
 
 const { CategoriesQuery, ProductCountQuery, ProductsQuery, } = require('../queries');
 const { Core } = require('@adobe/aio-sdk')
-const { requestSaaS, requestAPIMesh } = require('../utils');
+const { requestSaaS, requestAPIMesh, getConfig, } = require('../utils');
 
 async function getSkus(categoryPath, context) {
   const productsResp = await requestSaaS(ProductsQuery, 'getProducts', { currentPage: 1, categoryPath }, context);
