@@ -45,12 +45,12 @@ class StateManager {
      * Retries the operation in case of failure up to the configured retry count.
      * @param {string} key - The key to set.
      * @param {string} value - The value to associate with the key.
-     * @param {number} [ttl=86400] Entry expiration time in seconds. (default: 86400s (24h)).
+     * @param {Object} options - The options to be passed to aio-lib-state (e.g. ttl).
      * @returns {Promise<string>} - Key for entry
      * @throws {Error} - If the operation fails after all retry attempts.
      */
-    async put(key, value, ttl = 86400) {
-        return this._retry(async () => await this.state.put(key, value, { ttl: ttl }));
+    async put(key, value, options = {}) {
+        return this._retry(async () => await this.state.put(key, value, options));
     }
 
     /**
