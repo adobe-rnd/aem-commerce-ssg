@@ -15,6 +15,8 @@ const { AdminAPI } = require('./lib/aem');
 const { requestSaaS, requestSpreadsheet, isValidUrl, getProductUrl, mapLocale } = require('../utils');
 const { GetAllSkusQuery, GetLastModifiedQuery } = require('../queries');
 const { Core } = require('@adobe/aio-sdk');
+const { generateProductHtml } = require('../pdp-renderer/render');
+const crypto = require('crypto');
 
 const BATCH_SIZE = 50;
 const STATE_FILE_PREFIX = 'check-product-changes';
@@ -70,7 +72,7 @@ async function loadState(locale, aioLibs) {
         // ...
         // each row is a set of SKUs, last previewed timestamp and hash
         const [sku, time, hash] = line.split(',');
-        acc[sku] = { time: new Date(parseInt(time)), hash };
+        acc[sku] = { lastPreviewedAt: new Date(parseInt(time)), hash };
         return acc;
       }, {});
     } else {
@@ -100,7 +102,7 @@ async function saveState(state, aioLibs) {
   const fileLocation = getStateFileLocation(stateKey);
   const csvData = [
     ...Object.entries(state.skus)
-      .map(([sku, { time, hash }]) => `${sku},${time.getTime()},${hash || ''}`),
+      .map(([sku, { lastPreviewedAt, hash }]) => `${sku},${lastPreviewedAt.getTime()},${hash || ''}`),
   ].join('\n');
   return await filesLib.write(fileLocation, csvData);
 }
@@ -129,6 +131,7 @@ async function deleteState(locale, filesLib) {
  * @param {string} params.PLPURIPrefix - The URI prefix for Product List Pages.
  * @param {string} params.HLX_ORG_NAME - The name of the organization.
  * @param {string} params.HLX_CONFIG_NAME - The name of the configuration json/xlsx.
+ * @param {string} params.HLX_PRODUCTS_TEMPLATE URL to the products template page
  * @param {number} [params.requestPerSecond=5] - The number of requests per second allowed by the throttling logic.
  * @param {string} params.authToken - The authentication token.
  * @param {number} [params.skusRefreshInterval=600000] - The interval for refreshing SKUs in milliseconds.
@@ -166,8 +169,110 @@ async function deleteBatch({ counts, batch, state, adminApi }) {
 }
 
 function shouldProcessProduct(product) {
-  const { urlKey, lastModifiedDate, lastPreviewDate } = product;
-  return urlKey?.match(/^[a-zA-Z0-9-]+$/) && lastModifiedDate >= lastPreviewDate;
+  const { urlKey, lastModifiedDate, lastPreviewDate, currentHash, newHash } = product;
+  return urlKey?.match(/^[a-zA-Z0-9-]+$/) && lastModifiedDate >= lastPreviewDate && currentHash !== newHash;
+}
+
+/**
+ * Processes a product to determine if it needs to be updated
+ * @param {Object} product - The product to process
+ * @param {Object} state - The current state
+ * @returns {Object} Enhanced product with additional metadata
+ */
+async function enrichProductWithMetadata(product, state, context) {
+  const { sku, urlKey, lastModifiedAt } = product;
+  const lastPreviewDate = state.skus[sku]?.lastPreviewedAt || new Date(0);
+  const lastModifiedDate = new Date(lastModifiedAt);
+  const productHtml = await generateProductHtml(sku, urlKey, context);
+  const newHash = crypto.createHash('sha256').update(productHtml).digest('hex');
+
+  return { 
+    ...product, 
+    lastModifiedDate, 
+    lastPreviewDate, 
+    currentHash: state.skus[sku]?.hash || null, 
+    newHash 
+  };
+}
+
+/**
+ * Creates batches of products that need to be processed
+ * @param {Array} products - List of products to process
+ * @param {Object} context - The context object
+ * @param {AdminAPI} adminApi - The admin API instance
+ * @returns {Array} Batches of products to process
+ */
+function createPublishBatches(products, context, adminApi) {
+  return products.filter(shouldProcessProduct)
+    .reduce((acc, product) => {
+      const { sku, urlKey } = product;
+      const path = getProductUrl({ urlKey, sku }, context, false).toLowerCase();
+      const req = adminApi.previewAndPublish({ path, sku });
+
+      if (!acc.length || acc[acc.length - 1].length === BATCH_SIZE) {
+        acc.push([]);
+      }
+      acc[acc.length - 1].push(req);
+
+      return acc;
+    }, []);
+}
+
+/**
+ * Processes publish batches and updates state
+ * @param {Array} batches - Batches of products to process
+ * @param {Object} state - The current state
+ * @param {Object} counts - Counters for operations
+ * @param {Array} products - Original product data
+ * @param {Object} aioLibs - AIO libraries
+ * @returns {Promise<void>}
+ */
+async function processPublishBatches(batches, state, counts, products, aioLibs) {
+  for (const batch of batches) {
+    const response = await Promise.all(batch);
+    for (const { sku, previewedAt, publishedAt } of response) {
+      if (previewedAt && publishedAt) {
+        const product = products.find(p => p.sku === sku);
+        state.skus[sku] = { 
+          lastPreviewedAt: previewedAt, 
+          hash: product?.newHash 
+        };
+        counts.published++;
+      } else {
+        counts.failed++;
+      }
+    }
+    await saveState(state, aioLibs);
+  }
+}
+
+/**
+ * Identifies and processes products that need to be deleted
+ * @param {Array} remainingSkus - SKUs that weren't found in catalog
+ * @param {Object} state - The current state
+ * @param {Object} counts - Counters for operations
+ * @param {Object} context - The context object
+ * @param {AdminAPI} adminApi - The admin API instance
+ * @param {Object} aioLibs - AIO libraries
+ * @param {Object} logger - Logger instance
+ * @returns {Promise<void>}
+ */
+async function processDeletedProducts(remainingSkus, state, counts, context, adminApi, aioLibs, logger) {
+  if (!remainingSkus.length) return;
+  
+  try {
+    const publishedProducts = await requestSpreadsheet('published-products-index', null, context);
+    const deletedProducts = publishedProducts.data.filter(({ sku }) => remainingSkus.includes(sku));
+    
+    // Process in batches
+    for (let i = 0; i < deletedProducts.length; i += BATCH_SIZE) {
+      const batch = deletedProducts.slice(i, i + BATCH_SIZE);
+      await deleteBatch({ counts, batch, state, adminApi });
+      await saveState(state, aioLibs);
+    }
+  } catch (e) {
+    logger.error('Error processing deleted products:', e);
+  }
 }
 
 async function poll(params, aioLibs) {
@@ -179,6 +284,7 @@ async function poll(params, aioLibs) {
     HLX_PATH_FORMAT: pathFormat,
     HLX_ORG_NAME: orgName,
     HLX_CONFIG_NAME: configName,
+    HLX_PRODUCTS_TEMPLATE: productsTemplate,
     requestPerSecond = 5,
     authToken,
     skusRefreshInterval = 600000,
@@ -215,20 +321,18 @@ async function poll(params, aioLibs) {
         context = { ...context, ...mapLocale(locale, context) };
       }
 
-      // setup preview / publish queues
-
-      // get all skus
-      // check if the skus were last queried within the last 10 minutes
+      // Refresh SKUs if needed
       if (timings.now - state.skusLastQueriedAt >= skusRefreshInterval) {
         state.skusLastQueriedAt = new Date();
         const allSkusResp = await requestSaaS(GetAllSkusQuery, 'getAllSkus', {}, context);
         const allSkus = allSkusResp.data.productSearch.items
           .map(({ productView }) => productView || {})
           .filter(Boolean);
+        
         // add new skus to state if any
         for (const sku of allSkus) {
           if (!state.skus[sku]) {
-            state.skus[sku] = { time: new Date(0), hash: null };
+            state.skus[sku] = { lastPreviewedAt: new Date(0), hash: null };
           }
         }
         timings.sample('fetchedSkus');
@@ -242,91 +346,43 @@ async function poll(params, aioLibs) {
       timings.sample('fetchedLastModifiedDates');
       logger.info(`Fetched last modified date for ${lastModifiedResp.data.products.length} skus, total ${skus.length}`);
 
-      // group preview in batches of 50
-      let products = lastModifiedResp.data.products
-        .map((product) => {
-          const { sku, lastModifiedAt } = product;
-          const lastPreviewedAt = state.skus[sku].time || 0;
-          const lastPreviewDate = new Date(lastPreviewedAt);
-          const lastModifiedDate = new Date(lastModifiedAt);
+      // Enrich products with metadata
+      const products = await Promise.all(
+        lastModifiedResp.data.products.map(product => 
+          enrichProductWithMetadata(product, state, context)
+        )
+      );
 
-          return { ...product, lastModifiedDate, lastPreviewDate };
-        }) // inject the lastModifiedDate and lastPreviewDate into the product object
-
-      products.forEach((product) => {
+      // Track remaining SKUs for deletion processing
+      const remainingSkus = [...skus];
+      products.forEach(product => {
         const { sku } = product;
         // remove the sku from the list of currently known skus
-        skus.splice(skus.indexOf(sku), 1);
+        const index = remainingSkus.indexOf(sku);
+        if (index !== -1) {
+          remainingSkus.splice(index, 1);
+        }
 
         // increment count of ignored products if condition is not met
         if (!shouldProcessProduct(product)) counts.ignored += 1;
-      })
+      });
 
-      const batches = products.filter(shouldProcessProduct)
-        .reduce((acc, product) => {
-          const { sku, urlKey } = product;
-          const path = getProductUrl({ urlKey, sku }, context, false).toLowerCase();
-          const req = adminApi.previewAndPublish({ path, sku });
-
-          if (!acc.length || acc[acc.length - 1].length === BATCH_SIZE) {
-            acc.push([]);
-          }
-          acc[acc.length - 1].push(req);
-
-          return acc;
-        }, []);
-
-      // preview batches , then save state in case we get interrupted
-      for (const batch of batches) {
-        const response = await Promise.all(batch);
-        for (const { sku, previewedAt, publishedAt } of response) {
-          if (previewedAt && publishedAt) {
-            state.skus[sku] = { time: previewedAt, hash: null };
-            counts.published++;
-          } else {
-            counts.failed++;
-          }
-        }
-        await saveState(state, aioLibs);
-      }
-
+      // Create and process publish batches
+      const batches = createPublishBatches(products, context, adminApi);
+      await processPublishBatches(batches, state, counts, products, aioLibs);
       timings.sample('publishedPaths');
 
-      // if there are still skus left, they were not in Catalog Service and may
-      // have been disabled/deleted
-      if (skus.length) {
-        try {
-          const publishedProducts = await requestSpreadsheet('published-products-index', null, context);
-          // if any of the indexed PDPs is in the remaining list of skus that were not returned by the catalog service
-          // consider them deleted
-          const deletedProducts = publishedProducts.data.filter(({ sku }) => skus.includes(sku));
-          // we batch the deleted products to avoid the risk of HTTP 429 from the AEM Admin API
-          if (deletedProducts.length) {
-            // delete in batches of BATCH_SIZE, then save state in case we get interrupted
-            let batch = [];
-            for (const product of deletedProducts) {
-              batch.push(product);
-              if (batch.length === BATCH_SIZE) {
-                // deleteBatch has side effects on state and counts, by design
-                await deleteBatch({ counts, batch, state, adminApi });
-                batch = [];
-              }
-            }
-            if (batch.length > 0) {
-              await deleteBatch({ counts, batch, state, adminApi });
-            }
-            // save state after deletes
-            await saveState(state, aioLibs);
-          }
-        } catch (e) {
-          // in case the index doesn't yet exist or any other error
-          logger.error(e);
-        }
-
-        timings.sample('unpublishedPaths');
-      } else {
-        timings.sample('unpublishedPaths', 0);
-      }
+      // Process deleted products
+      await processDeletedProducts(
+        remainingSkus, 
+        state, 
+        counts, 
+        context, 
+        adminApi, 
+        aioLibs, 
+        logger
+      );
+      timings.sample('unpublishedPaths', remainingSkus.length ? undefined : 0);
 
       return timings.measures;
     }));
