@@ -314,7 +314,7 @@ async function requestAPIMesh(query, operationName, variables, context, configOv
   const { storeUrl, measurements } = context;
   const timer = measurements.timer(`requestAPIMesh-${operationName}`);
   const config = {
-    ... (await requestConfig(context)),
+    ... (await getConfig(context)),
     ...configOverrides
   };
 
