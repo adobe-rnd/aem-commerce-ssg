@@ -16,7 +16,7 @@ const { CategoriesQuery, ProductCountQuery, ProductsQuery, } = require('../queri
 const { Core } = require('@adobe/aio-sdk')
 const { requestSaaS } = require('../utils');
 
-async function getProducts(categoryPath, context) {
+async function getSkus(categoryPath, context) {
   const productsResp = await requestSaaS(ProductsQuery, 'getProducts', { currentPage: 1, categoryPath }, context);
   console.log(productsResp.data.productSearch.items);
   const products = [...productsResp.data.productSearch.items.map(({ productView }) => (
@@ -63,7 +63,7 @@ async function getAllCategories(context) {
   return categories;
 }
 
-async function getAllProducts(context) {
+async function getAllSkus(context) {
   // TODO: Add measurements like timer
   try {
     const productCountResp = await requestSaaS(ProductCountQuery, 'getProductCount', { categoryPath: '' }, context);
@@ -115,7 +115,7 @@ async function main(params) {
     contentUrl: process.env.CORE_ENDPOINT
   };
 
-  const allSkus = await getAllProducts(context);
+  const allSkus = await getAllSkus(context);
   const response = {
     statusCode: 200,
     body: {products: [...allSkus]},
