@@ -15,7 +15,6 @@ const { AdminAPI } = require('./lib/aem');
 const { requestSaaS, requestSpreadsheet, isValidUrl, getProductUrl, mapLocale } = require('../utils');
 const { GetAllSkusQuery, GetLastModifiedQuery } = require('../queries');
 const { Core } = require('@adobe/aio-sdk');
-
 const BATCH_SIZE = 50;
 const STATE_FILE_PREFIX = 'check-product-changes';
 const STATE_FILE_EXT = 'csv';
@@ -182,6 +181,7 @@ async function poll(params, aioLibs) {
     requestPerSecond = 5,
     authToken,
     skusRefreshInterval = 600000,
+    contentUrl,
   } = params;
   const storeUrl = params.HLX_STORE_URL ? params.HLX_STORE_URL : `https://main--${siteName}--${orgName}.aem.live`;
   const locales = params.HLX_LOCALES ? params.HLX_LOCALES.split(',') : [null];
@@ -190,7 +190,7 @@ async function poll(params, aioLibs) {
     published: 0, unpublished: 0, ignored: 0, failed: 0,
   };
   const sharedContext = {
-    storeUrl, configName, logger, counts, pathFormat,
+    storeUrl, configName, logger, counts, pathFormat, contentUrl
   };
   const timings = new Timings();
   const adminApi = new AdminAPI({
@@ -221,10 +221,18 @@ async function poll(params, aioLibs) {
       // check if the skus were last queried within the last 10 minutes
       if (timings.now - state.skusLastQueriedAt >= skusRefreshInterval) {
         state.skusLastQueriedAt = new Date();
-        const allSkusResp = await requestSaaS(GetAllSkusQuery, 'getAllSkus', {}, context);
-        const allSkus = allSkusResp.data.productSearch.items
-          .map(({ productView }) => productView || {})
-          .filter(Boolean);
+        const { filesLib, } = aioLibs;
+        const allskuBuffer = await filesLib.read('check-product-changes/allSkus.json');
+        const allSkusString = allskuBuffer.toString();
+        
+        let allSkus = allSkusString.replace(/[\[\]]/g,'');
+
+        allSkus = allSkus.split(',');
+        
+        allSkus = allSkus.map(sku =>           
+          sku.split(':')[0].replace(/\"/g,'')
+        ).filter(Boolean);
+
         // add new skus to state if any
         for (const sku of allSkus) {
           if (!state.skus[sku]) {

@@ -211,7 +211,8 @@ const ProductsQuery = `
     ) {
       items {
         productView {
-          sku
+          urlKey
+          sku          
         }
       }
       page_info {
