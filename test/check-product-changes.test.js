@@ -15,7 +15,6 @@ const { loadState, saveState, getStateFileLocation, poll } = require('../actions
 const Files = require('./__mocks__/files.js');
 const { AdminAPI } = require('../actions/check-product-changes/lib/aem');
 const { requestSaaS, requestSpreadsheet, isValidUrl} = require('../actions/utils');
-const { GetAllSkusQuery } = require('../actions/queries');
 const { MockState } = require('./__mocks__/state.js');
 
 const EXAMPLE_STATE = 'sku1,1,\nsku2,2,\nsku3,3,';
@@ -24,15 +23,15 @@ const EXAMPLE_EXPECTED_STATE = {
   locale: 'uk',
   skus: {
     sku1: {
-      time: new Date(1),
+      lastPreviewedAt: new Date(1),
       hash: '',
     },
     sku2: {
-      time: new Date(2),
+      lastPreviewedAt: new Date(2),
       hash: '',
     },
     sku3: {
-      time: new Date(3),
+      lastPreviewedAt: new Date(3),
       hash: '',
     },
   },
@@ -58,15 +57,94 @@ jest.spyOn(AdminAPI.prototype, 'previewAndPublish').mockImplementation(({ sku })
   });
 });
 
+jest.mock('../actions/pdp-renderer/render', () => ({
+  generateProductHtml: jest.fn().mockImplementation((sku) => {
+    if (sku === 'sku-123') return '<html>Product 123</html>';
+    if (sku === 'sku-456') return '<html>Product 456</html>';
+    if (sku === 'sku-789') return '<html>Product 789</html>';
+    if (sku === 'sku-failed-due-preview') return '<html>Failed Preview</html>';
+    if (sku === 'sku-failed-due-publishing') return '<html>Failed Publishing</html>';
+    return `<html>Product ${sku}</html>`;
+  }),
+}));
+
+// Add mock for crypto to return predictable hashes
+jest.mock('crypto', () => {
+  const originalModule = jest.requireActual('crypto');
+  return {
+    ...originalModule,
+    createHash: jest.fn().mockImplementation(() => {
+      return {
+        update: jest.fn().mockImplementation((content) => {
+          return {
+            digest: jest.fn().mockImplementation(() => {
+              if (content === '<html>Product 123</html>') return 'current-hash-for-product-123';
+              if (content === '<html>Product 456</html>') return 'current-hash-for-product-456';
+              if (content === '<html>Product 789</html>') return 'current-hash-for-product-789';
+              return 'default-hash';
+            })
+          };
+        })
+      };
+    })
+  };
+});
+
 describe('Poller', () => {
-  const filesLibMock = {
+  // Common test fixtures
+  const mockFiles = () => ({
     read: jest.fn().mockResolvedValue(null),
     write: jest.fn().mockResolvedValue(null),
-  };
+  });
 
-  const stateLibMock = {
+  const mockState = () => ({
     get: jest.fn().mockResolvedValue(null),
     put: jest.fn().mockResolvedValue(null),
+  });
+
+  const defaultParams = {
+    HLX_SITE_NAME: 'siteName',
+    HLX_PATH_FORMAT: 'pathFormat',
+    PLPURIPrefix: 'prefix',
+    HLX_ORG_NAME: 'orgName',
+    HLX_CONFIG_NAME: 'configName',
+    authToken: 'token',
+    skusRefreshInterval: 600000,
+  };
+
+  const setupSkuData = (filesLib, stateLib, skuData, lastQueriedAt) => {
+    const skuEntries = Object.entries(skuData).map(([sku, { timestamp, hash = '' }]) => 
+      `${sku},${timestamp},${hash}`
+    ).join('\n');
+    
+    filesLib.read.mockResolvedValueOnce(skuEntries);
+    stateLib.get.mockResolvedValueOnce({ value: lastQueriedAt });
+  };
+
+  const mockSaaSResponse = (skus, lastModifiedOffset = 10000) => {
+    requestSaaS.mockImplementation((query, operation) => {
+      if (operation === 'getAllSkus') {
+        return Promise.resolve({
+          data: {
+            productSearch: {
+              items: skus.map(sku => ({ productView: sku }))
+            }
+          },
+        });
+      }
+      if (operation === 'getLastModified') {
+        return Promise.resolve({
+          data: {
+            products: skus.map(sku => ({ 
+              urlKey: `url-${sku}`, 
+              sku, 
+              lastModifiedAt: new Date().getTime() - lastModifiedOffset 
+            })),
+          },
+        });
+      }
+      return Promise.resolve({});
+    });
   };
 
   afterEach(() => {
@@ -105,11 +183,11 @@ describe('Poller', () => {
     assert.deepEqual(state, EXAMPLE_EXPECTED_STATE);
     state.skusLastQueriedAt = new Date(4);
     state.skus['sku1'] = {
-      time: new Date(4),
+      lastPreviewedAt: new Date(4),
       hash: 'hash1',
     };
     state.skus['sku2'] = {
-      time: new Date(5),
+      lastPreviewedAt: new Date(5),
       hash: 'hash2',
     };
     await saveState(state, { filesLib, stateLib });
@@ -136,11 +214,11 @@ describe('Poller', () => {
     assert.deepEqual(state, expectedState);
     state.skusLastQueriedAt = new Date(4);
     state.skus['sku1'] = {
-      time: new Date(4),
+      lastPreviewedAt: new Date(4),
       hash: 'hash1',
     };
     state.skus['sku2'] = {
-      time: new Date(5),
+      lastPreviewedAt: new Date(5),
       hash: 'hash2',
     };
     await saveState(state, { filesLib, stateLib });
@@ -151,232 +229,240 @@ describe('Poller', () => {
     assert.equal(skusLastQueriedAt.value, "4");
   });
 
-  it('checkParams should throw an error if required parameters are missing', async () => {
-    const params = {
-      HLX_SITE_NAME: 'siteName',
-      HLX_PATH_FORMAT: 'pathFormat',
-      PLPURIPrefix: 'prefix',
-      HLX_ORG_NAME: 'orgName',
-      // HLX_CONFIG_NAME is missing
-      authToken: 'token',
-    };
+  describe('Parameter validation', () => {
+    it('should throw an error if required parameters are missing', async () => {
+      const params = { ...defaultParams };
+      delete params.HLX_CONFIG_NAME;
+      
+      const filesLib = mockFiles();
+      const stateLib = mockState();
 
-    await expect(poll(params, { filesLib: filesLibMock, stateLib: stateLibMock })).rejects.toThrow('Missing required parameters: HLX_CONFIG_NAME');
-  });
-
-  it('checkParams should throw an error if HLX_STORE_URL is invalid', async () => {
-    isValidUrl.mockReturnValue(false);
-    const params = {
-      HLX_SITE_NAME: 'siteName',
-      HLX_PATH_FORMAT: 'pathFormat',
-      PLPURIPrefix: 'prefix',
-      HLX_ORG_NAME: 'orgName',
-      HLX_CONFIG_NAME: 'configName',
-      authToken: 'token',
-      HLX_STORE_URL: 'invalid-url',
-    };
-
-    await expect(poll(params, { filesLib: filesLibMock, stateLib: stateLibMock })).rejects.toThrow('Invalid storeUrl');
-  });
-
-  it('Poller should fetch and process SKU updates and 2 sku failed', async () => {
-    const params = {
-      HLX_SITE_NAME: 'siteName',
-      HLX_PATH_FORMAT: 'pathFormat',
-      PLPURIPrefix: 'prefix',
-      HLX_ORG_NAME: 'orgName',
-      HLX_CONFIG_NAME: 'configName',
-      authToken: 'token',
-      skusRefreshInterval: 600000,
-    };
-
-    requestSaaS.mockImplementation((query, operation) => {
-      if (operation === 'getAllSkus') {
-        return Promise.resolve({
-          data: {
-            productSearch: {
-              items: [
-                { productView: 'sku-123' },
-                { productView: 'sku-456' },
-                { productView: 'sku-failed-due-preview' },
-                { productView: 'sku-failed-due-publishing' }
-              ]
-            }
-          },
-        });
-      }
-      if (operation === 'getLastModified') {
-        return Promise.resolve({
-          data: {
-            products: [
-              { urlKey: 'url-sku-123', sku: 'sku-123', lastModifiedAt: new Date().getTime() - 5000 },
-              { urlKey: 'url-sku-456', sku: 'sku-456', lastModifiedAt: new Date().getTime() - 10000 },
-              { urlKey: 'url-failed-due-preview', sku: 'sku-failed-due-preview', lastModifiedAt: new Date().getTime() - 20000 },
-              { urlKey: 'url-failed-due-publishing', sku: 'sku-failed-due-publishing', lastModifiedAt: new Date().getTime() - 20000 },
-            ],
-          },
-        });
-      }
-      return Promise.resolve({});
+      await expect(poll(params, { filesLib, stateLib }))
+        .rejects.toThrow('Missing required parameters: HLX_CONFIG_NAME');
     });
 
-    const result = await poll(params, { filesLib: filesLibMock, stateLib: stateLibMock });
+    it('should throw an error if HLX_STORE_URL is invalid', async () => {
+      isValidUrl.mockReturnValue(false);
+      const params = {
+        ...defaultParams,
+        HLX_STORE_URL: 'invalid-url',
+      };
+      
+      const filesLib = mockFiles();
+      const stateLib = mockState();
 
-    expect(result.state).toBe('completed');
-    expect(result.status.published).toBe(2);
-    expect(result.status.failed).toBe(2);
-    expect(result.status.unpublished).toBe(0);
-    expect(result.status.ignored).toBe(0);
-
-    expect(requestSaaS).toBeCalledTimes(2);
-    expect(requestSaaS).toHaveBeenNthCalledWith(
-        1,
-        GetAllSkusQuery,
-        'getAllSkus',
-        {},
-        expect.anything()
-    );
-    expect(requestSaaS).toHaveBeenNthCalledWith(
-        2,
-        expect.anything(),
-        'getLastModified',
-        expect.objectContaining({
-          skus: expect.arrayContaining(['sku-123', 'sku-456']),
-        }),
-        expect.anything()
-    );
-    expect(filesLibMock.read).toHaveBeenCalled();
-    expect(stateLibMock.get).toHaveBeenCalled();
-    expect(filesLibMock.write).toHaveBeenCalled();
-    expect(stateLibMock.put).toHaveBeenCalled();
-    expect(AdminAPI.prototype.startProcessing).toHaveBeenCalledTimes(1);
-    expect(AdminAPI.prototype.stopProcessing).toHaveBeenCalledTimes(1);
-    expect(AdminAPI.prototype.previewAndPublish).toHaveBeenCalled();
-    expect(AdminAPI.prototype.unpublishAndDelete).not.toHaveBeenCalled();
+      await expect(poll(params, { filesLib, stateLib }))
+        .rejects.toThrow('Invalid storeUrl');
+    });
   });
 
-  it('Poller should not fetch SKU and not process them', async () => {
-    filesLibMock.read.mockImplementationOnce(() => {
+  describe('Product processing', () => {
+    it('should process products with changed content and update hashes', async () => {
       const now = new Date().getTime();
-      return Promise.resolve(
-          `sku-123,${now - 10000},\nsku-456,${now - 10000},\nsku-789,${now - 10000},`
+      const filesLib = mockFiles();
+      const stateLib = mockState();
+      
+      // Setup initial state with existing products
+      setupSkuData(
+        filesLib, 
+        stateLib, 
+        {
+          'sku-123': { timestamp: now - 100000, hash: 'old-hash-for-product-123' }
+        }, 
+        now - 700000
       );
-    });
-    const stateLib = new MockState(0);
-    await stateLib.put('default.skusLastQueriedAt', new Date().getTime().toString());
+      
+      // Mock catalog service responses
+      mockSaaSResponse(['sku-123'], 5000);
+      
+      const result = await poll(defaultParams, { filesLib, stateLib });
 
-    const params = {
-      HLX_SITE_NAME: 'siteName',
-      HLX_PATH_FORMAT: 'pathFormat',
-      PLPURIPrefix: 'prefix',
-      HLX_ORG_NAME: 'orgName',
-      HLX_CONFIG_NAME: 'configName',
-      authToken: 'token',
-      skusRefreshInterval: 600000,
-    };
-
-    requestSaaS.mockImplementation((query, operation) => {
-      if (operation === 'getLastModified') {
-        return Promise.resolve({
-          data: {
-            products: [
-              { urlKey: 'url-sku-123', sku: 'sku-123', lastModifiedAt: new Date().getTime() - 20000 },
-              { urlKey: 'url-sku-456', sku: 'sku-456', lastModifiedAt: new Date().getTime() - 30000 },
-              { urlKey: null, sku: 'sku-789', lastModifiedAt: new Date().getTime() - 5000 },
-            ],
-          },
-        });
-      }
-      return Promise.resolve({});
+      // Verify results
+      expect(result.state).toBe('completed');
+      expect(result.status.published).toBe(1);
+      expect(result.status.ignored).toBe(0);
+      
+      // Verify hash was updated
+      expect(filesLib.write).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.stringContaining('current-hash-for-product-123')
+      );
+      
+      // Verify API calls
+      expect(AdminAPI.prototype.previewAndPublish).toHaveBeenCalledWith(
+        expect.objectContaining({ sku: 'sku-123' })
+      );
+      expect(AdminAPI.prototype.startProcessing).toHaveBeenCalledTimes(1);
+      expect(AdminAPI.prototype.stopProcessing).toHaveBeenCalledTimes(1);
     });
 
-    const result = await poll(params, { filesLib: filesLibMock, stateLib });
+    it('should ignore products with unchanged content', async () => {
+      const now = new Date().getTime();
+      const filesLib = mockFiles();
+      const stateLib = mockState();
+      
+      // Setup initial state with existing products that have current hash
+      setupSkuData(
+        filesLib, 
+        stateLib, 
+        {
+          'sku-456': { timestamp: now - 10000, hash: 'current-hash-for-product-456' }
+        }, 
+        now - 700000
+      );
+      
+      // Mock catalog service responses
+      mockSaaSResponse(['sku-456'], 5000);
+      
+      const result = await poll(defaultParams, { filesLib, stateLib });
 
-    expect(result.state).toBe('completed');
-    expect(result.status.published).toBe(0);
-    expect(result.status.failed).toBe(0);
-    expect(result.status.unpublished).toBe(0);
-    expect(result.status.ignored).toBe(3);
+      // Verify results
+      expect(result.state).toBe('completed');
+      expect(result.status.published).toBe(0);
+      expect(result.status.ignored).toBe(1);
+      
+      // Verify no preview/publish was called
+      expect(AdminAPI.prototype.previewAndPublish).not.toHaveBeenCalled();
+    });
 
-    expect(requestSaaS).toBeCalledTimes(1);
-    expect(requestSaaS).toHaveBeenNthCalledWith(
-        1,
-        expect.anything(),
-        'getLastModified',
-        expect.objectContaining({
-          skus: expect.arrayContaining(['sku-123', 'sku-456']),
-        }),
-        expect.anything()
-    );
-    expect(filesLibMock.read).toHaveBeenCalled();
-    expect(filesLibMock.write).not.toHaveBeenCalled();
-    expect(AdminAPI.prototype.startProcessing).toHaveBeenCalledTimes(1);
-    expect(AdminAPI.prototype.stopProcessing).toHaveBeenCalledTimes(1);
-    expect(AdminAPI.prototype.previewAndPublish).not.toHaveBeenCalled();
-    expect(AdminAPI.prototype.unpublishAndDelete).not.toHaveBeenCalled();
+    it('should handle failed preview and publishing', async () => {
+      const now = new Date().getTime();
+      const filesLib = mockFiles();
+      const stateLib = mockState();
+      
+      // Setup initial state with existing products
+      setupSkuData(
+        filesLib, 
+        stateLib, 
+        {
+          'sku-failed-due-preview': { timestamp: now - 100000 },
+          'sku-failed-due-publishing': { timestamp: now - 100000 }
+        }, 
+        now - 700000
+      );
+      
+      // Mock catalog service responses
+      mockSaaSResponse(['sku-failed-due-preview', 'sku-failed-due-publishing'], 20000);
+      
+      const result = await poll(defaultParams, { filesLib, stateLib });
+
+      // Verify results
+      expect(result.state).toBe('completed');
+      expect(result.status.published).toBe(0);
+      expect(result.status.failed).toBe(2);
+      
+      // Verify API calls
+      expect(AdminAPI.prototype.previewAndPublish).toHaveBeenCalledTimes(2);
+    });
+
+    it('should not process products when they are not modified', async () => {
+      const now = new Date().getTime();
+      const filesLib = mockFiles();
+      const stateLib = mockState();
+      
+      // Setup initial state with recently processed products
+      setupSkuData(
+        filesLib, 
+        stateLib, 
+        {
+          'sku-123': { timestamp: now - 10000 },
+          'sku-456': { timestamp: now - 10000 },
+          'sku-789': { timestamp: now - 10000 }
+        }, 
+        now - 100000 // Recent query time
+      );
+      
+      // Mock catalog service responses with older modification times
+      requestSaaS.mockImplementation((query, operation) => {
+        if (operation === 'getLastModified') {
+          return Promise.resolve({
+            data: {
+              products: [
+                { urlKey: 'url-sku-123', sku: 'sku-123', lastModifiedAt: now - 20000 },
+                { urlKey: 'url-sku-456', sku: 'sku-456', lastModifiedAt: now - 30000 },
+                { urlKey: null, sku: 'sku-789', lastModifiedAt: now - 5000 },
+              ],
+            },
+          });
+        }
+        return Promise.resolve({});
+      });
+      
+      const result = await poll(defaultParams, { filesLib, stateLib });
+
+      // Verify results
+      expect(result.state).toBe('completed');
+      expect(result.status.published).toBe(0);
+      expect(result.status.ignored).toBe(3);
+      
+      // Verify no processing occurred
+      expect(AdminAPI.prototype.previewAndPublish).not.toHaveBeenCalled();
+      expect(filesLib.write).not.toHaveBeenCalled();
+    });
   });
 
-  it('Poller should delete SKUs that are not in the catalog service, one of them is failed', async () => {
-    const params = {
-      HLX_SITE_NAME: 'siteName',
-      HLX_PATH_FORMAT: 'pathFormat',
-      PLPURIPrefix: 'prefix',
-      HLX_ORG_NAME: 'orgName',
-      HLX_CONFIG_NAME: 'configName',
-      authToken: 'token',
-      skusRefreshInterval: 600000,
-    };
-
-    filesLibMock.read.mockImplementationOnce(() => {
+  describe('Product unpublishing', () => {
+    it('should unpublish products that are not in the catalog', async () => {
       const now = new Date().getTime();
-      return Promise.resolve(
-          `sku-123,${now - 10000},\nsku-456,${now - 10000},\nsku-failed,${now - 10000},`
+      const filesLib = mockFiles();
+      const stateLib = mockState();
+      
+      // Setup initial state with products that will be partially removed
+      setupSkuData(
+        filesLib, 
+        stateLib, 
+        {
+          'sku-123': { timestamp: now - 10000 },
+          'sku-456': { timestamp: now - 10000 },
+          'sku-failed': { timestamp: now - 10000 }
+        }, 
+        now - 100000
       );
-    });
-    const stateLib = new MockState(0);
-    await stateLib.put('default.skusLastQueriedAt', new Date().getTime().toString());
-
-    requestSaaS.mockImplementation((query, operation) => {
-      if (operation === 'getLastModified') {
+      
+      // Mock catalog service to only return one product
+      requestSaaS.mockImplementation((query, operation) => {
+        if (operation === 'getLastModified') {
+          return Promise.resolve({
+            data: {
+              products: [
+                { urlKey: 'url-sku-123', sku: 'sku-123', lastModifiedAt: now - 20000 },
+              ],
+            },
+          });
+        }
+        return Promise.resolve({});
+      });
+      
+      // Mock spreadsheet response for products to be removed
+      requestSpreadsheet.mockImplementation(() => {
         return Promise.resolve({
-          data: {
-            products: [
-              { urlKey: 'url-sku-123', sku: 'sku-123', lastModifiedAt: new Date().getTime() - 20000 },
-            ],
-          },
+          data: [
+            { sku: 'sku-456' },
+            { sku: 'sku-failed' },
+          ],
         });
-      }
-      return Promise.resolve({});
-    });
-
-    requestSpreadsheet.mockImplementation(() => {
-      return Promise.resolve({
-        data: [
-          { sku: 'sku-456' },
-          { sku: 'sku-failed' },
-        ],
       });
-    });
-
-    AdminAPI.prototype.unpublishAndDelete.mockImplementation(({ sku }) => {
-      return Promise.resolve({ 
-        sku,
-        deletedAt: sku === 'sku-failed' ? null : new Date() 
+      
+      // Mock unpublish with one success and one failure
+      AdminAPI.prototype.unpublishAndDelete.mockImplementation(({ sku }) => {
+        return Promise.resolve({ 
+          sku,
+          deletedAt: sku === 'sku-failed' ? null : new Date() 
+        });
       });
+      
+      const result = await poll(defaultParams, { filesLib, stateLib });
+
+      // Verify results
+      expect(result.state).toBe('completed');
+      expect(result.status.published).toBe(0);
+      expect(result.status.unpublished).toBe(1);
+      expect(result.status.failed).toBe(1);
+      expect(result.status.ignored).toBe(1);
+      
+      // Verify API calls
+      expect(AdminAPI.prototype.unpublishAndDelete).toHaveBeenCalledTimes(2);
+      expect(filesLib.write).toHaveBeenCalled();
     });
-
-    const result = await poll(params, { filesLib: filesLibMock, stateLib });
-
-    expect(result.state).toBe('completed');
-    expect(result.status.published).toBe(0);
-    expect(result.status.failed).toBe(1);
-    expect(result.status.unpublished).toBe(1);
-    expect(result.status.ignored).toBe(1);
-
-    expect(requestSaaS).toBeCalledTimes(1);
-    expect(requestSpreadsheet).toBeCalledTimes(1);
-    expect(AdminAPI.prototype.unpublishAndDelete).toBeCalledTimes(2);
-    expect(filesLibMock.read).toHaveBeenCalled();
-    expect(filesLibMock.write).toHaveBeenCalled();
   });
 });

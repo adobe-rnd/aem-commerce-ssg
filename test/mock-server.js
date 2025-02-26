@@ -42,6 +42,10 @@ const handlers = {
     matcher?.(req);
     return HttpResponse.json({ data: { products: [] }});
   }),
+  returnLiveSearch404: (matcher) => graphql.query('ProductByUrlKey', (req) => {
+    matcher?.(req);
+    return HttpResponse.json({ data: { productSearch: { items: [] } }});
+  }),
   defaultProductTemplate : http.get('https://content.com/products/default.plain.html', () => {
     return HttpResponse.html(mockProductTemplate);
   }),
