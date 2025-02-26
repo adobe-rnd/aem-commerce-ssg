@@ -153,6 +153,12 @@ function checkParams(params) {
   }
 }
 
+/**
+ * Creates batches of products for processing
+ * @param products
+ * @param context
+ * @returns {*}
+ */
 function createBatches(products, context) {
   return products.reduce((acc, product) => {
         const { sku, urlKey } = product;
@@ -167,6 +173,13 @@ function createBatches(products, context) {
       }, []);
 }
 
+/**
+ * Returns array of promises for preview and publish
+ * @param batches
+ * @param locale
+ * @param adminApi
+ * @returns {*}
+ */
 function previewAndPublish(batches, locale, adminApi) {
   let batchNumber = 0;
   return batches.reduce((acc, batch) => {
@@ -176,6 +189,13 @@ function previewAndPublish(batches, locale, adminApi) {
   }, []);
 }
 
+/**
+ * Returns array of promises for unpublish and delete
+ * @param batches
+ * @param locale
+ * @param adminApi
+ * @returns {*}
+ */
 function unpublishAndDelete(batches, locale, adminApi) {
     let batchNumber = 0;
     return batches.reduce((acc, batch) => {
@@ -185,9 +205,17 @@ function unpublishAndDelete(batches, locale, adminApi) {
     }, []);
 }
 
+/**
+ * Checks if a product should be processed
+ * @param product
+ * @returns {*|boolean}
+ */
 function shouldProcessProduct(product) {
   const { urlKey, lastModifiedDate, lastPreviewDate, currentHash, newHash } = product;
-  return urlKey?.match(/^[a-zA-Z0-9-]+$/) && lastModifiedDate >= lastPreviewDate && currentHash !== newHash;
+  return urlKey?.match(/^[a-zA-Z0-9-]+$/)
+      && lastModifiedDate >= lastPreviewDate
+      && currentHash !== null
+      && currentHash !== newHash;
 }
 
 /**
@@ -363,7 +391,7 @@ async function poll(params, aioLibs) {
         if (!shouldProcessProduct(product)) counts.ignored += 1;
       });
 
-      const batches = createBatches(products, context);
+      const batches = createBatches(products.filter(shouldProcessProduct), context);
       const promiseBatches = previewAndPublish(batches, locale, adminApi);
       await processPublishBatches(promiseBatches, state, counts, aioLibs);
       timings.sample('publishedPaths');

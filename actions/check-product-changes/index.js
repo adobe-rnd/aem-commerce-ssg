@@ -22,7 +22,7 @@ async function main(params) {
 
   const running = await stateMgr.get('running');
   if (running?.value === 'true') {
-    //return { state: 'skipped' };
+    return { state: 'skipped' };
   }
 
   try {
