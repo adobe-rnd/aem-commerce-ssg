@@ -17,7 +17,7 @@ const { main } = require('../actions/check-product-changes/index');
             HLX_ORG_NAME: process.env.HLX_ORG_NAME,
             HLX_CONTENT_URL: process.env.HLX_CONTENT_URL,
             HLX_CONFIG_NAME: process.env.HLX_CONFIG_NAME,
-            LOG_LEVEL: 'debug'
+            LOG_LEVEL: 'info'
         });
         console.log(resp);
     } catch (error) {

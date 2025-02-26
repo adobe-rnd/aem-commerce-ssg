@@ -102,7 +102,9 @@ async function saveState(state, aioLibs) {
   const fileLocation = getStateFileLocation(stateKey);
   const csvData = [
     ...Object.entries(state.skus)
-      .map(([sku, { lastPreviewedAt, hash }]) => `${sku},${lastPreviewedAt.getTime()},${hash || ''}`),
+      .map(([sku, { lastPreviewedAt, hash }]) => {
+        return `${sku},${lastPreviewedAt.getTime()},${hash || ''}`;
+      }),
   ].join('\n');
   return await filesLib.write(fileLocation, csvData);
 }
@@ -195,11 +197,17 @@ function shouldProcessProduct(product) {
  * @returns {Object} Enhanced product with additional metadata
  */
 async function enrichProductWithMetadata(product, state, context) {
+  const { logger } = context;
   const { sku, urlKey, lastModifiedAt } = product;
   const lastPreviewDate = state.skus[sku]?.lastPreviewedAt || new Date(0);
   const lastModifiedDate = new Date(lastModifiedAt);
-  const productHtml = await generateProductHtml(sku, urlKey, context);
-  const newHash = crypto.createHash('sha256').update(productHtml).digest('hex');
+  let newHash = null;
+  try {
+    const productHtml = await generateProductHtml(sku, urlKey, context);
+    newHash = crypto.createHash('sha256').update(productHtml).digest('hex');
+  } catch (e) {
+    logger.error(`Error generating product HTML for SKU ${sku}:`, e);
+  }
 
   return {
     ...product,
@@ -211,51 +219,18 @@ async function enrichProductWithMetadata(product, state, context) {
 }
 
 /**
- * Creates batches of products that need to be processed
- * @param {Array} products - List of products to process
- * @param {Object} context - The context object
- * @param {AdminAPI} adminApi - The admin API instance
- * @returns {Array} Batches of products to process
- */
-function createPublishBatches(products, context, adminApi) {
-  return products.filter(shouldProcessProduct)
-    .reduce((acc, product) => {
-      const { sku, urlKey } = product;
-      const path = getProductUrl({ urlKey, sku }, context, false).toLowerCase();
-      const req = adminApi.previewAndPublish({ path, sku });
-
-      if (!acc.length || acc[acc.length - 1].length === BATCH_SIZE) {
-        acc.push([]);
-      }
-      acc[acc.length - 1].push(req);
-
-      return acc;
-    }, []);
-}
-
-/**
  * Processes publish batches and updates state
- * @param {Array} batches - Batches of products to process
- * @param {Object} state - The current state
- * @param {Object} counts - Counters for operations
- * @param {Array} products - Original product data
- * @param {Object} aioLibs - AIO libraries
- * @returns {Promise<void>}
  */
-async function processPublishBatches(batches, state, counts, products, aioLibs) {
-  for (const batch of batches) {
-    const response = await Promise.all(batch);
-    for (const { sku, previewedAt, publishedAt } of response) {
-      if (previewedAt && publishedAt) {
-        const product = products.find(p => p.sku === sku);
-        state.skus[sku] = {
-          lastPreviewedAt: previewedAt,
-          hash: product?.newHash
-        };
+async function processPublishBatches(promiseBatches, state, counts, aioLibs) {
+  const response = await Promise.all(promiseBatches);
+  for (const { records, previewedAt, publishedAt } of response) {
+    if (previewedAt && publishedAt) {
+      records.map((record) => {
+        state.skus[record.sku] = { lastPreviewedAt: previewedAt, hash: null };
         counts.published++;
-      } else {
-        counts.failed++;
-      }
+      });
+    } else {
+      counts.failed += records.length;
     }
     await saveState(state, aioLibs);
   }
@@ -263,16 +238,8 @@ async function processPublishBatches(batches, state, counts, products, aioLibs) 
 
 /**
  * Identifies and processes products that need to be deleted
- * @param {Array} remainingSkus - SKUs that weren't found in catalog
- * @param {Object} state - The current state
- * @param {Object} counts - Counters for operations
- * @param {Object} context - The context object
- * @param {AdminAPI} adminApi - The admin API instance
- * @param {Object} aioLibs - AIO libraries
- * @param {Object} logger - Logger instance
- * @returns {Promise<void>}
  */
-async function processDeletedProducts(remainingSkus, state, counts, context, adminApi, aioLibs, logger) {
+async function processDeletedProducts(remainingSkus, locale, state, counts, context, adminApi, aioLibs, logger) {
   if (!remainingSkus.length) return;
 
   try {
@@ -280,10 +247,23 @@ async function processDeletedProducts(remainingSkus, state, counts, context, adm
     const deletedProducts = publishedProducts.data.filter(({ sku }) => remainingSkus.includes(sku));
 
     // Process in batches
-    for (let i = 0; i < deletedProducts.length; i += BATCH_SIZE) {
-      const batch = deletedProducts.slice(i, i + BATCH_SIZE);
-      await deleteBatch({ counts, batch, state, adminApi });
-      await saveState(state, aioLibs);
+    if (deletedProducts.length) {
+      // delete in batches of BATCH_SIZE, then save state in case we get interrupted
+      const batches = createBatches(deletedProducts, context);
+      const promiseBatches = unpublishAndDelete(batches, locale, adminApi);
+
+      const response = await Promise.all(promiseBatches);
+      for (const { records, liveUnpublishedAt, previewUnpublishedAt } of response) {
+        if (liveUnpublishedAt && previewUnpublishedAt) {
+          records.map((record) => {
+            delete state.skus[record.sku];
+            counts.unpublished++;
+          });
+        } else {
+          counts.failed += records.length;
+        }
+        await saveState(state, aioLibs);
+      }
     }
   } catch (e) {
     logger.error('Error processing deleted products:', e);
@@ -383,60 +363,15 @@ async function poll(params, aioLibs) {
         if (!shouldProcessProduct(product)) counts.ignored += 1;
       });
 
-      const batches = createBatches(products.filter(shouldProcessProduct), context);
+      const batches = createBatches(products, context);
       const promiseBatches = previewAndPublish(batches, locale, adminApi);
-
-      // preview batches , then save state in case we get interrupted
-      const response = await Promise.all(promiseBatches);
-      for (const { records, previewedAt, publishedAt } of response) {
-        if (previewedAt && publishedAt) {
-          records.map((record) => {
-            state.skus[record.sku] = { time: previewedAt, hash: null };
-            counts.published++;
-          });
-        } else {
-          counts.failed += records.length;
-        }
-        await saveState(state, aioLibs);
-      }
+      await processPublishBatches(promiseBatches, state, counts, aioLibs);
       timings.sample('publishedPaths');
 
       // if there are still skus left, they were not in Catalog Service and may
       // have been disabled/deleted
-      if (skus.length) {
-        try {
-          const publishedProducts = await requestSpreadsheet('published-products-index', null, context);
-          // if any of the indexed PDPs is in the remaining list of skus that were not returned by the catalog service
-          // consider them deleted
-          const deletedProducts = publishedProducts.data.filter(({ sku }) => skus.includes(sku));
-          // we batch the deleted products to avoid the risk of HTTP 429 from the AEM Admin API
-          if (deletedProducts.length) {
-            // delete in batches of BATCH_SIZE, then save state in case we get interrupted
-            const batches = createBatches(deletedProducts, context);
-            const promiseBatches = unpublishAndDelete(batches, locale, adminApi);
-
-            const response = await Promise.all(promiseBatches);
-            for (const { records, liveUnpublishedAt, previewUnpublishedAt } of response) {
-              if (liveUnpublishedAt && previewUnpublishedAt) {
-                records.map((record) => {
-                  delete state.skus[record.sku];
-                  counts.unpublished++;
-                });
-              } else {
-                counts.failed += records.length;
-              }
-              await saveState(state, aioLibs);
-            }
-          }
-        } catch (e) {
-          // in case the index doesn't yet exist or any other error
-          logger.error(e);
-        }
-
-        timings.sample('unpublishedPaths');
-      } else {
-        timings.sample('unpublishedPaths', 0);
-      }
+      await processDeletedProducts(remainingSkus, locale, state, counts, context, adminApi, aioLibs, logger);
+      timings.sample('unpublishedPaths', remainingSkus.length ? undefined : 0);
 
       return timings.measures;
     }));
