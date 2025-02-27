@@ -49,11 +49,11 @@ jest.mock('../actions/utils', () => ({
 jest.spyOn(AdminAPI.prototype, 'startProcessing').mockImplementation(jest.fn());
 jest.spyOn(AdminAPI.prototype, 'stopProcessing').mockImplementation(jest.fn());
 jest.spyOn(AdminAPI.prototype, 'unpublishAndDelete').mockImplementation(jest.fn());
-jest.spyOn(AdminAPI.prototype, 'previewAndPublish').mockImplementation(({ sku }) => {
+jest.spyOn(AdminAPI.prototype, 'previewAndPublish').mockImplementation((batch) => {
   return Promise.resolve({
-    sku,
-    previewedAt: sku === 'sku-failed-due-preview' ? null: new Date(),
-    publishedAt: sku === 'sku-failed-due-publishing' ? null : new Date()
+    records: batch.map(({ sku }) => ({ sku })),
+    previewedAt: batch.some(({ sku }) => sku === 'sku-failed-due-preview') ? null : new Date(),
+    publishedAt: batch.some(({ sku }) => sku === 'sku-failed-due-publishing') ? null : new Date(),
   });
 });
 
@@ -264,12 +264,12 @@ describe('Poller', () => {
 
       // Setup initial state with existing products
       setupSkuData(
-        filesLib,
-        stateLib,
-        {
-          'sku-123': { timestamp: now - 100000, hash: 'old-hash-for-product-123' }
-        },
-        now - 700000
+          filesLib,
+          stateLib,
+          {
+            'sku-123': { timestamp: now - 100000, hash: 'old-hash-for-product-123' }
+          },
+          now - 700000
       );
 
       // Mock catalog service responses
@@ -284,13 +284,17 @@ describe('Poller', () => {
 
       // Verify hash was updated
       expect(filesLib.write).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.stringContaining('current-hash-for-product-123')
+          expect.any(String),
+          expect.stringContaining('current-hash-for-product-123')
       );
 
       // Verify API calls
       expect(AdminAPI.prototype.previewAndPublish).toHaveBeenCalledWith(
-        expect.objectContaining({ sku: 'sku-123' })
+          expect.arrayContaining([
+            expect.objectContaining({ path: 'https://store.com/url-sku-123', sku: 'sku-123' })
+          ]),
+          null,
+          1
       );
       expect(AdminAPI.prototype.startProcessing).toHaveBeenCalledTimes(1);
       expect(AdminAPI.prototype.stopProcessing).toHaveBeenCalledTimes(1);

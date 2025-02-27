@@ -249,12 +249,16 @@ async function enrichProductWithMetadata(product, state, context) {
 /**
  * Processes publish batches and updates state
  */
-async function processPublishBatches(promiseBatches, state, counts, aioLibs) {
+async function processPublishBatches(promiseBatches, state, counts, products, aioLibs) {
   const response = await Promise.all(promiseBatches);
   for (const { records, previewedAt, publishedAt } of response) {
     if (previewedAt && publishedAt) {
       records.map((record) => {
-        state.skus[record.sku] = { lastPreviewedAt: previewedAt, hash: null };
+        const product = products.find(p => p.sku === record.sku);
+        state.skus[record.sku] = {
+          lastPreviewedAt: previewedAt,
+          hash: product?.newHash
+        };
         counts.published++;
       });
     } else {
@@ -355,8 +359,8 @@ async function poll(params, aioLibs) {
 
         // add new skus to state if any
         for (const sku of allSkus) {
-          if (!state.skus[sku.sku]) {
-            state.skus[sku.sku] = { lastPreviewedAt: new Date(0), hash: null };
+          if (!state.skus[sku]) {
+            state.skus[sku] = { lastPreviewedAt: new Date(0), hash: null };
           }
         }
         timings.sample('fetchedSkus');
@@ -393,7 +397,7 @@ async function poll(params, aioLibs) {
 
       const batches = createBatches(products.filter(shouldProcessProduct), context);
       const promiseBatches = previewAndPublish(batches, locale, adminApi);
-      await processPublishBatches(promiseBatches, state, counts, aioLibs);
+      await processPublishBatches(promiseBatches, state, counts, products, aioLibs);
       timings.sample('publishedPaths');
 
       // if there are still skus left, they were not in Catalog Service and may
