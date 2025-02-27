@@ -39,7 +39,6 @@ describe('AdminAPI Optimized Tests', () => {
     test('should initialize with correct parameters', () => {
         expect(adminAPI.org).toBe('testOrg');
         expect(adminAPI.site).toBe('testSite');
-        expect(adminAPI.requestPerSecond).toBe(5);
         expect(adminAPI.publishBatchSize).toBe(100);
         expect(adminAPI.authToken).toBe('testToken');
     });
@@ -87,23 +86,30 @@ describe('AdminAPI Optimized Tests', () => {
     });
 
     test('should process preview queue', async () => {
-        const record = { path: '/test' };
-        adminAPI.previewQueue.push({ record, resolve: jest.fn() });
+        const batch = [{ path: '/test' }, { path: '/test2' }];
+        adminAPI.previewQueue.push({ records: batch, resolve: jest.fn() });
         adminAPI.processQueues();
-        expect(context.logger.info).toHaveBeenCalledWith('Queues: preview=1, publish=0, unpublish=0, inflight=0');
+        expect(context.logger.info).toHaveBeenCalledWith('Queues: preview=1, publish=0, unpublish live=0, unpublish preview=0, inflight=0, in queue=0');
     });
 
     test('should process publish queue', async () => {
-        const record = { path: '/test' };
-        adminAPI.publishQueue.push({ record, resolve: jest.fn() });
+        const batch = [{ path: '/test' }, { path: '/test2' }];
+        adminAPI.publishQueue.push({ records: batch, resolve: jest.fn() });
         adminAPI.processQueues();
-        expect(context.logger.info).toHaveBeenCalledWith('Queues: preview=0, publish=1, unpublish=0, inflight=0');
+        expect(context.logger.info).toHaveBeenCalledWith('Queues: preview=0, publish=1, unpublish live=0, unpublish preview=0, inflight=0, in queue=0');
     });
 
-    test('should process unpublish queue', async () => {
-        const record = { path: '/test' };
-        adminAPI.unpublishQueue.push({ record, resolve: jest.fn() });
+    test('should process unpublish live queue', async () => {
+        const batch = [{ path: '/test' }, { path: '/test2' }];
+        adminAPI.unpublishQueue.push({ records: batch, resolve: jest.fn() });
         adminAPI.processQueues();
-        expect(context.logger.info).toHaveBeenCalledWith('Queues: preview=0, publish=0, unpublish=1, inflight=0');
+        expect(context.logger.info).toHaveBeenCalledWith('Queues: preview=0, publish=0, unpublish live=1, unpublish preview=0, inflight=0, in queue=0');
+    });
+
+    test('should process unpublish preview queue', async () => {
+        const batch = [{ path: '/test' }, { path: '/test2' }];
+        adminAPI.unpublishPreviewQueue.push({ records: batch, resolve: jest.fn() });
+        adminAPI.processQueues();
+        expect(context.logger.info).toHaveBeenCalledWith('Queues: preview=0, publish=0, unpublish live=0, unpublish preview=1, inflight=0, in queue=0');
     });
 });
