@@ -6,11 +6,11 @@ application:
         license: Apache-2.0
         inputs:
           LOG_LEVEL: debug
-          HLX_CONTENT_URL: "https://main--aem-boilerplate-commerce--hlxsites.aem.live"
-          HLX_PRODUCTS_TEMPLATE: "https://main--aem-boilerplate-commerce--hlxsites.aem.live/products/default"
-          HLX_ORG_NAME: "hlxsites"
-          HLX_SITE_NAME: "aem-boilerplate-commerce"
-          HLX_STORE_URL: "https://www.aemshop.net"
+          HLX_CONTENT_URL: "https://main--aem-commerce-ssg-storefront--adobe-rnd.aem.live"
+          HLX_PRODUCTS_TEMPLATE: "https://main--aem-commerce-ssg-storefront--adobe-rnd.aem.live/products/default"
+          HLX_ORG_NAME: "adobe-rnd"
+          HLX_SITE_NAME: "aem-commerce-ssg-storefront"
+          HLX_STORE_URL: "https://main--aem-commerce-ssg-storefront--adobe-rnd.aem.live"
           HLX_CONFIG_NAME: "configs"
           HLX_PATH_FORMAT: "/products/{urlKey}/{sku}"
           # HLX_LOCALES: comma-seprated list of allowed locales.
@@ -22,7 +22,7 @@ application:
           pdp-renderer:
             function: actions/pdp-renderer/index.js
             web: 'yes'
-            runtime: nodejs:18
+            runtime: nodejs:22
             annotations:
               final: true
             include:

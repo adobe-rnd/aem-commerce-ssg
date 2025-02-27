@@ -19,7 +19,6 @@ const { request } = require('../../utils');
  * @param {string} params.site - The site name.
  * @param {Object} context - The context object containing store information.
  * @param {Object} [options={}] - Additional options for the AdminAPI.
- * @param {number} [options.requestPerSecond=5] - The number of requests per second.
  * @param {number} [options.publishBatchSize=100] - The batch size for publishing.
  * @param {string} [options.authToken] - The authentication token.
  */
@@ -27,16 +26,18 @@ class AdminAPI {
     previewQueue = [];
     publishQueue = [];
     unpublishQueue = [];
+    unpublishPreviewQueue = [];
     inflight = [];
+    MAX_RETRIES = 3;
+    RETRY_DELAY = 5000;
 
     constructor(
         { org, site },
         context,
-        { requestPerSecond = 5, publishBatchSize = 100, authToken } = {},
+        { publishBatchSize = 100, authToken } = {},
     ) {
         this.site = site;
         this.org = org;
-        this.requestPerSecond = requestPerSecond;
         this.publishBatchSize = publishBatchSize;
         this.authToken = authToken;
         this.context = context;
@@ -44,17 +45,18 @@ class AdminAPI {
         this.stopProcessing$ = null;
         this.lastStatusLog = 0;
         this.previewDurations = [];
+        this.queue = [];
     }
 
-    previewAndPublish(record) {
+    previewAndPublish(records, locale, batchNumber) {
         return new Promise((resolve) => {
-            this.previewQueue.push({ record, resolve });
+            this.previewQueue.push({ records, locale, batchNumber, resolve });
         });
     }
 
-    unpublishAndDelete(record) {
+    unpublishAndDelete(records, locale, batchNumber) {
         return new Promise((resolve) => {
-            this.unpublishQueue.push({ record, resolve });
+            this.unpublishQueue.push({ records, locale, batchNumber, resolve });
         });
     }
 
@@ -76,7 +78,7 @@ class AdminAPI {
         if (!this.stopProcessing$) {
             this.stopProcessing$ = new Promise((resolve) => {
                 this.onQueuesProcessed = () => {
-                    if (this.previewQueue.length + this.publishQueue.length + this.unpublishQueue.length + this.inflight.length > 0) {
+                    if (this.previewQueue.length + this.publishQueue.length + this.unpublishQueue.length + this.unpublishPreviewQueue.length + this.inflight.length > 0) {
                         // still running
                         return;
                     }
@@ -93,11 +95,25 @@ class AdminAPI {
         return this.stopProcessing$;
     }
 
-    trackInFlight(name, callback) {
-        const promise = new Promise(callback);
-        promise.name = name;
-        this.inflight.push(promise);
-        promise.then(() => this.inflight.splice(this.inflight.indexOf(promise), 1));
+        trackInFlight(name, callback) {
+        const executeTask = () => {
+            const promise = new Promise(callback);
+            promise.name = name;
+            this.inflight.push(promise);
+            promise.then(() => {
+                this.inflight.splice(this.inflight.indexOf(promise), 1);
+                if (this.queue.length > 0) {
+                    const nextTask = this.queue.shift();
+                    nextTask();
+                }
+            });
+        };
+
+        if (this.inflight.length < 2) {
+            executeTask();
+        } else {
+            this.queue.push(executeTask);
+        }
     }
 
     async execAdminRequest(method, route, path, body) {
@@ -122,111 +138,257 @@ class AdminAPI {
         return request(route, adminUrl, req);
     }
 
-    doPreview(item) {
-        this.trackInFlight(`preview ${item.record.path}`, async (complete) => {
+    async runWithRetry(fn, name) {
+        const { logger } = this.context;
+        for (let attempt = 1; attempt <= this.MAX_RETRIES; attempt++) {
+            try {
+                return await fn();
+            } catch (e) {
+                logger.error(`Error running ${name}: ${e}`);
+
+                if (attempt < this.MAX_RETRIES) {
+                    const delay = this.RETRY_DELAY * attempt;
+                    logger.info(`Retrying to run ${name} in ${delay}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+        }
+    }
+
+    async checkJobStatus(job) {
+        const { logger } = this.context;
+        let status = true;
+        while (true) {
+            const responseBody = await this.execAdminRequest('GET', 'job', `/${job.topic}/${job.name}`);
+            if (responseBody.progress) {
+                logger.debug(`Progress for ${job.topic}/${job.name}: ${responseBody.progress.processed}/${responseBody.progress.total}`);
+
+                if (responseBody.state === 'stopped') {
+                    const { processed, total, failed } = responseBody.progress;
+                    if (total === processed) {
+                        if (failed > 0) {
+                            logger.error(`Job ${job.topic}/${job.name} completed with failures: ${failed} failed jobs.`);
+                            status = false;
+                        } else {
+                            logger.debug(`Job ${job.topic}/${job.name} completed successfully: ${processed} processed jobs.`);
+                        }
+                    } else {
+                        logger.error(`Not all jobs were processed for ${job.topic}/${job.name}: ${processed}/${total}`);
+                        status = false;
+                    }
+
+                    if (!status && responseBody.links?.details) {
+                        logger.error(`Details of failed jobs for ${job.topic}/${job.name} can be found at: ${responseBody.links.details}`);
+                    }
+
+                    return status;
+                }
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for 2 seconds before the next status check
+        }
+    }
+
+    doBatchPreview(batch) {
+        this.trackInFlight(`preview ${batch.records.length} paths`, async (complete) => {
             const { logger } = this.context;
-            const { record } = item;
+            const { records, locale, batchNumber } = batch;
+            const body = {
+                forceUpdate: true,
+                paths: records.map(record => record.path),
+                delete: false
+            };
             const start = new Date();
 
-            try {
-                record.previewedAt = new Date();
-                await this.execAdminRequest('POST', 'preview', record.path);
-                logger.info(`Previewed ${record.path}`);
-                this.publishQueue.push(item);
-            } catch (e) {
-                logger.error(e);
-                // only resolve the item promise in case of an error
-                item.resolve(record);
-            } finally {
-                this.previewDurations.push(new Date() - start);
-                complete();
+            // Try to preview the batch using bulk preview API
+            const response = await this.runWithRetry(
+                async () => {
+                    return await this.execAdminRequest('POST', 'preview', '/*', body);
+                },
+                `preview batch number ${batchNumber} for locale ${locale}`
+            );
+
+            let isErrored = false;
+            if (response?.job) {
+                const status = await this.runWithRetry(
+                    async () => {
+                        return await this.checkJobStatus(response.job);
+                    },
+                    `job status check for ${response.job.topic}/${response.job.name}`
+                );
+                if (status) {
+                    logger.info(`Previewed batch number ${batchNumber} for locale ${locale}`);
+                    batch.previewedAt = new Date();
+                    this.publishQueue.push(batch);
+                } else {
+                    isErrored = true;
+                }
+            } else {
+                isErrored = true;
             }
+
+            if (isErrored) {
+                logger.error(`Error previewing batch number ${batchNumber} for locale ${locale}`);
+                // Resolve the original promises in case of an error
+                batch.resolve({records, locale, batchNumber});
+            }
+
+            // Complete the batch preview
+            this.previewDurations.push(new Date() - start);
+            complete();
         });
     }
 
-    doPublish(items) {
-        this.trackInFlight(`publish ${items.length}`, async (complete) => {
+    doBatchPublish(batch) {
+        this.trackInFlight(`publish ${batch.records.length} paths`, async (complete) => {
             const { logger } = this.context;
+            const { records, locale, batchNumber } = batch;
+            const body = {
+                forceUpdate: true,
+                paths: records.map(record => record.path),
+                delete: false
+            };
 
-            try {
-                const paths = items.map(({ record }) => record.path);
-                const body = { forceUpdate: false, paths };
-                await this.execAdminRequest('POST', 'live', '/*', body);
-                logger.info(`Published ${items.length} items`);
+            // Try to publish the batch using bulk publish API
+            const response = await this.runWithRetry(
+                async () => {
+                    return await this.execAdminRequest('POST', 'live', '/*', body);
+                },
+                `publish batch number ${batchNumber} for locale ${locale}`
+            );
 
-                // set published date after publishing done
-                items.forEach(({ record }) => record.publishedAt = new Date());
-            } catch (e) {
-                logger.error(e);
-            } finally {
-                complete();
-                // resolve the original promises
-                items.forEach(({ record, resolve }) => resolve(record));
+            let isErrored = false;
+            if (response?.job) {
+                const status = await this.runWithRetry(
+                    async () => {
+                        return await this.checkJobStatus(response.job);
+                    },
+                    `job status check for ${response.job.topic}/${response.job.name}`
+                );
+                if (status) {
+                    logger.info(`Published batch number ${batchNumber} for locale ${locale}`);
+                    batch.publishedAt = new Date();
+                } else {
+                    isErrored = true;
+                }
+            } else {
+                isErrored = true;
             }
+
+            if (isErrored) {
+                logger.error(`Error publishing batch number ${batchNumber} for locale ${locale}`);
+            }
+
+            // Complete the batch publish
+            complete();
+            // Resolve the original promises
+            batch.resolve({
+                records,
+                locale,
+                batchNumber,
+                previewedAt: batch.previewedAt,
+                publishedAt: batch.publishedAt
+            });
         });
     }
 
-    doUnpublishAndDelete(item) {
-        this.trackInFlight(`unpublish ${item.record.path}`, async (complete) => {
+    doBatchUnpublish(batch, route) {
+        this.trackInFlight(`unpublish ${route} ${batch.records.length} paths`, async (complete) => {
             const { logger } = this.context;
-            const { record } = item;
+            const { records, locale, batchNumber } = batch;
+            const body = {
+                forceUpdate: true,
+                paths: records.map(record => record.path),
+                delete: true
+            };
 
-            try {
-                await this.execAdminRequest('DELETE', 'live', record.path);
-                await this.execAdminRequest('DELETE', 'preview', record.path);
-                logger.info(`Unpublished ${record.path}`);
-                record.deletedAt = new Date();
-            } catch (e) {
-                logger.error(e);
-            } finally {
-                complete();
-                item.resolve(record);
+            // Try to unpublish live the batch using bulk publish API
+            const response = await this.runWithRetry(
+                async () => {
+                    return await this.execAdminRequest('POST', route, '/*', body);
+                },
+                `unpublish ${route} batch number ${batchNumber} for locale ${locale}`
+            );
+
+            let isErrored = false;
+            if (response?.job) {
+                const status = await this.runWithRetry(
+                    async () => {
+                        return await this.checkJobStatus(response.job);
+                    },
+                    `job status check for ${response.job.topic}/${response.job.name}`
+                );
+                if (status) {
+                    logger.info(`Unpublished ${route} batch number ${batchNumber} for locale ${locale}`);
+                    if (route === 'live') {
+                        batch.liveUnpublishedAt = new Date();
+                        this.unpublishPreviewQueue.push(batch);
+                    } else {
+                        batch.previewUnpublishedAt = new Date();
+                    }
+
+                } else {
+                    isErrored = true;
+                }
+            } else {
+                isErrored = true;
+            }
+
+            if (isErrored) {
+                logger.error(`Error unpublishing ${route} batch number ${batchNumber} for locale ${locale}`);
+                if (route === 'live') {
+                    // Resolve the original promises in case of an error
+                    batch.resolve({records, locale, batchNumber});
+                }
+            }
+
+            // Complete the batch unpublish
+            complete();
+            // Resolve the original promises
+            if (route === 'preview') {
+                batch.resolve({
+                    records,
+                    liveUnpublishedAt: batch.liveUnpublishedAt,
+                    previewUnpublishedAt: batch.previewUnpublishedAt
+                });
             }
         });
     }
 
     processQueues() {
-        if (this.lastStatusLog < new Date() - 60000) {
+        if (this.lastStatusLog < new Date() - 1000) {
             const { logger } = this.context;
             logger.info(`Queues: preview=${this.previewQueue.length},`
                 + ` publish=${this.publishQueue.length},`
-                + ` unpublish=${this.unpublishQueue.length},`
-                + ` inflight=${this.inflight.length}`);
+                + ` unpublish live=${this.unpublishQueue.length},`
+                + ` unpublish preview=${this.unpublishPreviewQueue.length},`
+                + ` inflight=${this.inflight.length},`
+                + ` in queue=${this.queue.length}`);
             this.lastStatusLog = new Date();
         }
 
-        let rateLimitBudget = this.requestPerSecond;
-
         // first drain the preview queue
-        while (this.previewQueue.length && rateLimitBudget > 0) {
-            const item = this.previewQueue.shift();
-            this.doPreview(item);
-            rateLimitBudget -= 1;
+        if (this.previewQueue.length > 0) {
+            const batch = this.previewQueue.shift();
+            this.doBatchPreview(batch);
         }
 
-        // then drain the unpublish queue
-        while (this.unpublishQueue.length && rateLimitBudget > 0) {
-            const item = this.unpublishQueue.shift();
-            this.doUnpublishAndDelete(item);
-            rateLimitBudget -= 1;
+        // then drain the publish queue
+        if (this.publishQueue.length > 0) {
+            const batch = this.publishQueue.shift();
+            this.doBatchPublish(batch);
         }
 
-        // next drain the publish queues, but collect items to publish into buckets
-        let publishBatch = [];
-        while (this.publishQueue.length && rateLimitBudget > 0) {
-            const item = this.publishQueue.shift();
-            publishBatch.push(item);
-
-            if (publishBatch.length === this.publishBatchSize) {
-                this.doPublish(publishBatch);
-                rateLimitBudget -= 1;
-                publishBatch = [];
-            }
+        // then drain the unpublish live queue
+        if (this.unpublishQueue.length > 0) {
+            const batch = this.unpublishQueue.shift();
+            this.doBatchUnpublish(batch, 'live');
         }
 
-        if (publishBatch.length) {
-            // publish remaining items
-            this.doPublish(publishBatch);
+        // then drain the unpublish preview queue
+        if (this.unpublishPreviewQueue.length > 0) {
+            const batch = this.unpublishPreviewQueue.shift();
+            this.doBatchUnpublish(batch, 'preview');
         }
 
         if (this.onQueuesProcessed) {

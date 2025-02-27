@@ -10,30 +10,10 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
-const fs = require('fs');
-const path = require('path');
-
 const { Core } = require('@adobe/aio-sdk')
-const Handlebars = require('handlebars');
-const { errorResponse, stringParameters, requestSaaS, mapLocale } = require('../utils');
-const { extractPathDetails, findDescription, prepareBaseTemplate, getPrimaryImage, generatePriceString, getImageList } = require('./lib');
-const { ProductQuery, ProductByUrlKeyQuery } = require('../queries');
-const { generateLdJson } = require('./ldJson');
-
-function toTemplateProductData(baseProduct) {
-  const templateProductData = { ...baseProduct };
-  const primaryImage = getPrimaryImage(baseProduct)?.url;
-
-  templateProductData.hasImages = baseProduct.images?.length > 0;
-  templateProductData.imageList = getImageList(primaryImage, baseProduct.images);
-  templateProductData.priceString = generatePriceString(baseProduct);
-  templateProductData.metaDescription = findDescription(baseProduct);
-  templateProductData.metaImage = primaryImage;
-  templateProductData.primaryImage = primaryImage;
-  templateProductData.metaTitle = baseProduct.metaTitle || baseProduct.name || 'Product Details';
-
-  return templateProductData;
-}
+const { errorResponse, stringParameters, mapLocale } = require('../utils');
+const { extractPathDetails } = require('./lib');
+const { generateProductHtml } = require('./render');
 
 /**
  * Parameters
@@ -74,9 +54,9 @@ async function main (params) {
     const configName = configNameQuery || HLX_CONFIG_NAME;
     const contentUrl = contentUrlQuery || HLX_CONTENT_URL;
     const storeUrl = storeUrlQuery || HLX_STORE_URL || contentUrl;
-    const productsTemplate = productsTemplateQuery || HLX_PRODUCTS_TEMPLATE;
     const allowedLocales = HLX_LOCALES ? HLX_LOCALES.split(',').map(a => a.trim()) : [];
     let context = { contentUrl, storeUrl, configName, logger, pathFormat, allowedLocales };
+    context.productsTemplate = productsTemplateQuery || HLX_PRODUCTS_TEMPLATE;
 
     const result = extractPathDetails(__ow_path, pathFormat);
     logger.debug('Path parse results', JSON.stringify(result, null, 4));
@@ -97,60 +77,22 @@ async function main (params) {
     }
 
     // Retrieve base product
-    let baseProduct;
-    if (sku) {
-      const baseProductData = await requestSaaS(ProductQuery, 'ProductQuery', { sku: sku.toUpperCase() }, context);
-      if (!baseProductData?.data?.products || baseProductData?.data?.products?.length === 0) {
-        return errorResponse(404, 'Product not found', logger);
-      }
-      baseProduct = baseProductData.data.products[0];
-    } else if (urlKey) {
-      const baseProductData = await requestSaaS(ProductByUrlKeyQuery, 'ProductByUrlKey', { urlKey }, context);
-      if (!baseProductData?.data?.productSearch || baseProductData?.data?.productSearch?.items?.length === 0) {
-        return errorResponse(404, 'Product not found', logger);
-      }
-      baseProduct = baseProductData.data.productSearch.items[0].productView;
-    }
-    logger.debug('Retrieved base product', JSON.stringify(baseProduct, null, 4));
-
-    // Assign meta tag data for template
-    const templateProductData = toTemplateProductData(baseProduct);
-
-    // Generate LD-JSON
-    const ldJson = await generateLdJson(baseProduct, context);
-
-    // Load the Handlebars template
-    const [pageHbs, headHbs, productDetailsHbs] = ['page', 'head', 'product-details'].map((template) => fs.readFileSync(path.join(__dirname, 'templates', `${template}.hbs`), 'utf8'));
-    const pageTemplate = Handlebars.compile(pageHbs);
-    Handlebars.registerPartial('head', headHbs);
-
-    if (productsTemplate) {
-      // Retrieve default product page as template
-      const blocksToReplace = [
-        'product-details',
-      ];
-      const baseTemplate = await prepareBaseTemplate(productsTemplate, blocksToReplace);
-
-      Handlebars.registerPartial('product-details', productDetailsHbs);
-      Handlebars.registerPartial('content', baseTemplate);
-    } else {
-      // Use product details block as sole content if no products template is defined
-      Handlebars.registerPartial('content', productDetailsHbs);
-    }
+    const productHtml = await generateProductHtml(sku, urlKey, context);
 
     const response = {
       statusCode: 200,
-      body: pageTemplate({
-        ...templateProductData,
-        ldJson,
-      }),
+      body: productHtml,
     }
     logger.info(`${response.statusCode}: successful request`)
     return response;
 
   } catch (error) {
     logger.error(error)
-    return errorResponse(500, 'server error', logger)
+    // Return appropriate status code if specified
+    if (error.statusCode) {
+      return errorResponse(error.statusCode, error.message, logger);
+    }
+    return errorResponse(500, 'server error', logger);
   }
 }
 
