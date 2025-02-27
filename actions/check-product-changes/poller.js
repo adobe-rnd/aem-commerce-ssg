@@ -356,8 +356,8 @@ async function poll(params, aioLibs) {
 
         // add new skus to state if any
         for (const sku of allSkus) {
-          if (!state.skus[sku]) {
-            state.skus[sku] = { lastPreviewedAt: new Date(0), hash: null };
+          if (!state.skus[sku.sku]) {
+            state.skus[sku.sku] = { lastPreviewedAt: new Date(0), hash: null };
           }
         }
         timings.sample('fetchedSkus');

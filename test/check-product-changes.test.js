@@ -127,7 +127,7 @@ describe('Poller', () => {
         return Promise.resolve({
           data: {
             productSearch: {
-              items: skus.map(sku => ({ productView: sku }))
+              items: skus.map(sku => ({ productView: {sku} }))
             }
           },
         });
