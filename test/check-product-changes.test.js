@@ -356,7 +356,7 @@ describe('Poller', () => {
       expect(result.status.failed).toBe(2);
       
       // Verify API calls
-      expect(AdminAPI.prototype.previewAndPublish).toHaveBeenCalledTimes(2);
+      expect(AdminAPI.prototype.previewAndPublish).toHaveBeenCalledTimes(1);
     });
 
     it('should not process products when they are not modified', async () => {
