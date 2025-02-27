@@ -50,13 +50,13 @@ class AdminAPI {
 
     previewAndPublish(records, locale, batchNumber) {
         return new Promise((resolve) => {
-            this.previewQueue.push({ records, resolve, locale, batchNumber });
+            this.previewQueue.push({ records, locale, batchNumber, resolve });
         });
     }
 
     unpublishAndDelete(records, locale, batchNumber) {
         return new Promise((resolve) => {
-            this.unpublishQueue.push({ records, resolve, locale, batchNumber });
+            this.unpublishQueue.push({ records, locale, batchNumber, resolve });
         });
     }
 
