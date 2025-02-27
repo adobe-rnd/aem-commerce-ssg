@@ -13,7 +13,7 @@ governing permissions and limitations under the License.
 const { Timings, aggregate } = require('./lib/benchmark');
 const { AdminAPI } = require('./lib/aem');
 const { requestSaaS, requestSpreadsheet, isValidUrl, getProductUrl, mapLocale } = require('../utils');
-const { GetAllSkusQuery, GetLastModifiedQuery } = require('../queries');
+const { GetLastModifiedQuery } = require('../queries');
 const { Core } = require('@adobe/aio-sdk');
 const { generateProductHtml } = require('../pdp-renderer/render');
 const crypto = require('crypto');
@@ -299,7 +299,7 @@ async function processDeletedProducts(remainingSkus, locale, state, counts, cont
   }
 }
 
-async function poll(params, aioLibs) {
+async function poll(params, aioLibs, skuFileName = 'check-product-changes/allSkus.json') {
   checkParams(params);
 
   const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' });
@@ -311,7 +311,6 @@ async function poll(params, aioLibs) {
     HLX_PRODUCTS_TEMPLATE: productsTemplate,
     authToken,
     skusRefreshInterval = 600000,
-    contentUrl,
   } = params;
   const storeUrl = params.HLX_STORE_URL ? params.HLX_STORE_URL : `https://main--${siteName}--${orgName}.aem.live`;
   const contentUrl = params.HLX_CONTENT_URL ? params.HLX_CONTENT_URL : `https://main--${siteName}--${orgName}.aem.live`;
@@ -350,17 +349,11 @@ async function poll(params, aioLibs) {
       // Refresh SKUs if needed
       if (timings.now - state.skusLastQueriedAt >= skusRefreshInterval) {
         state.skusLastQueriedAt = new Date();
-        const { filesLib, } = aioLibs;
-        const allskuBuffer = await filesLib.read('check-product-changes/allSkus.json');
-        const allSkusString = allskuBuffer.toString();
-        
-        let allSkus = allSkusString.replace(/[\[\]]/g,'');
 
-        allSkus = allSkus.split(',');
-        
-        allSkus = allSkus.map(sku =>           
-          sku.split(':')[0].replace(/\"/g,'')
-        ).filter(Boolean);
+        const { filesLib } = aioLibs;
+        const allskuBuffer = await filesLib.read(skuFileName);
+        const allSkusString = allskuBuffer.toString();        
+        let allSkus = JSON.parse(allSkusString);               
 
         // add new skus to state if any
         for (const sku of allSkus) {

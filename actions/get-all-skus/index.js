@@ -13,13 +13,16 @@ governing permissions and limitations under the License.
 */
 
 const { CategoriesQuery, ProductCountQuery, ProductsQuery, } = require('../queries');
-const { Core, State, Files } = require('@adobe/aio-sdk')
+const { Core, Files } = require('@adobe/aio-sdk')
 const { requestSaaS, requestAPIMesh } = require('../utils');
 
 async function getSkus(categoryPath, context) {
   const productsResp = await requestSaaS(ProductsQuery, 'getProducts', { currentPage: 1, categoryPath }, context);
   const products = [...productsResp.data.productSearch.items.map(({ productView }) => (
-      `${productView.sku}:${productView.urlKey}`
+    {
+      urlKey: productView.urlKey,
+      sku: productView.sku
+    }
   ))];  
   let maxPage = productsResp.data.productSearch.page_info.total_pages;
 
@@ -115,14 +118,11 @@ async function main(params) {
     contentUrl: process.env.CORE_ENDPOINT
   };
 
-  const stateLib = await State.init();
   const filesLib = await Files.init();
 
   const allSkus = await getAllSkus(context);
 
   await filesLib.write('check-product-changes/allSkus.json', JSON.stringify(allSkus))
-
-  let result = await filesLib.read('check-product-changes/allSkus.json');
 
   const response = {
     statusCode: 200

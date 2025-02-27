@@ -17,7 +17,15 @@ const { main } = require('../actions/check-product-changes/index');
             HLX_ORG_NAME: process.env.HLX_ORG_NAME,
             HLX_CONTENT_URL: process.env.HLX_CONTENT_URL,
             HLX_CONFIG_NAME: process.env.HLX_CONFIG_NAME,
-            LOG_LEVEL: 'info'
+            HLX_STORE_URL: process.env.CATALOG_ENDPOINT,
+            LOG_LEVEL: 'info',
+            storeCode: process.env.MAGENTO_STORE_VIEW_CODE, 
+            storeUrl: process.env.CATALOG_ENDPOINT, 
+            contentUrl: process.env.CORE_ENDPOINT,
+            configName: 'configs', 
+            contentUrl: process.env.CORE_ENDPOINT,
+            PLPURIPrefix: 'prefix', 
+
         });
         console.log(resp);
     } catch (error) {
