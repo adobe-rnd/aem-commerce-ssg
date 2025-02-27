@@ -116,8 +116,15 @@ describe('Poller', () => {
     const skuEntries = Object.entries(skuData).map(([sku, { timestamp, hash = '' }]) => 
       `${sku},${timestamp},${hash}`
     ).join('\n');
-    
-    filesLib.read.mockResolvedValueOnce(skuEntries);
+
+    let skuInfo = Object.entries(skuData).map(([sku]) => (
+      {
+        sku: `${sku}`
+      }
+    ));
+
+    skuInfo = JSON.stringify(skuInfo);    
+    filesLib.read.mockResolvedValueOnce(skuEntries).mockResolvedValueOnce(skuInfo);
     stateLib.get.mockResolvedValueOnce({ value: lastQueriedAt });
   };
 

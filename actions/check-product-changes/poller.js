@@ -13,7 +13,7 @@ governing permissions and limitations under the License.
 const { Timings, aggregate } = require('./lib/benchmark');
 const { AdminAPI } = require('./lib/aem');
 const { requestSaaS, requestSpreadsheet, isValidUrl, getProductUrl, mapLocale } = require('../utils');
-const { GetAllSkusQuery, GetLastModifiedQuery } = require('../queries');
+const { GetLastModifiedQuery } = require('../queries');
 const { Core } = require('@adobe/aio-sdk');
 const { generateProductHtml } = require('../pdp-renderer/render');
 const crypto = require('crypto');
@@ -299,7 +299,7 @@ async function processDeletedProducts(remainingSkus, locale, state, counts, cont
   }
 }
 
-async function poll(params, aioLibs) {
+async function poll(params, aioLibs, skuFileName = 'check-product-changes/allSkus.json') {
   checkParams(params);
 
   const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' });
@@ -349,10 +349,11 @@ async function poll(params, aioLibs) {
       // Refresh SKUs if needed
       if (timings.now - state.skusLastQueriedAt >= skusRefreshInterval) {
         state.skusLastQueriedAt = new Date();
-        const allSkusResp = await requestSaaS(GetAllSkusQuery, 'getAllSkus', {}, context);
-        const allSkus = allSkusResp.data.productSearch.items
-          .map(({ productView }) => productView || {})
-          .filter(Boolean);
+
+        const { filesLib } = aioLibs;
+        const allskuBuffer = await filesLib.read(skuFileName);
+        const allSkusString = allskuBuffer.toString();        
+        let allSkus = JSON.parse(allSkusString);               
 
         // add new skus to state if any
         for (const sku of allSkus) {
