@@ -136,17 +136,6 @@ const VariantsQuery = `query VariantsQuery($sku: String!) {
   }
 }`;
 
-const GetAllSkusQuery = `query getAllSkus {
-  productSearch(phrase: "", page_size: 500) {
-    items {
-      productView {
-        urlKey
-        sku
-      }
-    }
-  }
-}`;
-
 const GetLastModifiedQuery = `query getLastModified($skus: [String]!) {
   products(skus: $skus) {
     sku
@@ -227,7 +216,6 @@ module.exports = {
     ProductQuery,
     ProductByUrlKeyQuery,
     VariantsQuery,
-    GetAllSkusQuery,
     GetAllSkusPaginatedQuery,
     GetLastModifiedQuery,
     CategoriesQuery,

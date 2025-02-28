@@ -14,7 +14,8 @@ governing permissions and limitations under the License.
 
 const { CategoriesQuery, ProductCountQuery, ProductsQuery, } = require('../queries');
 const { Core, Files } = require('@adobe/aio-sdk')
-const { requestSaaS, requestAPIMesh } = require('../utils');
+const { requestSaaS } = require('../utils');
+const { SKU_FILE_LOCATION } = require('../utils');
 
 async function getSkus(categoryPath, context) {
   const productsResp = await requestSaaS(ProductsQuery, 'getProducts', { currentPage: 1, categoryPath }, context);
@@ -47,7 +48,7 @@ async function getAllCategories(context) {
   let totalPages = 1;
 
   do {
-    const categoriesResp = await requestAPIMesh(CategoriesQuery, 'getCategories', {
+    const categoriesResp = await requestSaaS(CategoriesQuery, 'getCategories', {
       currentPage: currentPage,
       pageSize: 200
     }, context);
@@ -111,8 +112,6 @@ async function getAllSkus(context) {
 async function main(params) {
   const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' })
   const context = { 
-    storeCode: process.env.MAGENTO_STORE_VIEW_CODE, 
-    storeUrl: process.env.CATALOG_ENDPOINT, 
     configName: 'configs', 
     logger: logger, 
     contentUrl: process.env.CORE_ENDPOINT
@@ -122,7 +121,12 @@ async function main(params) {
 
   const allSkus = await getAllSkus(context);
 
-  await filesLib.write('check-product-changes/allSkus.json', JSON.stringify(allSkus))
+  await filesLib.write(SKU_FILE_LOCATION, JSON.stringify(allSkus))
+
+  let result = await filesLib.read(SKU_FILE_LOCATION);
+  result = result.toString();
+  result = JSON.parse(result);
+  console.log("result", result);
 
   const response = {
     statusCode: 200

@@ -38,7 +38,7 @@ application:
               authToken: ${AEM_ADMIN_API_AUTH_TOKEN}
             annotations:
               final: true
-          get-all-skus:
+          fetch-all-products:
             function: actions/get-all-skus/index.js
             web: 'yes'
             runtime: nodejs:22

@@ -17,7 +17,7 @@ const { GetLastModifiedQuery } = require('../queries');
 const { Core } = require('@adobe/aio-sdk');
 const { generateProductHtml } = require('../pdp-renderer/render');
 const crypto = require('crypto');
-
+const { SKU_FILE_LOCATION } = require('../utils');
 const BATCH_SIZE = 50;
 const STATE_FILE_PREFIX = 'check-product-changes';
 const STATE_FILE_EXT = 'csv';
@@ -299,7 +299,7 @@ async function processDeletedProducts(remainingSkus, locale, state, counts, cont
   }
 }
 
-async function poll(params, aioLibs, skuFileName = 'check-product-changes/allSkus.json') {
+async function poll(params, aioLibs, skuFileName = SKU_FILE_LOCATION) {
   checkParams(params);
 
   const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' });

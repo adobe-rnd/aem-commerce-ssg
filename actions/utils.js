@@ -12,6 +12,8 @@ governing permissions and limitations under the License.
 
 /* This file exposes some common utilities for your actions */
 
+const SKU_FILE_LOCATION = 'check-product-changes/allSkus.json';
+
 /**
  *
  * Returns a log ready string of the action input parameters.
@@ -433,4 +435,5 @@ module.exports = {
   isValidUrl,
   getProductUrl,
   mapLocale,
+  SKU_FILE_LOCATION,
 }
