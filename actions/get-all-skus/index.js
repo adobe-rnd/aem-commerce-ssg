@@ -44,25 +44,21 @@ async function getSkus(categoryPath, context) {
 
 async function getAllCategories(context) {
   const categories = [];
-  let currentPage = 1;
-  let totalPages = 1;
-
-  do {
+  
+  
     const categoriesResp = await requestSaaS(CategoriesQuery, 'getCategories', {
-      currentPage: currentPage,
-      pageSize: 200
+      
     }, context);
-    const { items, page_info } = categoriesResp.data.commerce_categories;
 
-    for (const {url_path, level, name} of items) {
+    const items = categoriesResp.data.categories;
+
+    for (const {urlPath, level, name} of items) {
       const index = parseInt(level);
       categories[index] = categories[index] || [];
-      categories[index].push({url_path, name, level});
+      categories[index].push({urlPath, name, level});
     }
 
-    currentPage = page_info.current_page + 1;
-    totalPages = page_info.total_pages;
-  } while (currentPage <= totalPages);
+  
 
   return categories;
 }

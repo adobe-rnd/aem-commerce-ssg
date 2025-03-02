@@ -156,23 +156,12 @@ const GetAllSkusPaginatedQuery = `query getAllSkusPaginated($currentPage: Int!) 
 }`;
 
 const CategoriesQuery = `
-  query getCategories($currentPage: Int, $pageSize: Int) {
-      commerce_categories(filters: {}, include_in_menu: 0, pageSize: $pageSize, currentPage: $currentPage ) {
-        total_count
-        page_info {
-          current_page
-          total_pages
-        }
-        items {
-          error {
-            code
-            message
-          }
+  query getCategories {
+      categories {
           name
           level
-          url_path
-        }
-      }
+          urlPath
+      }      
     }
 `;
 
