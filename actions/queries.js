@@ -155,30 +155,6 @@ const GetAllSkusPaginatedQuery = `query getAllSkusPaginated($currentPage: Int!) 
 	}
 }`;
 
-const CategoriesQuery = `
-  query getCategories {
-      categories {
-          name
-          level
-          urlPath
-      }      
-    }
-`;
-
-const ProductCountQuery = `
-  query getProductCount($categoryPath: String!) {
-    productSearch(
-      phrase:"",
-      filter: [ { attribute: "categoryPath", eq: $categoryPath } ],
-      page_size: 1
-    ) {
-      page_info {
-        total_pages
-      }
-    }
-  }
-`;
-
 const ProductsQuery = `
   query getProducts($currentPage: Int, $categoryPath: String!) {
     productSearch(
@@ -207,7 +183,5 @@ module.exports = {
     VariantsQuery,
     GetAllSkusPaginatedQuery,
     GetLastModifiedQuery,
-    CategoriesQuery,
-    ProductCountQuery,
     ProductsQuery
 };

@@ -12,13 +12,13 @@ governing permissions and limitations under the License.
 
 */
 
-const { CategoriesQuery, ProductCountQuery, ProductsQuery, } = require('../queries');
+const { ProductsQuery, } = require('../queries');
 const { Core, Files } = require('@adobe/aio-sdk')
 const { requestSaaS } = require('../utils');
 const { SKU_FILE_LOCATION } = require('../utils');
 
 async function getSkus(categoryPath, context) {
-  const productsResp = await requestSaaS(ProductsQuery, 'getProducts', { currentPage: 1, categoryPath }, context);
+  let productsResp = await requestSaaS(ProductsQuery, 'getProducts', { currentPage: 1, categoryPath }, context);
   const products = [...productsResp.data.productSearch.items.map(({ productView }) => (
     {
       urlKey: productView.urlKey,
@@ -33,76 +33,16 @@ async function getSkus(categoryPath, context) {
   }
 
   for (let currentPage = 2; currentPage <= maxPage; currentPage++) {
-    requestSaaS(ProductsQuery, 'getProducts', { currentPage, categoryPath }, context)
-      .then((resp) => products.push(...resp.data.productSearch.items.map(({ productView }) => (
-        productView.sku
-      ))));
+    productsResp = await requestSaaS(ProductsQuery, 'getProducts', { currentPage, categoryPath }, context);
+     products.push(...productsResp.data.productSearch.items.map(({ productView }) => (
+      {
+        urlKey: productView.urlKey,
+        sku: productView.sku
+      }
+    )));
   }
 
   return products;
-}
-
-async function getAllCategories(context) {
-  const categories = [];
-  
-  
-    const categoriesResp = await requestSaaS(CategoriesQuery, 'getCategories', {
-      
-    }, context);
-
-    const items = categoriesResp.data.categories;
-
-    for (const {urlPath, level, name} of items) {
-      const index = parseInt(level);
-      categories[index] = categories[index] || [];
-      categories[index].push({urlPath, name, level});
-    }
-
-  
-
-  return categories;
-}
-
-async function getAllSkus(context) {
-  // TODO: Add measurements like timer
-  try {
-    const productCountResp = await requestSaaS(ProductCountQuery, 'getProductCount', { categoryPath: '' }, context);
-    const productCount = productCountResp.data.productSearch?.page_info?.total_pages;
-
-    if (!productCount) {
-      throw new Error('Unknown product count.');
-    }
-
-    if (productCount <= 10000) {
-      // we can get everything from the default category
-      return getSkus('', context);
-    }
-
-    const products = new Set();
-    // we have to traverse the category tree
-    const categories = await getAllCategories(context);
-
-    outer: for (const category of categories) {
-      if (!category) continue;
-      while (category.length) {
-        const slice = category.splice(0, 50);
-        const fetchedProducts = await Promise.all(slice.map((category) => getSkus(category.urlPath, context)));
-        fetchedProducts.flatMap((skus) => skus).forEach((sku) => products.add(sku));
-        if (products.size >= productCount) {
-          // break if we got all products already
-          break outer;
-        }
-      }
-    }
-
-    if (products.size !== productCount) {
-      console.warn(`Expected ${productCount} products, but got ${products.size}.`);
-    }
-
-    return [...products];
-  } finally {
-    // timer.stop();
-  }
 }
 
 async function main(params) {
@@ -115,7 +55,7 @@ async function main(params) {
 
   const filesLib = await Files.init();
 
-  const allSkus = await getAllSkus(context);
+  const allSkus = await getSkus('', context);
 
   await filesLib.write(SKU_FILE_LOCATION, JSON.stringify(allSkus))
 
