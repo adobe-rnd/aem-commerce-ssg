@@ -10,7 +10,7 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
-const { AdminAPI } = require('../actions/check-product-changes/lib/aem');
+const { AdminAPI } = require('../actions/lib/aem');
 const { request } = require('../actions/utils');
 
 jest.mock('../actions/utils', () => ({

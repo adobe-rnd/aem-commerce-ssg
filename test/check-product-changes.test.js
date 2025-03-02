@@ -13,7 +13,7 @@ governing permissions and limitations under the License.
 const assert = require('node:assert/strict');
 const { loadState, saveState, getStateFileLocation, poll } = require('../actions/check-product-changes/poller.js');
 const Files = require('./__mocks__/files.js');
-const { AdminAPI } = require('../actions/check-product-changes/lib/aem');
+const { AdminAPI } = require('../actions/lib/aem.js');
 const { requestSaaS, requestSpreadsheet, isValidUrl} = require('../actions/utils');
 const { MockState } = require('./__mocks__/state.js');
 

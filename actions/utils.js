@@ -12,7 +12,8 @@ governing permissions and limitations under the License.
 
 /* This file exposes some common utilities for your actions */
 
-const SKU_FILE_LOCATION = 'check-product-changes/allSkus.json';
+const FILE_PREFIX = 'check-product-changes';
+const FILE_EXT = 'csv';
 
 /**
  *
@@ -435,5 +436,6 @@ module.exports = {
   isValidUrl,
   getProductUrl,
   mapLocale,
-  SKU_FILE_LOCATION,
+  FILE_PREFIX,
+  FILE_EXT,
 }

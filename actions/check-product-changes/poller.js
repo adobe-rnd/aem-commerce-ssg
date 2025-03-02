@@ -10,20 +10,18 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
-const { Timings, aggregate } = require('./lib/benchmark');
-const { AdminAPI } = require('./lib/aem');
+const { Timings, aggregate } = require('../lib/benchmark');
+const { AdminAPI } = require('../lib/aem');
 const { requestSaaS, requestSpreadsheet, isValidUrl, getProductUrl, mapLocale } = require('../utils');
 const { GetLastModifiedQuery } = require('../queries');
 const { Core } = require('@adobe/aio-sdk');
 const { generateProductHtml } = require('../pdp-renderer/render');
 const crypto = require('crypto');
-const { SKU_FILE_LOCATION } = require('../utils');
+const { FILE_PREFIX, FILE_EXT } = require('../utils');
 const BATCH_SIZE = 50;
-const STATE_FILE_PREFIX = 'check-product-changes';
-const STATE_FILE_EXT = 'csv';
 
 function getStateFileLocation(stateKey) {
-  return `${STATE_FILE_PREFIX}/${stateKey}.${STATE_FILE_EXT}`;
+  return `${FILE_PREFIX}/${stateKey}.${FILE_EXT}`;
 }
 
 function getSkusLastQueriedStateKey(stateKey) {
@@ -299,7 +297,7 @@ async function processDeletedProducts(remainingSkus, locale, state, counts, cont
   }
 }
 
-async function poll(params, aioLibs, skuFileName = SKU_FILE_LOCATION) {
+async function poll(params, aioLibs) {
   checkParams(params);
 
   const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' });
@@ -351,9 +349,10 @@ async function poll(params, aioLibs, skuFileName = SKU_FILE_LOCATION) {
         state.skusLastQueriedAt = new Date();
 
         const { filesLib } = aioLibs;
-        const allskuBuffer = await filesLib.read(skuFileName);
-        const allSkusString = allskuBuffer.toString();        
-        let allSkus = JSON.parse(allSkusString);               
+        const productsFileName = getStateFileLocation(`${locale || 'default'}-products`);
+        const allskuBuffer = await filesLib.read(productsFileName);
+        const allSkusString = allskuBuffer.toString();
+        let allSkus = JSON.parse(allSkusString);
 
         // add new skus to state if any
         for (const sku of allSkus) {

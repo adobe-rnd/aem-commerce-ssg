@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { main } = require('../actions/check-product-changes/index');
+const { main } = require('../actions/fetch-all-products/index');
 
 (async () => {
     try {
@@ -11,13 +11,9 @@ const { main } = require('../actions/check-product-changes/index');
                     auth: process.env.AIO_runtime_auth,
                 }
             },
-            authToken: process.env.EDS_API_KEY,
             HLX_SITE_NAME: process.env.HLX_SITE_NAME,
-            HLX_PATH_FORMAT: process.env.HLX_PATH_FORMAT,
             HLX_ORG_NAME: process.env.HLX_ORG_NAME,
             HLX_CONTENT_URL: process.env.HLX_CONTENT_URL,
-            HLX_CONFIG_NAME: process.env.HLX_CONFIG_NAME,
-            HLX_STORE_URL: process.env.CATALOG_ENDPOINT,
             LOG_LEVEL: 'info',
         });
         console.log(JSON.stringify(resp, null, 2));

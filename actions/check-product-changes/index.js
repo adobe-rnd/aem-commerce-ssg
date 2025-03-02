@@ -12,7 +12,7 @@ governing permissions and limitations under the License.
 
 const { Core, State, Files } = require('@adobe/aio-sdk');
 const { poll } = require('./poller');
-const { StateManager } = require('./lib/state');
+const { StateManager } = require('../lib/state');
 
 async function main(params) {
   const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' });
