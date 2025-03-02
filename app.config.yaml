@@ -39,7 +39,7 @@ application:
             annotations:
               final: true
           fetch-all-products:
-            function: actions/get-all-skus/index.js
+            function: actions/fetch-all-products/index.js
             web: 'yes'
             runtime: nodejs:22
             annotations:
