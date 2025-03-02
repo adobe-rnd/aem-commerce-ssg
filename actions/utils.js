@@ -274,83 +274,6 @@ async function requestSaaS(query, operationName, variables, context) {
 }
 
 /**
- * Requests data from graphQL endpoint.
- * 
- * @param {*} endpoint 
- * @param {*} query 
- * @param {*} headers 
- * @param {*} variables 
- * @param {*} operationName 
- * @param {*} context 
- * @returns 
- */
-function graphQLRequest(endpoint, query, headers, variables, operationName, context) {
-  const method = 'POST';
-  const params = Object.keys(variables).length ? `(${JSON.stringify(variables)})` : '';
-  return request(
-      operationName + params,
-      endpoint,
-      {
-        method,
-        headers,
-        body: JSON.stringify({
-          operationName,
-          query,
-          variables,
-        })
-      },
-      context
-  );
-}
-
-/**
- * Requests the data from api mesh.
- * 
- * @param {*} query 
- * @param {*} operationName 
- * @param {*} variables 
- * @param {*} context 
- * @param {*} configOverrides 
- * @returns 
- */
-async function requestAPIMesh(query, operationName, variables, context, configOverrides = {}) {
-  const { storeUrl, measurements } = context;
-  const timer = measurements.timer(`requestAPIMesh-${operationName}`);
-  const config = {
-    ... (await getConfig(context)),
-    ...configOverrides
-  };
-
-  try {
-    const headers = {
-      'Content-Type': 'application/json',
-      'origin': storeUrl,
-      'magento-customer-group': config['commerce-customer-group'],
-      'magento-environment-id': config['commerce-environment-id'],
-      'magento-store-code': config['commerce-store-code'],
-      'magento-store-view-code': config['commerce-website-code'] + '_' + context.lang,
-      'magento-website-code': config['commerce-website-code'],
-      'x-api-key': config['commerce-x-api-key'],
-      // bypass LiveSearch cache
-      'Magento-Is-Preview': true,
-      'mesh_context': config['apimesh-context'],
-      'mesh_locale': context.lang,
-      'mesh_market': config['apimesh-market'],
-    };
-    return graphQLRequest(
-      config['commerce-saas-endpoint'],
-      query,
-      headers,
-      variables,
-      operationName,
-      context
-    );
-  } finally {
-    timer.stop();
-  }
-}
-
-/**
  * Checks if a given string is a valid URL.
  *
  * @param {string} string - The string to be checked.
@@ -429,7 +352,6 @@ module.exports = {
   stringParameters,
   checkMissingRequestInputs,
   requestSaaS,
-  requestAPIMesh,
   getConfig,
   request,
   requestSpreadsheet,
