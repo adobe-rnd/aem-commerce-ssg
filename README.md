@@ -1,7 +1,5 @@
 # AppBuilder SSG Template for Edge Delivery Storefront
 
-_Please note: this is WIP and not ready for production use_
-
 ## Setup
 
 - Populate the `.env` file in the project root and fill it as shown [below](#env)
@@ -105,3 +103,5 @@ You can generate this file using the command `aio app use`.
 The action uses LiveSearch to list products from the store.
 PLEASE NOTE that LiveSearch has a hard limit on the maximum number of results that can be returned in a search query: 10,000.
 For further details, please see https://experienceleague.adobe.com/en/docs/commerce-merchant-services/live-search/boundaries-limits#query
+
+To mitigate that issue, the [fetch-all-products](/actions/fetch-all-products/index.js) action goes into each of the categories to fetch all products under each category. Then it combines all products and removes any duplicates.
