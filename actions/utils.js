@@ -12,6 +12,9 @@ governing permissions and limitations under the License.
 
 /* This file exposes some common utilities for your actions */
 
+const FILE_PREFIX = 'check-product-changes';
+const FILE_EXT = 'csv';
+
 /**
  *
  * Returns a log ready string of the action input parameters.
@@ -270,7 +273,6 @@ async function requestSaaS(query, operationName, variables, context) {
   return response;
 }
 
-
 /**
  * Checks if a given string is a valid URL.
  *
@@ -356,4 +358,6 @@ module.exports = {
   isValidUrl,
   getProductUrl,
   mapLocale,
+  FILE_PREFIX,
+  FILE_EXT,
 }

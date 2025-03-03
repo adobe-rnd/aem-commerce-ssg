@@ -136,17 +136,6 @@ const VariantsQuery = `query VariantsQuery($sku: String!) {
   }
 }`;
 
-const GetAllSkusQuery = `query getAllSkus {
-  productSearch(phrase: "", page_size: 500) {
-    items {
-      productView {
-        urlKey
-        sku
-      }
-    }
-  }
-}`;
-
 const GetLastModifiedQuery = `query getLastModified($skus: [String]!) {
   products(skus: $skus) {
     sku
@@ -166,11 +155,59 @@ const GetAllSkusPaginatedQuery = `query getAllSkusPaginated($currentPage: Int!) 
 	}
 }`;
 
+const CategoriesQuery = `
+  query getCategories {
+      categories {
+          name
+          level
+          urlPath
+      }      
+    }
+`;
+
+const ProductCountQuery = `
+  query getProductCount($categoryPath: String!) {
+    productSearch(
+      phrase:"",
+      filter: [ { attribute: "categoryPath", eq: $categoryPath } ],
+      page_size: 1
+    ) {
+      page_info {
+        total_pages
+      }
+    }
+  }
+`;
+
+const ProductsQuery = `
+  query getProducts($currentPage: Int, $categoryPath: String!) {
+    productSearch(
+      phrase: "",
+      filter: [ { attribute: "categoryPath", eq: $categoryPath } ],
+      page_size: 500,
+      current_page: $currentPage
+    ) {
+      items {
+        productView {
+          urlKey
+          sku          
+        }
+      }
+      page_info {
+        current_page
+        total_pages
+      }
+    }
+  }
+`;
+
 module.exports = {
     ProductQuery,
     ProductByUrlKeyQuery,
     VariantsQuery,
-    GetAllSkusQuery,
     GetAllSkusPaginatedQuery,
     GetLastModifiedQuery,
+    CategoriesQuery,
+    ProductCountQuery,
+    ProductsQuery
 };

@@ -10,7 +10,7 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
-const { StateManager } = require('../actions/check-product-changes/lib/state');
+const { StateManager } = require('../actions/lib/state');
 
 describe('StateManager', () => {
   const loggerMock = { warning: jest.fn(), error: jest.fn() };
