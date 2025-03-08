@@ -121,7 +121,6 @@ async function deleteState(locale, filesLib) {
  * @param {string} params.HLX_CONFIG_NAME - The name of the configuration json/xlsx.
  * @param {string} params.HLX_PRODUCTS_TEMPLATE URL to the products template page
  * @param {string} params.authToken - The authentication token.
- * @param {number} [params.skusRefreshInterval=600000] - The interval for refreshing SKUs in milliseconds.
  * @param {string} [params.HLX_STORE_URL] - The store's base URL.
  * @param {string} [params.HLX_LOCALES] - Comma-separated list of allowed locales.
  * @param {string} [params.LOG_LEVEL] - The log level.
@@ -340,7 +339,6 @@ async function poll(params, aioLibs) {
     HLX_CONFIG_NAME: configName,
     HLX_PRODUCTS_TEMPLATE: productsTemplate,
     authToken,
-    skusRefreshInterval = 600000,
   } = params;
   const storeUrl = params.HLX_STORE_URL ? params.HLX_STORE_URL : `https://main--${siteName}--${orgName}.aem.live`;
   const contentUrl = params.HLX_CONTENT_URL ? params.HLX_CONTENT_URL : `https://main--${siteName}--${orgName}.aem.live`;

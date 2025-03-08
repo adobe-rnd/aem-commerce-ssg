@@ -109,7 +109,6 @@ describe('Poller', () => {
     HLX_ORG_NAME: 'orgName',
     HLX_CONFIG_NAME: 'configName',
     authToken: 'token',
-    skusRefreshInterval: 600000,
   };
 
   const setupSkuData = (filesLib, stateLib, skuData, lastQueriedAt) => {
