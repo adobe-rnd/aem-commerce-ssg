@@ -35,14 +35,13 @@ const EXAMPLE_EXPECTED_STATE = {
       hash: '',
     },
   },
-  skusLastQueriedAt: new Date(1),
 };
 
 jest.mock('../actions/utils', () => ({
   requestSaaS: jest.fn(),
   requestSpreadsheet: jest.fn(),
   isValidUrl: jest.fn(() => true),
-  getProductUrl: jest.fn(({ urlKey, sku }) => `https://store.com/${urlKey || sku}`),
+  getProductUrl: jest.fn(({ urlKey, sku }) => `/${urlKey || sku}`),
   mapLocale: jest.fn((locale) => ({ locale })),
 }));
 
@@ -95,6 +94,7 @@ describe('Poller', () => {
   const mockFiles = () => ({
     read: jest.fn().mockResolvedValue(null),
     write: jest.fn().mockResolvedValue(null),
+    delete: jest.fn().mockResolvedValue(null),
   });
 
   const mockState = () => ({
@@ -109,7 +109,6 @@ describe('Poller', () => {
     HLX_ORG_NAME: 'orgName',
     HLX_CONFIG_NAME: 'configName',
     authToken: 'token',
-    skusRefreshInterval: 600000,
   };
 
   const setupSkuData = (filesLib, stateLib, skuData, lastQueriedAt) => {
@@ -167,7 +166,6 @@ describe('Poller', () => {
       {
         locale: 'uk',
         skus: {},
-        skusLastQueriedAt: new Date(0),
       }
     );
   });
@@ -176,7 +174,6 @@ describe('Poller', () => {
     const filesLib = new Files(0);
     const stateLib = new MockState(0);
     await filesLib.write(getStateFileLocation('uk'), EXAMPLE_STATE);
-    await stateLib.put('uk.skusLastQueriedAt', 1);
     const state = await loadState('uk', { filesLib, stateLib });
     assert.deepEqual(state, EXAMPLE_EXPECTED_STATE);
   });
@@ -185,10 +182,8 @@ describe('Poller', () => {
     const filesLib = new Files(0);
     const stateLib = new MockState(0);
     await filesLib.write(getStateFileLocation('uk'), EXAMPLE_STATE);
-    await stateLib.put('uk.skusLastQueriedAt', 1);
     const state = await loadState('uk', { filesLib, stateLib });
     assert.deepEqual(state, EXAMPLE_EXPECTED_STATE);
-    state.skusLastQueriedAt = new Date(4);
     state.skus['sku1'] = {
       lastPreviewedAt: new Date(4),
       hash: 'hash1',
@@ -201,8 +196,6 @@ describe('Poller', () => {
 
     const serializedState = await filesLib.read(getStateFileLocation('uk'));
     assert.equal(serializedState, 'sku1,4,hash1\nsku2,5,hash2\nsku3,3,');
-    const skusLastQueriedAt = await stateLib.get('uk.skusLastQueriedAt');
-    assert.equal(skusLastQueriedAt.value, "4");
 
     const newState = await loadState('uk', { filesLib, stateLib });
     assert.deepEqual(newState, state);
@@ -212,14 +205,12 @@ describe('Poller', () => {
     const filesLib = new Files(0);
     const stateLib = new MockState(0);
     await filesLib.write(getStateFileLocation('default'), EXAMPLE_STATE);
-    await stateLib.put('default.skusLastQueriedAt', 1);
     const state = await loadState('default', { filesLib, stateLib });
     const expectedState = {
       ...EXAMPLE_EXPECTED_STATE,
       locale: 'default',
     };
     assert.deepEqual(state, expectedState);
-    state.skusLastQueriedAt = new Date(4);
     state.skus['sku1'] = {
       lastPreviewedAt: new Date(4),
       hash: 'hash1',
@@ -232,8 +223,6 @@ describe('Poller', () => {
 
     const serializedState = await filesLib.read(getStateFileLocation('default'));
     assert.equal(serializedState, 'sku1,4,hash1\nsku2,5,hash2\nsku3,3,');
-    const skusLastQueriedAt = await stateLib.get('default.skusLastQueriedAt');
-    assert.equal(skusLastQueriedAt.value, "4");
   });
 
   describe('Parameter validation', () => {
@@ -295,10 +284,16 @@ describe('Poller', () => {
           expect.stringContaining('current-hash-for-product-123')
       );
 
+      // Verify HTML file was saved
+      expect(filesLib.write).toHaveBeenCalledWith(
+        '/public/pdps/url-sku-123',
+        '<html>Product 123</html>'
+      );
+
       // Verify API calls
       expect(AdminAPI.prototype.previewAndPublish).toHaveBeenCalledWith(
           expect.arrayContaining([
-            expect.objectContaining({ path: 'https://store.com/url-sku-123', sku: 'sku-123' })
+            expect.objectContaining({ path: '/url-sku-123', sku: 'sku-123' })
           ]),
           null,
           1
@@ -475,6 +470,61 @@ describe('Poller', () => {
       // Verify API calls
       expect(AdminAPI.prototype.unpublishAndDelete).toHaveBeenCalledTimes(1);
       expect(filesLib.write).toHaveBeenCalled();
+    });
+
+    it('should delete HTML files when unpublishing products', async () => {
+      const now = new Date().getTime();
+      const filesLib = mockFiles();
+      const stateLib = mockState();
+
+      // Setup initial state with products that will be removed
+      setupSkuData(
+        filesLib,
+        stateLib,
+        {
+          'sku-123': { timestamp: now - 10000 },
+          'sku-456': { timestamp: now - 10000 }
+        },
+        now - 100000
+      );
+
+      // Mock catalog service to only return no products (all should be unpublished)
+      requestSaaS.mockImplementation((query, operation) => {
+        if (operation === 'getLastModified') {
+          return Promise.resolve({
+            data: {
+              products: [],
+            },
+          });
+        }
+        return Promise.resolve({});
+      });
+
+      // Mock spreadsheet response for products to be removed
+      requestSpreadsheet.mockImplementation(() => {
+        return Promise.resolve({
+          data: [
+            { sku: 'sku-123', urlKey: 'url-sku-123' },
+            { sku: 'sku-456', urlKey: 'url-sku-456' }
+          ],
+        });
+      });
+
+      // Mock successful unpublish
+      AdminAPI.prototype.unpublishAndDelete.mockImplementation((batch) => {
+        return Promise.resolve({
+          records: batch.map(({ sku }) => ({ sku })),
+          liveUnpublishedAt: new Date(),
+          previewUnpublishedAt: new Date(),
+        });
+      });
+
+      await poll(defaultParams, { filesLib, stateLib });
+
+      // Verify HTML files were deleted
+      expect(filesLib.delete).toHaveBeenCalledTimes(2);
+      expect(filesLib.delete).toHaveBeenCalledWith('/public/pdps/url-sku-123');
+      expect(filesLib.delete).toHaveBeenCalledWith('/public/pdps/url-sku-456');
     });
   });
 });

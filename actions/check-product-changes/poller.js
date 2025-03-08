@@ -24,15 +24,10 @@ function getStateFileLocation(stateKey) {
   return `${FILE_PREFIX}/${stateKey}.${FILE_EXT}`;
 }
 
-function getSkusLastQueriedStateKey(stateKey) {
-  return `${stateKey}.skusLastQueriedAt`;
-}
-
 /**
  * @typedef {Object} PollerState
  * @property {string} locale - The locale (or store code).
- * @property {Array<String>} skus - The SKUs to be saved.
- * @property {Date} skusLastQueriedAt - Last time when the SKUs have been queried.
+ * @property {Array<Object>} skus - The SKUs with last previewed timestamp and hash.
  */
 
 /**
@@ -49,15 +44,10 @@ function getSkusLastQueriedStateKey(stateKey) {
  * @returns {Promise<PollerState>} - A promise that resolves when the state is loaded, returning the state object.
  */
 async function loadState(locale, aioLibs) {
-  const { filesLib, stateLib } = aioLibs;
+  const { filesLib } = aioLibs;
   const stateObj = { locale };
   try {
     const stateKey = locale || 'default';
-    stateObj.skusLastQueriedAt = new Date(0);
-    const skusLastQueriedState = await stateLib.get(getSkusLastQueriedStateKey(stateKey));
-    if (skusLastQueriedState && skusLastQueriedState.value) {
-      stateObj.skusLastQueriedAt = new Date(parseInt(skusLastQueriedState.value));
-    }
     const fileLocation = getStateFileLocation(stateKey);
     const buffer = await filesLib.read(fileLocation);
     const stateData = buffer?.toString();
@@ -93,10 +83,9 @@ async function loadState(locale, aioLibs) {
  * @returns {Promise<void>} - A promise that resolves when the state is saved.
  */
 async function saveState(state, aioLibs) {
-  const { filesLib, stateLib } = aioLibs;
+  const { filesLib } = aioLibs;
   let { locale } = state;
   const stateKey = locale || 'default';
-  await stateLib.put(getSkusLastQueriedStateKey(stateKey), state.skusLastQueriedAt.getTime().toString());
   const fileLocation = getStateFileLocation(stateKey);
   const csvData = [
     ...Object.entries(state.skus)
@@ -132,7 +121,6 @@ async function deleteState(locale, filesLib) {
  * @param {string} params.HLX_CONFIG_NAME - The name of the configuration json/xlsx.
  * @param {string} params.HLX_PRODUCTS_TEMPLATE URL to the products template page
  * @param {string} params.authToken - The authentication token.
- * @param {number} [params.skusRefreshInterval=600000] - The interval for refreshing SKUs in milliseconds.
  * @param {string} [params.HLX_STORE_URL] - The store's base URL.
  * @param {string} [params.HLX_LOCALES] - Comma-separated list of allowed locales.
  * @param {string} [params.LOG_LEVEL] - The log level.
@@ -206,7 +194,7 @@ function unpublishAndDelete(batches, locale, adminApi) {
 /**
  * Checks if a product should be processed
  * @param product
- * @returns {*|boolean}
+ * @returns {boolean}
  */
 function shouldProcessProduct(product) {
   const { urlKey, lastModifiedDate, lastPreviewDate, currentHash, newHash } = product;
@@ -217,6 +205,7 @@ function shouldProcessProduct(product) {
  * Processes a product to determine if it needs to be updated
  * @param {Object} product - The product to process
  * @param {Object} state - The current state
+ * @param {Object} context - The context object with logger and other utilities
  * @returns {Object} Enhanced product with additional metadata
  */
 async function enrichProductWithMetadata(product, state, context) {
@@ -225,20 +214,48 @@ async function enrichProductWithMetadata(product, state, context) {
   const lastPreviewDate = state.skus[sku]?.lastPreviewedAt || new Date(0);
   const lastModifiedDate = new Date(lastModifiedAt);
   let newHash = null;
+  let productHtml = null;
+  
   try {
-    const productHtml = await generateProductHtml(sku, urlKey, context);
+    productHtml = await generateProductHtml(sku, urlKey, context);
     newHash = crypto.createHash('sha256').update(productHtml).digest('hex');
+    
+    // Create enriched product object
+    const enrichedProduct = {
+      ...product,
+      lastModifiedDate,
+      lastPreviewDate,
+      currentHash: state.skus[sku]?.hash || null,
+      newHash,
+      productHtml
+    };
+    
+    // Save HTML immediately if product should be processed
+    if (shouldProcessProduct(enrichedProduct) && productHtml) {
+      try {
+        const { filesLib } = context.aioLibs;
+        const productUrl = getProductUrl({ urlKey, sku }, context, false).toLowerCase();
+        const htmlPath = `/public/pdps${productUrl}`;
+        await filesLib.write(htmlPath, productHtml);
+        logger.debug(`Saved HTML for product ${sku} to ${htmlPath}`);
+      } catch (e) {
+        logger.error(`Error saving HTML for product ${sku}:`, e);
+      }
+    }
+    
+    return enrichedProduct;
   } catch (e) {
     logger.error(`Error generating product HTML for SKU ${sku}:`, e);
+    // Return product with metadata even if HTML generation fails
+    return {
+      ...product,
+      lastModifiedDate,
+      lastPreviewDate,
+      currentHash: state.skus[sku]?.hash || null,
+      newHash: null,
+      productHtml: null
+    };
   }
-
-  return {
-    ...product,
-    lastModifiedDate,
-    lastPreviewDate,
-    currentHash: state.skus[sku]?.hash || null,
-    newHash
-  };
 }
 
 /**
@@ -270,6 +287,7 @@ async function processDeletedProducts(remainingSkus, locale, state, counts, cont
   if (!remainingSkus.length) return;
 
   try {
+    const { filesLib } = aioLibs;
     const publishedProducts = await requestSpreadsheet('published-products-index', null, context);
     const deletedProducts = publishedProducts.data.filter(({ sku }) => remainingSkus.includes(sku));
 
@@ -283,6 +301,19 @@ async function processDeletedProducts(remainingSkus, locale, state, counts, cont
       for (const { records, liveUnpublishedAt, previewUnpublishedAt } of response) {
         if (liveUnpublishedAt && previewUnpublishedAt) {
           records.map((record) => {
+            // Delete the HTML file from public storage
+            try {
+              const product = deletedProducts.find(p => p.sku === record.sku);
+              if (product) {
+                const productUrl = getProductUrl({ urlKey: product.urlKey, sku: product.sku }, context, false).toLowerCase();
+                const htmlPath = `/public/pdps${productUrl}`;
+                filesLib.delete(htmlPath);
+                logger.debug(`Deleted HTML file for product ${record.sku} from ${htmlPath}`);
+              }
+            } catch (e) {
+              logger.error(`Error deleting HTML file for product ${record.sku}:`, e);
+            }
+            
             delete state.skus[record.sku];
             counts.unpublished++;
           });
@@ -308,7 +339,6 @@ async function poll(params, aioLibs) {
     HLX_CONFIG_NAME: configName,
     HLX_PRODUCTS_TEMPLATE: productsTemplate,
     authToken,
-    skusRefreshInterval = 600000,
   } = params;
   const storeUrl = params.HLX_STORE_URL ? params.HLX_STORE_URL : `https://main--${siteName}--${orgName}.aem.live`;
   const contentUrl = params.HLX_CONTENT_URL ? params.HLX_CONTENT_URL : `https://main--${siteName}--${orgName}.aem.live`;
@@ -318,7 +348,7 @@ async function poll(params, aioLibs) {
     published: 0, unpublished: 0, ignored: 0, failed: 0,
   };
   const sharedContext = {
-    storeUrl, contentUrl, configName, logger, counts, pathFormat, productsTemplate
+    storeUrl, contentUrl, configName, logger, counts, pathFormat, productsTemplate, aioLibs
   };
   const timings = new Timings();
   const adminApi = new AdminAPI({
@@ -344,26 +374,20 @@ async function poll(params, aioLibs) {
         context = { ...context, ...mapLocale(locale, context) };
       }
 
-      // Refresh SKUs if needed
-      if (timings.now - state.skusLastQueriedAt >= skusRefreshInterval) {
-        state.skusLastQueriedAt = new Date();
+      const { filesLib } = aioLibs;
+      const productsFileName = getStateFileLocation(`${locale || 'default'}-products`);
+      const allskuBuffer = await filesLib.read(productsFileName);
+      const allSkusString = allskuBuffer.toString();
+      let allSkus = JSON.parse(allSkusString);
+      console.log(allSkus);
 
-        const { filesLib } = aioLibs;
-        const productsFileName = getStateFileLocation(`${locale || 'default'}-products`);
-        const allskuBuffer = await filesLib.read(productsFileName);
-        const allSkusString = allskuBuffer.toString();
-        let allSkus = JSON.parse(allSkusString);
-
-        // add new skus to state if any
-        for (const sku of allSkus) {
-          if (!state.skus[sku.sku]) {
-            state.skus[sku.sku] = { lastPreviewedAt: new Date(0), hash: null };
-          }
+      // add new skus to state if any
+      for (const sku of allSkus) {
+        if (!state.skus[sku.sku]) {
+          state.skus[sku.sku] = { lastPreviewedAt: new Date(0), hash: null };
         }
-        timings.sample('fetchedSkus');
-      } else {
-        timings.sample('fetchedSkus', 0);
       }
+      timings.sample('fetchedSkus');
 
       // get last modified dates
       const skus = Object.keys(state.skus);
