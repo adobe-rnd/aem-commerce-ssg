@@ -246,19 +246,19 @@ async function enrichProductWithMetadata(product, state, context) {
  */
 async function processPublishBatches(promiseBatches, state, counts, products, aioLibs) {
   const response = await Promise.all(promiseBatches);
-  for (const { records, previewedAt, publishedAt } of response) {
-    if (previewedAt && publishedAt) {
-      records.map((record) => {
+  for (const { records } of response) {
+    records.map((record) => {
+      if (record.previewedAt && record.publishedAt) {
         const product = products.find(p => p.sku === record.sku);
         state.skus[record.sku] = {
-          lastPreviewedAt: previewedAt,
+          lastPreviewedAt: record.previewedAt,
           hash: product?.newHash
         };
         counts.published++;
-      });
-    } else {
-      counts.failed += records.length;
-    }
+      } else {
+        counts.failed++;
+      }
+    });
     await saveState(state, aioLibs);
   }
 }
@@ -280,15 +280,15 @@ async function processDeletedProducts(remainingSkus, locale, state, counts, cont
       const promiseBatches = unpublishAndDelete(batches, locale, adminApi);
 
       const response = await Promise.all(promiseBatches);
-      for (const { records, liveUnpublishedAt, previewUnpublishedAt } of response) {
-        if (liveUnpublishedAt && previewUnpublishedAt) {
-          records.map((record) => {
+      for (const { records } of response) {
+        records.map((record) => {
+          if (record.liveUnpublishedAt && record.previewUnpublishedAt) {
             delete state.skus[record.sku];
             counts.unpublished++;
-          });
-        } else {
-          counts.failed += records.length;
-        }
+          } else {
+            counts.failed++;
+          }
+        });
         await saveState(state, aioLibs);
       }
     }
