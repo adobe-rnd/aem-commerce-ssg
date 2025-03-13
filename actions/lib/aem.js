@@ -190,7 +190,7 @@ class AdminAPI {
                         );
 
                         return response?.data?.resources
-                            ? response?.data?.resources.filter(item => item.status >= 200 && item.status < 300).map(item => item.path || item.webPath)
+                            ? response?.data?.resources.filter(item => item.status >= 200 && item.status < 300).map(item => item.path)
                             : [];
                     }
 

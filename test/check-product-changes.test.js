@@ -51,9 +51,11 @@ jest.spyOn(AdminAPI.prototype, 'stopProcessing').mockImplementation(jest.fn());
 jest.spyOn(AdminAPI.prototype, 'unpublishAndDelete').mockImplementation(jest.fn());
 jest.spyOn(AdminAPI.prototype, 'previewAndPublish').mockImplementation((batch) => {
   return Promise.resolve({
-    records: batch.map(({ sku }) => ({ sku })),
-    previewedAt: batch.some(({ sku }) => sku === 'sku-failed-due-preview') ? null : new Date(),
-    publishedAt: batch.some(({ sku }) => sku === 'sku-failed-due-publishing') ? null : new Date(),
+    records: batch.map(({ sku }) => ({
+      sku,
+      previewedAt: sku === 'sku-failed-due-preview' ? null : new Date(),
+      publishedAt: sku === 'sku-failed-due-publishing' ? null : new Date(),
+    }))
   });
 });
 
@@ -457,9 +459,11 @@ describe('Poller', () => {
       // Mock unpublish with one success and one failure
       AdminAPI.prototype.unpublishAndDelete.mockImplementation((batch) => {
         return Promise.resolve({
-          records: batch.map(({ sku }) => ({ sku })),
-          liveUnpublishedAt: batch.some(({ sku }) => sku === 'sku-failed') ? null : new Date(),
-          previewUnpublishedAt: batch.some(({ sku }) => sku === 'sku-failed') ? null : new Date(),
+          records: batch.map(({ sku }) => ({
+            sku,
+            liveUnpublishedAt: batch.some(({ sku }) => sku === 'sku-failed') ? null : new Date(),
+            previewUnpublishedAt: batch.some(({ sku }) => sku === 'sku-failed') ? null : new Date(),
+          }))
         });
       });
 
