@@ -245,8 +245,8 @@ async function enrichProductWithMetadata(product, state, context) {
  * Processes publish batches and updates state
  */
 async function processPublishBatches(promiseBatches, state, counts, products, aioLibs) {
-  const response = await Promise.all(promiseBatches);
-  for (const { records } of response) {
+  const processingPromises = promiseBatches.map(async (promise) => {
+    const { records } = await promise;
     records.map((record) => {
       if (record.previewedAt && record.publishedAt) {
         const product = products.find(p => p.sku === record.sku);
@@ -260,7 +260,8 @@ async function processPublishBatches(promiseBatches, state, counts, products, ai
       }
     });
     await saveState(state, aioLibs);
-  }
+  });
+  await Promise.all(processingPromises);
 }
 
 /**
@@ -279,8 +280,8 @@ async function processDeletedProducts(remainingSkus, locale, state, counts, cont
       const batches = createBatches(deletedProducts, context);
       const promiseBatches = unpublishAndDelete(batches, locale, adminApi);
 
-      const response = await Promise.all(promiseBatches);
-      for (const { records } of response) {
+      const processingPromises = promiseBatches.map(async (promise) => {
+        const { records } = await promise;
         records.map((record) => {
           if (record.liveUnpublishedAt && record.previewUnpublishedAt) {
             delete state.skus[record.sku];
@@ -290,7 +291,8 @@ async function processDeletedProducts(remainingSkus, locale, state, counts, cont
           }
         });
         await saveState(state, aioLibs);
-      }
+      });
+      await Promise.all(processingPromises);
     }
   } catch (e) {
     logger.error('Error processing deleted products:', e);
