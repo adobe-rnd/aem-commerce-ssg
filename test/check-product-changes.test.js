@@ -517,9 +517,11 @@ describe('Poller', () => {
       // Mock successful unpublish
       AdminAPI.prototype.unpublishAndDelete.mockImplementation((batch) => {
         return Promise.resolve({
-          records: batch.map(({ sku }) => ({ sku })),
-          liveUnpublishedAt: new Date(),
-          previewUnpublishedAt: new Date(),
+          records: batch.map(({ sku }) => ({
+            sku,
+            liveUnpublishedAt: new Date(),
+            previewUnpublishedAt: new Date()
+          }))
         });
       });
 
