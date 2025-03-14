@@ -381,7 +381,6 @@ async function poll(params, aioLibs) {
       const allskuBuffer = await filesLib.read(productsFileName);
       const allSkusString = allskuBuffer.toString();
       let allSkus = JSON.parse(allSkusString);
-      console.log(allSkus);
 
       // add new skus to state if any
       for (const sku of allSkus) {
