@@ -126,6 +126,10 @@ class AdminAPI {
         // use the admin API to trigger preview or live
         const adminUrl = `https://admin.hlx.page/${route}/${this.org}/${this.site}/main${path}`;
 
+        return this.execAdminRequestByPath(route, method, adminUrl, body);
+    }
+
+    async execAdminRequestByPath(name, method, path, body) {
         const req = { method, headers: {} };
         req.headers['User-Agent'] = 'AEM Commerce Poller / 1.0';
         if (body) {
@@ -135,7 +139,8 @@ class AdminAPI {
         if (this.authToken) {
             req.headers['x-auth-token'] = this.authToken;
         }
-        return request(route, adminUrl, req);
+
+        return request(name, path, req);
     }
 
     async runWithRetry(fn, name) {
@@ -157,35 +162,44 @@ class AdminAPI {
 
     async checkJobStatus(job) {
         const { logger } = this.context;
-        let status = true;
         while (true) {
-            const responseBody = await this.execAdminRequest('GET', 'job', `/${job.topic}/${job.name}`);
+            const responseBody = await this.runWithRetry(
+                async () => {
+                    return await this.execAdminRequest('GET', 'job', `/${job.topic}/${job.name}`);
+                },
+                `getting status for ${job.topic}/${job.name}`
+            );
             if (responseBody.progress) {
                 logger.debug(`Progress for ${job.topic}/${job.name}: ${responseBody.progress.processed}/${responseBody.progress.total}`);
 
                 if (responseBody.state === 'stopped') {
                     const { processed, total, failed } = responseBody.progress;
-                    if (total === processed) {
-                        if (failed > 0) {
-                            logger.error(`Job ${job.topic}/${job.name} completed with failures: ${failed} failed jobs.`);
-                            status = false;
-                        } else {
-                            logger.debug(`Job ${job.topic}/${job.name} completed successfully: ${processed} processed jobs.`);
-                        }
-                    } else {
-                        logger.error(`Not all jobs were processed for ${job.topic}/${job.name}: ${processed}/${total}`);
-                        status = false;
+
+                    if (total !== processed || failed > 0) {
+                        logger.error(`Job ${job.topic}/${job.name} completed with failures: ${failed} failed jobs, processed ${processed} jobs of ${total}.`);
                     }
 
-                    if (!status && responseBody.links?.details) {
-                        logger.error(`Details of failed jobs for ${job.topic}/${job.name} can be found at: ${responseBody.links.details}`);
+                    if (responseBody.links?.details) {
+                        logger.info(`Details of jobs for ${job.topic}/${job.name} can be found at: ${responseBody.links.details}`);
+
+                        const response = await this.runWithRetry(
+                            async () => {
+                                return await this.execAdminRequestByPath('jobDetails', 'GET', responseBody.links.details);
+                            },
+                            `getting job details for ${job.topic}/${job.name}`
+                        );
+
+                        return response?.data?.resources
+                            ? response?.data?.resources.filter(item => item.status >= 200 && item.status < 300).map(item => item.path)
+                            : [];
                     }
 
-                    return status;
+                    return [];
                 }
             }
 
-            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for 2 seconds before the next status check
+            // Wait for 2 seconds before the next status check
+            await new Promise(resolve => setTimeout(resolve, 2000));
         }
     }
 
@@ -208,26 +222,17 @@ class AdminAPI {
                 `preview batch number ${batchNumber} for locale ${locale}`
             );
 
-            let isErrored = false;
             if (response?.job) {
-                const status = await this.runWithRetry(
-                    async () => {
-                        return await this.checkJobStatus(response.job);
-                    },
-                    `job status check for ${response.job.topic}/${response.job.name}`
-                );
-                if (status) {
-                    logger.info(`Previewed batch number ${batchNumber} for locale ${locale}`);
-                    batch.previewedAt = new Date();
-                    this.publishQueue.push(batch);
-                } else {
-                    isErrored = true;
-                }
-            } else {
-                isErrored = true;
-            }
+                logger.info(`Previewed batch number ${batchNumber} for locale ${locale}`);
+                const successPaths = await this.checkJobStatus(response.job);
+                batch.records.forEach(record => {
+                    if (successPaths.includes(record.path)) {
+                        record.previewedAt = new Date();
+                    }
+                });
 
-            if (isErrored) {
+                this.publishQueue.push(batch);
+            } else {
                 logger.error(`Error previewing batch number ${batchNumber} for locale ${locale}`);
                 // Resolve the original promises in case of an error
                 batch.resolve({records, locale, batchNumber});
@@ -245,50 +250,29 @@ class AdminAPI {
             const { records, locale, batchNumber } = batch;
             const body = {
                 forceUpdate: true,
-                paths: records.map(record => record.path),
+                paths: records.filter(record => record.previewedAt).map(record => record.path),
                 delete: false
             };
 
             // Try to publish the batch using bulk publish API
-            const response = await this.runWithRetry(
-                async () => {
-                    return await this.execAdminRequest('POST', 'live', '/*', body);
-                },
-                `publish batch number ${batchNumber} for locale ${locale}`
-            );
+            const response = await this.execAdminRequest('POST', 'live', '/*', body);
 
-            let isErrored = false;
             if (response?.job) {
-                const status = await this.runWithRetry(
-                    async () => {
-                        return await this.checkJobStatus(response.job);
-                    },
-                    `job status check for ${response.job.topic}/${response.job.name}`
-                );
-                if (status) {
-                    logger.info(`Published batch number ${batchNumber} for locale ${locale}`);
-                    batch.publishedAt = new Date();
-                } else {
-                    isErrored = true;
-                }
+                logger.info(`Published batch number ${batchNumber} for locale ${locale}`);
+                const successPaths = await this.checkJobStatus(response.job);
+                batch.records.forEach(record => {
+                    if (successPaths.includes(record.path)) {
+                        record.publishedAt = new Date();
+                    }
+                });
             } else {
-                isErrored = true;
-            }
-
-            if (isErrored) {
                 logger.error(`Error publishing batch number ${batchNumber} for locale ${locale}`);
             }
 
             // Complete the batch publish
             complete();
             // Resolve the original promises
-            batch.resolve({
-                records,
-                locale,
-                batchNumber,
-                previewedAt: batch.previewedAt,
-                publishedAt: batch.publishedAt
-            });
+            batch.resolve({records, locale, batchNumber});
         });
     }
 
@@ -296,9 +280,12 @@ class AdminAPI {
         this.trackInFlight(`unpublish ${route} ${batch.records.length} paths`, async (complete) => {
             const { logger } = this.context;
             const { records, locale, batchNumber } = batch;
+
             const body = {
                 forceUpdate: true,
-                paths: records.map(record => record.path),
+                paths: route === 'live'
+                    ? records.map(record => record.path)
+                    : records.filter(record => record.liveUnpublishedAt).map(record => record.path),
                 delete: true
             };
 
@@ -310,31 +297,23 @@ class AdminAPI {
                 `unpublish ${route} batch number ${batchNumber} for locale ${locale}`
             );
 
-            let isErrored = false;
             if (response?.job) {
-                const status = await this.runWithRetry(
-                    async () => {
-                        return await this.checkJobStatus(response.job);
-                    },
-                    `job status check for ${response.job.topic}/${response.job.name}`
-                );
-                if (status) {
-                    logger.info(`Unpublished ${route} batch number ${batchNumber} for locale ${locale}`);
-                    if (route === 'live') {
-                        batch.liveUnpublishedAt = new Date();
-                        this.unpublishPreviewQueue.push(batch);
-                    } else {
-                        batch.previewUnpublishedAt = new Date();
+                logger.info(`Unpublished ${route} batch number ${batchNumber} for locale ${locale}`);
+                const successPaths = await this.checkJobStatus(response.job);
+                batch.records.forEach(record => {
+                    if (successPaths.includes(record.path)) {
+                        if (route === 'live') {
+                            record.liveUnpublishedAt = new Date();
+                        } else {
+                            record.previewUnpublishedAt = new Date();
+                        }
                     }
+                });
 
-                } else {
-                    isErrored = true;
+                if (route === 'live') {
+                    this.unpublishPreviewQueue.push(batch);
                 }
             } else {
-                isErrored = true;
-            }
-
-            if (isErrored) {
                 logger.error(`Error unpublishing ${route} batch number ${batchNumber} for locale ${locale}`);
                 if (route === 'live') {
                     // Resolve the original promises in case of an error
@@ -346,11 +325,7 @@ class AdminAPI {
             complete();
             // Resolve the original promises
             if (route === 'preview') {
-                batch.resolve({
-                    records,
-                    liveUnpublishedAt: batch.liveUnpublishedAt,
-                    previewUnpublishedAt: batch.previewUnpublishedAt
-                });
+                batch.resolve({records, locale, batchNumber});
             }
         });
     }
