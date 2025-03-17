@@ -215,11 +215,11 @@ async function enrichProductWithMetadata(product, state, context) {
   const lastModifiedDate = new Date(lastModifiedAt);
   let newHash = null;
   let productHtml = null;
-  
+
   try {
     productHtml = await generateProductHtml(sku, urlKey, context);
     newHash = crypto.createHash('sha256').update(productHtml).digest('hex');
-    
+
     // Create enriched product object
     const enrichedProduct = {
       ...product,
@@ -229,7 +229,7 @@ async function enrichProductWithMetadata(product, state, context) {
       newHash,
       productHtml
     };
-    
+
     // Save HTML immediately if product should be processed
     if (shouldProcessProduct(enrichedProduct) && productHtml) {
       try {
@@ -242,7 +242,7 @@ async function enrichProductWithMetadata(product, state, context) {
         logger.error(`Error saving HTML for product ${sku}:`, e);
       }
     }
-    
+
     return enrichedProduct;
   } catch (e) {
     logger.error(`Error generating product HTML for SKU ${sku}:`, e);
@@ -262,22 +262,23 @@ async function enrichProductWithMetadata(product, state, context) {
  * Processes publish batches and updates state
  */
 async function processPublishBatches(promiseBatches, state, counts, products, aioLibs) {
-  const response = await Promise.all(promiseBatches);
-  for (const { records, previewedAt, publishedAt } of response) {
-    if (previewedAt && publishedAt) {
-      records.map((record) => {
+  const processingPromises = promiseBatches.map(async (promise) => {
+    const { records } = await promise;
+    records.map((record) => {
+      if (record.previewedAt && record.publishedAt) {
         const product = products.find(p => p.sku === record.sku);
         state.skus[record.sku] = {
-          lastPreviewedAt: previewedAt,
+          lastPreviewedAt: record.previewedAt,
           hash: product?.newHash
         };
         counts.published++;
-      });
-    } else {
-      counts.failed += records.length;
-    }
+      } else {
+        counts.failed++;
+      }
+    });
     await saveState(state, aioLibs);
-  }
+  });
+  await Promise.all(processingPromises);
 }
 
 /**
@@ -297,31 +298,32 @@ async function processDeletedProducts(remainingSkus, locale, state, counts, cont
       const batches = createBatches(deletedProducts, context);
       const promiseBatches = unpublishAndDelete(batches, locale, adminApi);
 
-      const response = await Promise.all(promiseBatches);
-      for (const { records, liveUnpublishedAt, previewUnpublishedAt } of response) {
-        if (liveUnpublishedAt && previewUnpublishedAt) {
-          records.map((record) => {
+      const processingPromises = promiseBatches.map(async (promise) => {
+        const { records } = await promise;
+        records.map((record) => {
+          if (record.liveUnpublishedAt && record.previewUnpublishedAt) {
             // Delete the HTML file from public storage
             try {
               const product = deletedProducts.find(p => p.sku === record.sku);
               if (product) {
-                const productUrl = getProductUrl({ urlKey: product.urlKey, sku: product.sku }, context, false).toLowerCase();
-                const htmlPath = `/public/pdps${productUrl}`;
-                filesLib.delete(htmlPath);
-                logger.debug(`Deleted HTML file for product ${record.sku} from ${htmlPath}`);
+                  const productUrl = getProductUrl({ urlKey: product.urlKey, sku: product.sku }, context, false).toLowerCase();
+                  const htmlPath = `/public/pdps${productUrl}`;
+                  filesLib.delete(htmlPath);
+                  logger.debug(`Deleted HTML file for product ${record.sku} from ${htmlPath}`);
               }
             } catch (e) {
               logger.error(`Error deleting HTML file for product ${record.sku}:`, e);
             }
-            
+
             delete state.skus[record.sku];
             counts.unpublished++;
-          });
-        } else {
-          counts.failed += records.length;
-        }
+          } else {
+            counts.failed++;
+          }
+        });
         await saveState(state, aioLibs);
-      }
+      });
+      await Promise.all(processingPromises);
     }
   } catch (e) {
     logger.error('Error processing deleted products:', e);
@@ -379,7 +381,6 @@ async function poll(params, aioLibs) {
       const allskuBuffer = await filesLib.read(productsFileName);
       const allSkusString = allskuBuffer.toString();
       let allSkus = JSON.parse(allSkusString);
-      console.log(allSkus);
 
       // add new skus to state if any
       for (const sku of allSkus) {
