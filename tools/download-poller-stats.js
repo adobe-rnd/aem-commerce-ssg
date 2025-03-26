@@ -130,12 +130,22 @@ function generateChart(rawData, filename) {
   }
 }
 
-async function* listActivations() {
-  const { activations } = await ow.activations.list({ count: true, ...opts });
+async function* listActivations(since, upto) {
+  const queryOpts = { ...opts };
+  
+  if (since) {
+    queryOpts.since = since; // Start time in milliseconds since epoch
+  }
+  
+  if (upto) {
+    queryOpts.upto = upto; // End time in milliseconds since epoch
+  }
+  
+  const { activations } = await ow.activations.list({ count: true, ...queryOpts });
   for (let limit = 50, skip = 0, retry = true; skip < activations; skip += limit) {
     let activations;
     try {
-      activations = await ow.activations.list({ limit, skip, ...opts });
+      activations = await ow.activations.list({ limit, skip, ...queryOpts });
     } catch (e) {
       if (retry) {
         // retry only once
@@ -178,6 +188,10 @@ async function downloadActivations() {
     targetDate.setTime(parsedDate.getTime());
   }
 
+  // Calculate since and upto for the target date
+  const since = targetDate.getTime();
+  const upto = new Date(targetDate).setHours(23, 59, 59, 999);
+
   let filename = options.file;
 
   if (!filename) {
@@ -203,7 +217,7 @@ async function downloadActivations() {
     exit(1);
   }
 
-  for await (const activation of listActivations()) {
+  for await (const activation of listActivations(since, upto)) {
     const { name, duration, activationId, start } = activation;
 
     if (actionName === name) {
