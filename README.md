@@ -1,5 +1,7 @@
 # AppBuilder SSG Template for Edge Delivery Storefront
 
+:sparkles: _Early-access technology_ :sparkles: Please get in touch with us in your dedicated support Slack channel to learn more about this feature.
+
 ## Setup
 
 - Populate the `.env` file in the project root and fill it as shown [below](#env)
