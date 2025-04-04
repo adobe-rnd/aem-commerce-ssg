@@ -95,16 +95,29 @@ class AdminAPI {
         return this.stopProcessing$;
     }
 
-        trackInFlight(name, callback) {
+    trackInFlight(name, callback) {
         const executeTask = () => {
             const promise = new Promise(callback);
             promise.name = name;
             this.inflight.push(promise);
             promise.then(() => {
                 this.inflight.splice(this.inflight.indexOf(promise), 1);
+
                 if (this.queue.length > 0) {
+                    const publishes = [];
+                    const others = [];
+
+                    this.queue.forEach(task => {
+                        if (task.taskName === 'publish') {
+                            publishes.push(task);
+                        } else {
+                            others.push(task);
+                        }
+                    });
+
+                    this.queue = [...publishes, ...others];
                     const nextTask = this.queue.shift();
-                    nextTask();
+                    nextTask.execute();
                 }
             });
         };
@@ -112,7 +125,11 @@ class AdminAPI {
         if (this.inflight.length < 2) {
             executeTask();
         } else {
-            this.queue.push(executeTask);
+            const task = {
+                execute: executeTask,
+                taskName: name
+            };
+            this.queue.push(task);
         }
     }
 
@@ -204,7 +221,7 @@ class AdminAPI {
     }
 
     doBatchPreview(batch) {
-        this.trackInFlight(`preview ${batch.records.length} paths`, async (complete) => {
+        this.trackInFlight('preview', async (complete) => {
             const { logger } = this.context;
             const { records, locale, batchNumber } = batch;
             const body = {
@@ -245,7 +262,7 @@ class AdminAPI {
     }
 
     doBatchPublish(batch) {
-        this.trackInFlight(`publish ${batch.records.length} paths`, async (complete) => {
+        this.trackInFlight('publish', async (complete) => {
             const { logger } = this.context;
             const { records, locale, batchNumber } = batch;
             const body = {
@@ -277,7 +294,7 @@ class AdminAPI {
     }
 
     doBatchUnpublish(batch, route) {
-        this.trackInFlight(`unpublish ${route} ${batch.records.length} paths`, async (complete) => {
+        this.trackInFlight('unpublish', async (complete) => {
             const { logger } = this.context;
             const { records, locale, batchNumber } = batch;
 
@@ -342,16 +359,16 @@ class AdminAPI {
             this.lastStatusLog = new Date();
         }
 
-        // first drain the preview queue
-        if (this.previewQueue.length > 0) {
-            const batch = this.previewQueue.shift();
-            this.doBatchPreview(batch);
-        }
-
         // then drain the publish queue
         if (this.publishQueue.length > 0) {
             const batch = this.publishQueue.shift();
             this.doBatchPublish(batch);
+        }
+
+        // first drain the preview queue
+        if (this.previewQueue.length > 0) {
+            const batch = this.previewQueue.shift();
+            this.doBatchPreview(batch);
         }
 
         // then drain the unpublish live queue
