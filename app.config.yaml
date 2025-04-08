@@ -6,13 +6,13 @@ application:
         license: Apache-2.0
         inputs:
           LOG_LEVEL: debug
-          HLX_CONTENT_URL: "https://main--aem-commerce-ssg-storefront--adobe-rnd.aem.live"
-          HLX_PRODUCTS_TEMPLATE: "https://main--aem-commerce-ssg-storefront--adobe-rnd.aem.live/products/default"
-          HLX_ORG_NAME: "adobe-rnd"
-          HLX_SITE_NAME: "aem-commerce-ssg-storefront"
-          HLX_STORE_URL: "https://main--aem-commerce-ssg-storefront--adobe-rnd.aem.live"
+          HLX_CONTENT_URL: "https://stage--evident-website--evident-scientific.aem.live"
+          HLX_PRODUCTS_TEMPLATE: "https://stage--evident-website--evident-scientific.aem.live/products/default"
+          HLX_ORG_NAME: "evident-scientific"
+          HLX_SITE_NAME: "evident-website"
+          HLX_STORE_URL: "https://stage--evident-website--evident-scientific.aem.live"
           HLX_CONFIG_NAME: "configs"
-          HLX_PATH_FORMAT: "/products/{urlKey}/{sku}"
+          HLX_PATH_FORMAT: "/products/{evident-category}/{sku}"
           # HLX_LOCALES: comma-seprated list of allowed locales.
           # i.e. us,uk,it,de,fr,es - or just one
           # null if there is a single store and no
@@ -21,7 +21,7 @@ application:
         actions:
           pdp-renderer:
             function: actions/pdp-renderer/index.js
-            web: 'yes'
+            web: "yes"
             runtime: nodejs:22
             annotations:
               final: true
@@ -29,7 +29,7 @@ application:
               - ["actions/pdp-renderer/templates/*.hbs", "templates/"]
           check-product-changes:
             function: actions/check-product-changes/index.js
-            web: 'no'
+            web: "no"
             runtime: nodejs:22
             limits:
               memorySize: 128
@@ -40,7 +40,7 @@ application:
               final: true
           fetch-all-products:
             function: actions/fetch-all-products/index.js
-            web: 'yes'
+            web: "yes"
             runtime: nodejs:22
             annotations:
               final: true
