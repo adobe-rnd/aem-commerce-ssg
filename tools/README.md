@@ -32,7 +32,7 @@ This script is a starting point to investigate issues in PDP publishing or rende
     ```
 
 3. The script will throw an error if the product counts do not match, indicating the expected and actual product counts. PLEASE NOTE: the number of products listed is just an indication to check for "macroscopic" failures, slight differences might be due to specific Commerce configs/attributes for certain products which might not show up in the query results.
-4. In case of a mismatch, it is advised to check the logs and statistics of the service, by using [Adobe I/O cli](https://developer.adobe.com/runtime/docs/guides/getting-started/activations/) tool and looking at the invocation results - which are quite descriptive, as well as `download-poller-stats.js`, to have more specific insights on the nature of the issue (whether it's a failed publish task, for example).
+4. In case of a mismatch, it is advised to check the logs and statistics of the service, by using [Adobe I/O cli](https://developer.adobe.com/runtime/docs/guides/getting-started/activations/) tool and looking at the invocation results - which are quite descriptive, to have more specific insights on the nature of the issue (whether it's a failed publish task, for example).
 
 Inovcation results (example):
 
@@ -88,9 +88,9 @@ Inovcation results (example):
 }
 ```
 
-## `download-poller-stats.js`
+## `get-stats.js`
 
-This script is used to download and display poller statistics from Adobe I/O Runtime.
+This script is used to generate charts and statistics from Adobe I/O Runtime poller activations. It can output data in multiple formats: a PNG chart, a JSON file with previewed URLs, and/or a CSV file with detailed statistics.
 
 ### Usage
 
@@ -100,15 +100,58 @@ This script is used to download and display poller statistics from Adobe I/O Run
     AIO_RUNTIME_AUTH=<your_auth_key>
     ```
 
-2. Usage:
+2. Run the script:
+    ```bash
+    node get-stats.js [options]
     ```
-    Usage: node download-poller-stats.js [options]
 
-    Options:
-        -d, --date <YYYY-MM-DD>                   Select data for a specific day. If not provided, defaults to today's date
-        -c, --chart <chart_filename.svg>          Generate a chart from the data, showing latency distribution and        
-                                                  correlation with other factors. In addition, generate a JSON file with corresponding data series.
-        -h, --help                                Display help for cli tool
-        -f, --file <records_filename.{csv,json}>  The filename to save the records to; JSON and CSV formats are supported.
-    ```
+### Options
+
+```
+Options:
+  -d, --date <DD-MM-YYYY>  Required. Specify the target date
+  -f, --folder <path>      Required. Specify the output folder
+  -c, --chart             Generate chart (outputs chart_dd-mm-yyyy.png)
+  -j, --json             Generate JSON file with previewed URLs (outputs dd-mm-yyyy.json)
+  -x, --csv              Generate CSV file with statistics (outputs dd-mm-yyyy.csv)
+  -h, --help             Display help for command
+```
+
+At least one of `-c`, `-j`, or `-x` must be specified.
+
+### Output Files
+
+The script generates files in the specified output folder with the following naming convention:
+
+- Chart: `chart_dd-mm-yyyy.png`
+- JSON: `dd-mm-yyyy.json` (contains list of previewed URLs)
+- CSV: `dd-mm-yyyy.csv` (contains detailed statistics)
+
+The CSV file includes the following columns:
+- Activation ID
+- Start Date
+- Duration (ms)
+- State
+- Failed count
+- Ignored count
+- Published count
+- Unpublished count
+- Preview Duration (avg ms)
+- Preview Only flag
+
+### Examples
+
+```bash
+# Generate all outputs (chart, JSON, and CSV)
+node get-stats.js -d 20-03-2024 -f output -c -j -x
+
+# Generate only CSV statistics
+node get-stats.js -d 20-03-2024 -f output -x
+
+# Generate chart and JSON
+node get-stats.js -d 20-03-2024 -f output -c -j
+
+# Using long-form options
+node get-stats.js --date 20-03-2024 --folder output --chart --json --csv
+```
 
