@@ -10,6 +10,28 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
+const SAMPLE_CONFIGBUS_RESPONSE = {
+	"public": {
+		"default": {
+			"commerce-core-endpoint": "https://www.aemshop.net/graphql",
+			"commerce-endpoint": "https://www.aemshop.net/cs-graphql",
+			"headers": {
+				"all": {
+					"Store": "default"
+				},
+				"cs": {
+					"Magento-Customer-Group": "customer-group",
+					"Magento-Store-Code": "store-code",
+					"Magento-Store-View-Code": "store-view-code",
+					"Magento-Website-Code": "website-code",
+					"x-api-key": "api-key",
+					"Magento-Environment-Id": "environment-id"
+				}
+			},
+		},
+	}
+};
+
 const { useMockServer } = require('./mock-server');
 const { errorResponse, stringParameters, checkMissingRequestInputs, getBearerToken, request, requestSpreadsheet, getConfig, requestSaaS, getProductUrl } = require('./../actions/utils.js');
 const { http, HttpResponse } = require('msw');
@@ -123,14 +145,24 @@ describe('getBearerToken', () => {
 describe('request', () => {
   const server = useMockServer();
 
-  test('getConfig', async () => {
+  test('getConfig (legacy)', async () => {
     server.use(http.get('https://content.com/configs.json', async () => {
       return HttpResponse.json({ data: [{ key: 'testKey', value: 'testValue' }] });
     }));
 
     const context = { contentUrl: 'https://content.com', logger: { debug: jest.fn() } };
     const config = await getConfig(context);
-    expect(config).toEqual({ testKey: 'testValue' });
+    expect(config).toEqual({ testKey: 'testValue', __hasLegacyFormat: true });
+  });
+
+  test('getConfig (ConfigBus)', async () => {
+    server.use(http.get('https://content.com/configs.json', async () => {
+      return HttpResponse.json(SAMPLE_CONFIGBUS_RESPONSE);
+    }));
+
+    const context = { contentUrl: 'https://content.com', logger: { debug: jest.fn() } };
+    const config = await getConfig(context);
+    expect(config).toEqual(SAMPLE_CONFIGBUS_RESPONSE.public.default);
   });
 
   test('getConfig with subpath', async () => {
@@ -140,7 +172,7 @@ describe('request', () => {
 
     const context = { configName: 'en/configs', contentUrl: 'https://content.com', logger: { debug: jest.fn() } };
     const config = await getConfig(context);
-    expect(config).toEqual({ testKey: 'testValue' });
+    expect(config).toEqual({ testKey: 'testValue', __hasLegacyFormat: true });
   });
 
   test('requestSaaS', async () => {
@@ -159,7 +191,8 @@ describe('request', () => {
         'commerce.headers.cs.Magento-Store-Code': 'store-code',
         'commerce.headers.cs.Magento-Store-View-Code': 'store-view-code',
         'commerce.headers.cs.Magento-Website-Code': 'website-code',
-        'commerce.headers.cs.x-api-key': 'api-key'
+        'commerce.headers.cs.x-api-key': 'api-key',
+        __hasLegacyFormat: true
       }
     };
 
