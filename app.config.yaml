@@ -32,7 +32,7 @@ application:
             web: 'no'
             runtime: nodejs:22
             limits:
-              memorySize: 256
+              memorySize: 128 # use 256 in case the memory limit is exceeded at runtime
               timeout: 3600000
             inputs:
               authToken: ${AEM_ADMIN_API_AUTH_TOKEN}
