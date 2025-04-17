@@ -214,7 +214,13 @@ async function getConfig(context) {
   if (!context.config) {
     logger.debug(`Fetching config ${configName}`);
     const configData = await requestSpreadsheet(configName, null, context);
-    context.config = configData.data.reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {});
+    if(configData.data) {
+      context.config = configData.data.reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {});
+      context.config.__hasLegacyFormat = true;
+    } else { 
+      // Handle case where configData.public.default is an object
+      context.config = configData.public.default;
+    }
   }
   return context.config;
 }
@@ -238,12 +244,21 @@ async function requestSaaS(query, operationName, variables, context) {
   const headers = {
     'Content-Type': 'application/json',
     'origin': storeUrl,
-    'magento-customer-group': config['commerce.headers.cs.Magento-Customer-Group'],
-    'magento-environment-id': config['commerce.headers.cs.Magento-Environment-Id'],
-    'magento-store-code': config['commerce.headers.cs.Magento-Store-Code'],
-    'magento-store-view-code': config['commerce.headers.cs.Magento-Store-View-Code'],
-    'magento-website-code': config['commerce.headers.cs.Magento-Website-Code'],
-    'x-api-key': config['commerce.headers.cs.x-api-key'],
+    ...(config.__hasLegacyFormat ? {
+      'magento-customer-group': config['commerce.headers.cs.Magento-Customer-Group'],
+      'magento-environment-id': config['commerce.headers.cs.Magento-Environment-Id'],
+      'magento-store-code': config['commerce.headers.cs.Magento-Store-Code'],
+      'magento-store-view-code': config['commerce.headers.cs.Magento-Store-View-Code'],
+      'magento-website-code': config['commerce.headers.cs.Magento-Website-Code'],
+      'x-api-key': config['commerce.headers.cs.x-api-key'],
+    } : {
+      'magento-customer-group': config.headers?.cs?.['Magento-Customer-Group'],
+      'magento-environment-id': config.headers?.cs?.['Magento-Environment-Id'],
+      'magento-store-code': config.headers?.cs?.['Magento-Store-Code'],
+      'magento-store-view-code': config.headers?.cs?.['Magento-Store-View-Code'],
+      'magento-website-code': config.headers?.cs?.['Magento-Website-Code'],
+      'x-api-key': config.headers?.cs?.['x-api-key'],
+    }),
     // bypass LiveSearch cache
     'Magento-Is-Preview': true,
   };
@@ -303,18 +318,24 @@ function getProductUrl(product, context, addStore = true) {
   const availableParams = {
     sku: product.sku,
     urlKey: product.urlKey,
-    locale: context.locale,
   };
+  
+  // Only add locale if it has a valid value
+  if (context.locale) {
+    availableParams.locale = context.locale;
+  }
 
   let path = pathFormat.split('/')
     .filter(Boolean)
     .map(part => {
       if (part.startsWith('{') && part.endsWith('}')) {
         const key = part.substring(1, part.length - 1);
-        return availableParams[key];
+        // Skip parts where we don't have a value
+        return availableParams[key] || '';
       }
       return part;
-    });
+    })
+    .filter(Boolean); // Remove any empty segments
 
   if (addStore) {
     path.unshift(storeUrl);
@@ -335,14 +356,14 @@ function getProductUrl(product, context, addStore = true) {
 function mapLocale(locale, context) {
   // Check if locale is valid
   const allowedLocales = ['en', 'fr']; // Or use context.allowedLocales derived from HLX_LOCALES configuration
-  if (!locale || !allowedLocales.includes(locale)) {
+  if (locale && !allowedLocales.includes(locale)) {
     throw new Error('Invalid locale');
   }
 
   // Example for dedicated config file per locale
   return {
     locale,
-    configName: [locale, context.configName].join('/'),
+    configName: locale ? [locale, context.configName].join('/') : context.configName,
   }
 }
 

@@ -6,13 +6,13 @@ application:
         license: Apache-2.0
         inputs:
           LOG_LEVEL: debug
-          HLX_CONTENT_URL: "https://main--aem-commerce-ssg-storefront--adobe-rnd.aem.live"
-          HLX_PRODUCTS_TEMPLATE: "https://main--aem-commerce-ssg-storefront--adobe-rnd.aem.live/products/default"
-          HLX_ORG_NAME: "adobe-rnd"
-          HLX_SITE_NAME: "aem-commerce-ssg-storefront"
-          HLX_STORE_URL: "https://main--aem-commerce-ssg-storefront--adobe-rnd.aem.live"
-          HLX_CONFIG_NAME: "configs"
-          HLX_PATH_FORMAT: "/products/{urlKey}/{sku}"
+          HLX_CONTENT_URL: "https://main--aem-boilerplate-commerce-staging--hlxsites.aem.live"
+          HLX_PRODUCTS_TEMPLATE: "https://main--aem-boilerplate-commerce-staging--hlxsites.aem.live/products/default"
+          HLX_ORG_NAME: "hlxsites"
+          HLX_SITE_NAME: "aem-boilerplate-commerce-staging"
+          HLX_STORE_URL: "https://main--aem-boilerplate-commerce-staging--hlxsites.aem.live"
+          HLX_CONFIG_NAME: "config"
+          HLX_PATH_FORMAT: "/products-ssg/{urlKey}/{sku}"
           # HLX_LOCALES: comma-seprated list of allowed locales.
           # i.e. us,uk,it,de,fr,es - or just one
           # null if there is a single store and no
@@ -32,7 +32,7 @@ application:
             web: 'no'
             runtime: nodejs:22
             limits:
-              memorySize: 128
+              memorySize: 128 # use 256 in case the memory limit is exceeded at runtime
               timeout: 3600000
             inputs:
               authToken: ${AEM_ADMIN_API_AUTH_TOKEN}
@@ -45,15 +45,19 @@ application:
             annotations:
               final: true
 
-        # parameters:
-        #   COMMERCE_STORE_CODE: "<your_store_code>"
-        #   COMMERCE_STORE_URL: "<your_store_url>"
-        #   COMMERCE_CONFIG_NAME: "<your_config_name>"
+        parameters:
+          COMMERCE_STORE_CODE: main_website_store
+          COMMERCE_STORE_URL: https://main--aem-boilerplate-commerce-staging--hlxsites.aem.live
+          COMMERCE_CONFIG_NAME: config
         # triggers:
         #   everyMinTrigger:
         #     feed: /whisk.system/alarms/interval
         #     inputs:
         #       minutes: 1
+        #   every60MinsTrigger:
+        #     feed: /whisk.system/alarms/interval
+        #     inputs:
+        #       minutes: 60
         # rules:
         #   everyMinRule:
         #   # When the action is invoked, it first checks
@@ -65,3 +69,6 @@ application:
         #   # necessarily executed every minute.
         #     trigger: everyMinTrigger
         #     action: check-product-changes
+        #   every60MinsRule:
+        #     trigger: every60MinsTrigger
+        #     action: fetch-all-products
