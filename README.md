@@ -65,8 +65,12 @@ You can generate this file using the command `aio app use`.
         # triggers:
         #   everyMinTrigger:
         #     feed: /whisk.system/alarms/interval
-        #     inputs: 
+        #     inputs:
         #       minutes: 1
+        #   every60MinsTrigger:
+        #     feed: /whisk.system/alarms/interval
+        #     inputs:
+        #       minutes: 60
         # rules:
         #   everyMinRule:
         #   # When the action is invoked, it first checks
@@ -78,6 +82,9 @@ You can generate this file using the command `aio app use`.
         #   # necessarily executed every minute.
         #     trigger: everyMinTrigger
         #     action: check-product-changes
+        #   every60MinsRule:
+        #     trigger: every60MinsTrigger
+        #     action: fetch-all-products
   ```
 - More information on this file, application configuration, and extension configuration 
   can be found [here](https://developer.adobe.com/app-builder/docs/guides/appbuilder-configuration/#appconfigyaml)
