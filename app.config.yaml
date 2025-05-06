@@ -31,6 +31,8 @@ application:
             function: actions/check-product-changes/index.js
             web: 'no'
             runtime: nodejs:22
+            include:
+              - ["actions/pdp-renderer/templates/*.hbs", "templates/"]
             limits:
               memorySize: 128 # use 256 in case the memory limit is exceeded at runtime
               timeout: 3600000
