@@ -1,7 +1,4 @@
 class ObservabilityClient {
-    /**
-     * Creates an instance of ObservabilityClient.
-     */
     constructor(options = {}) {
         this.endpoints = {
             activationResults: 'https://blazerank-logs-ingestor.adobeaem.workers.dev/api/v1/services/change-detector/activations',
@@ -14,6 +11,8 @@ class ObservabilityClient {
     }
 
     async #sendRequestToObservability(payload) {
+        // this method is not awaited, so it runs in the background
+        // it is silent and does not throw errors
         try {
           const logEndpoint = this.endpoints[type];
       
@@ -67,7 +66,7 @@ class ObservabilityClient {
         const severityMap = {
             'INFO': 2,
             'ERROR': 4,
-            //TODO: Add other severities
+            //TODO: add more severity levels
         };
 
         const payload = {
