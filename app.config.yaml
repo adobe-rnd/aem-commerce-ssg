@@ -47,10 +47,6 @@ application:
             annotations:
               final: true
 
-        parameters:
-          COMMERCE_STORE_CODE: main_website_store
-          COMMERCE_STORE_URL: https://main--aem-boilerplate-commerce-staging--hlxsites.aem.live
-          COMMERCE_CONFIG_NAME: config
         # triggers:
         #   everyMinTrigger:
         #     feed: /whisk.system/alarms/interval
