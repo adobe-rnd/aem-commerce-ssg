@@ -38,7 +38,7 @@ async function main(params) {
     // Extract the ID from the URL
     const url = fileProperties.url;
     // Extract just the base URL without the file path
-    const baseUrl = url.match(/(https:\/\/[^"'\s]+?)\/[^\/]+$/)?.[1] || null;
+    const baseUrl = url.match(/(https:\/\/[^"'\s]+?)\/[^/]+$/)?.[1] || null;
     if (!baseUrl) {
       throw new Error('Failed to extract base URL');
     }
