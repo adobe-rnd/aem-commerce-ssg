@@ -21,7 +21,7 @@ application:
         actions:
           pdp-renderer:
             function: actions/pdp-renderer/index.js
-            web: 'yes'
+            web: 'no'
             runtime: nodejs:22
             annotations:
               final: true
