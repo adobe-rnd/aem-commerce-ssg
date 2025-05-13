@@ -1,6 +1,18 @@
-# AppBuilder SSG Template for Edge Delivery Storefront
+# Adobe Edge Delivery Services Storefront - PDP Optimizer (Backend Pack)
 
 :sparkles: _Early-access technology_ :sparkles: Please get in touch with us in your dedicated support Slack channel to learn more about this feature.
+
+## Summary
+
+This package empowers you to enhance your product pages by embedding custom metadata and essential markup directly into the initial server response.
+The tailored approach boosts search engine crawlability and indexability, creates rich social media previews, ensures accurate Google Merchant Center data, and can improve page performance by making key content immediately available.
+
+- Enhanced Product Pages: Improve your product detail pages by embedding custom metadata and essential markup ahead-of-time, making them available already within the initial server response.
+- Tailored Implementation: Customize the injected metadata and markup to perfectly suit your specific requirements.
+- Boosted SEO: Significantly improves search engine crawlability and indexability for better visibility, especially in organic traffic.
+- Rich Social Media Previews: Ensures your product links generate engaging and informative previews when shared on social platforms.
+- Reliable Merchant Center Data: Provides accurate and readily available product information for Google Merchant Center.
+- Improved Page Performance: Depending on the implementation, can lead to faster page load times as essential content is delivered immediately by the server, thus reducing the number of fetch/XHR requests in the frontend.
 
 ## Setup
 
