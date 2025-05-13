@@ -1,4 +1,4 @@
-# Adobe Edge Delivery Services Storefront - PDP Optimizer (Backend Pack)
+# Adobe Edge Delivery Services Storefront - ahead-of-time static rendering of dynamic content
 
 :sparkles: _Early-access technology_ :sparkles: Please get in touch with us in your dedicated support Slack channel to learn more about this feature.
 
