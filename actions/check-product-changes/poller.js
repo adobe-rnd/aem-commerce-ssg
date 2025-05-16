@@ -12,16 +12,15 @@ governing permissions and limitations under the License.
 
 const { Timings, aggregate } = require('../lib/benchmark');
 const { AdminAPI } = require('../lib/aem');
-const { requestSaaS, requestSpreadsheet, isValidUrl, getProductUrl, mapLocale } = require('../utils');
+const { requestSaaS, requestSpreadsheet, isValidUrl, getProductUrl, mapLocale, FILE_PREFIX, STATE_FILE_EXT, PDP_FILE_EXT } = require('../utils');
 const { GetLastModifiedQuery } = require('../queries');
 const { Core } = require('@adobe/aio-sdk');
 const { generateProductHtml } = require('../pdp-renderer/render');
 const crypto = require('crypto');
-const { FILE_PREFIX, FILE_EXT } = require('../utils');
 const BATCH_SIZE = 50;
 
 function getStateFileLocation(stateKey) {
-  return `${FILE_PREFIX}/${stateKey}.${FILE_EXT}`;
+  return `${FILE_PREFIX}/${stateKey}.${STATE_FILE_EXT}`;
 }
 
 /**
@@ -235,7 +234,7 @@ async function enrichProductWithMetadata(product, state, context) {
       try {
         const { filesLib } = context.aioLibs;
         const productUrl = getProductUrl({ urlKey, sku }, context, false).toLowerCase();
-        const htmlPath = `/public/pdps${productUrl}`;
+        const htmlPath = `/public/pdps${productUrl}.${PDP_FILE_EXT}`;
         await filesLib.write(htmlPath, productHtml);
         logger.debug(`Saved HTML for product ${sku} to ${htmlPath}`);
       } catch (e) {
