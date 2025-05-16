@@ -21,7 +21,7 @@ const runtimePackage = 'aem-commerce-ssg'
 const actionUrl = `https://${namespace}.${hostname}/api/v1/web/${runtimePackage}/pdp-renderer`
 
 test('simple product markup', async () => {
-  const res = await fetch(`${actionUrl}/products/crown-summit-backpack/24-mb03`);
+  const res = await fetch(`${actionUrl}/products-ssg/crown-summit-backpack/24-mb03`);
   const content = await res.text();
 
   // Parse markup and compare
@@ -65,12 +65,12 @@ test('simple product markup', async () => {
     "name": "Crown Summit Backpack",
     "gtin": "",
     "description": "The Crown Summit Backpack is equally at home in a gym locker, study cube or a pup tent, so be sure yours is packed with books, a bag lunch, water bottles, yoga block, laptop, or whatever else you want in hand. Rugged enough for day hikes and camping trips, it has two large zippered compartments and padded, adjustable shoulder straps.Top handle.Grommet holes.Two-way zippers.H 20\" x W 14\" x D 12\".Weight: 2 lbs, 8 oz. Volume: 29 L.",
-    "@id": "https://main--aem-commerce-ssg-storefront--adobe-rnd.aem.live/products/crown-summit-backpack/24-MB03",
+    "@id": "https://main--aem-boilerplate-commerce-staging--hlxsites.aem.live/products-ssg/crown-summit-backpack/24-MB03",
     "offers": [
       {
         "@type": "Offer",
         "sku": "24-MB03",
-        "url": "https://main--aem-commerce-ssg-storefront--adobe-rnd.aem.live/products/crown-summit-backpack/24-MB03",
+        "url": "https://main--aem-boilerplate-commerce-staging--hlxsites.aem.live/products-ssg/crown-summit-backpack/24-MB03",
         "availability": "https://schema.org/InStock",
         "price": 38,
         "priceCurrency": "USD",
@@ -83,7 +83,7 @@ test('simple product markup', async () => {
 });
 
 test('complex product markup', async () => {
-  const res = await fetch(`${actionUrl}/products/hollister-backyard-sweatshirt/mh05`);
+  const res = await fetch(`${actionUrl}/products-ssg/hollister-backyard-sweatshirt/mh05`);
   const content = await res.text();
 
   // Parse markup and compare
@@ -93,7 +93,7 @@ test('complex product markup', async () => {
   expect($('h1').text()).toEqual('Hollister Backyard Sweatshirt');
 
   // Validate price
-  expect($('.product-details > div > div:contains("Price")').next().text()).toEqual('$2.00-$52.00');
+  expect($('.product-details > div > div:contains("Price")').next().text()).toEqual('$52.00');
 
   // Validate images
   expect($('.product-details > div > div:contains("Images")').next().find('a').map((_, e) => $(e).prop('outerHTML')).toArray()).toMatchInlineSnapshot(`
@@ -149,7 +149,7 @@ test('complex product markup', async () => {
       "https://schema.org/color"
     ],
     "description": "Kick off your weekend in the Hollister Backyard Sweatshirt. Whether you're raking leaves or flipping burgers, this comfy layer blocks the bite of the crisp autumn air. Puffy thick from hood to hem, it traps heat against your core.&bull; Cream crewneck sweatshirt with navy sleeves/trim.&bull; Relaxed fit. &bull; Ribbed cuffs and hem. &bull; Machine wash/dry.",
-    "@id": "https://main--aem-commerce-ssg-storefront--adobe-rnd.aem.live/products/hollister-backyard-sweatshirt/MH05",
+    "@id": "https://main--aem-boilerplate-commerce-staging--hlxsites.aem.live/products-ssg/hollister-backyard-sweatshirt/MH05",
     "hasVariant": [
       {
         "@type": "Product",
@@ -161,7 +161,7 @@ test('complex product markup', async () => {
           {
             "@type": "Offer",
             "sku": "MH05-L-Green",
-            "url": "https://main--aem-commerce-ssg-storefront--adobe-rnd.aem.live/products/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8xODQ%3D%2CY29uZmlndXJhYmxlLzU1Ni81MzI%3D",
+            "url": "https://main--aem-boilerplate-commerce-staging--hlxsites.aem.live/products-ssg/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8xODQ%3D%2CY29uZmlndXJhYmxlLzU1Ni81MzI%3D",
             "availability": "https://schema.org/InStock",
             "price": 52,
             "priceCurrency": "USD",
@@ -181,7 +181,7 @@ test('complex product markup', async () => {
           {
             "@type": "Offer",
             "sku": "MH05-L-Red",
-            "url": "https://main--aem-commerce-ssg-storefront--adobe-rnd.aem.live/products/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8xOTk%3D%2CY29uZmlndXJhYmxlLzU1Ni81MzI%3D",
+            "url": "https://main--aem-boilerplate-commerce-staging--hlxsites.aem.live/products-ssg/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8xOTk%3D%2CY29uZmlndXJhYmxlLzU1Ni81MzI%3D",
             "availability": "https://schema.org/InStock",
             "price": 52,
             "priceCurrency": "USD",
@@ -201,7 +201,7 @@ test('complex product markup', async () => {
           {
             "@type": "Offer",
             "sku": "MH05-L-White",
-            "url": "https://main--aem-commerce-ssg-storefront--adobe-rnd.aem.live/products/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8yMDI%3D%2CY29uZmlndXJhYmxlLzU1Ni81MzI%3D",
+            "url": "https://main--aem-boilerplate-commerce-staging--hlxsites.aem.live/products-ssg/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8yMDI%3D%2CY29uZmlndXJhYmxlLzU1Ni81MzI%3D",
             "availability": "https://schema.org/InStock",
             "price": 52,
             "priceCurrency": "USD",
@@ -221,7 +221,7 @@ test('complex product markup', async () => {
           {
             "@type": "Offer",
             "sku": "MH05-M-Green",
-            "url": "https://main--aem-commerce-ssg-storefront--adobe-rnd.aem.live/products/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8xODQ%3D%2CY29uZmlndXJhYmxlLzU1Ni81Mjk%3D",
+            "url": "https://main--aem-boilerplate-commerce-staging--hlxsites.aem.live/products-ssg/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8xODQ%3D%2CY29uZmlndXJhYmxlLzU1Ni81Mjk%3D",
             "availability": "https://schema.org/InStock",
             "price": 52,
             "priceCurrency": "USD",
@@ -241,7 +241,7 @@ test('complex product markup', async () => {
           {
             "@type": "Offer",
             "sku": "MH05-M-Red",
-            "url": "https://main--aem-commerce-ssg-storefront--adobe-rnd.aem.live/products/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8xOTk%3D%2CY29uZmlndXJhYmxlLzU1Ni81Mjk%3D",
+            "url": "https://main--aem-boilerplate-commerce-staging--hlxsites.aem.live/products-ssg/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8xOTk%3D%2CY29uZmlndXJhYmxlLzU1Ni81Mjk%3D",
             "availability": "https://schema.org/InStock",
             "price": 52,
             "priceCurrency": "USD",
@@ -261,7 +261,7 @@ test('complex product markup', async () => {
           {
             "@type": "Offer",
             "sku": "MH05-M-White",
-            "url": "https://main--aem-commerce-ssg-storefront--adobe-rnd.aem.live/products/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8yMDI%3D%2CY29uZmlndXJhYmxlLzU1Ni81Mjk%3D",
+            "url": "https://main--aem-boilerplate-commerce-staging--hlxsites.aem.live/products-ssg/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8yMDI%3D%2CY29uZmlndXJhYmxlLzU1Ni81Mjk%3D",
             "availability": "https://schema.org/InStock",
             "price": 52,
             "priceCurrency": "USD",
@@ -281,7 +281,7 @@ test('complex product markup', async () => {
           {
             "@type": "Offer",
             "sku": "MH05-S-Green",
-            "url": "https://main--aem-commerce-ssg-storefront--adobe-rnd.aem.live/products/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8xODQ%3D%2CY29uZmlndXJhYmxlLzU1Ni81MjY%3D",
+            "url": "https://main--aem-boilerplate-commerce-staging--hlxsites.aem.live/products-ssg/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8xODQ%3D%2CY29uZmlndXJhYmxlLzU1Ni81MjY%3D",
             "availability": "https://schema.org/InStock",
             "price": 52,
             "priceCurrency": "USD",
@@ -301,7 +301,7 @@ test('complex product markup', async () => {
           {
             "@type": "Offer",
             "sku": "MH05-S-Red",
-            "url": "https://main--aem-commerce-ssg-storefront--adobe-rnd.aem.live/products/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8xOTk%3D%2CY29uZmlndXJhYmxlLzU1Ni81MjY%3D",
+            "url": "https://main--aem-boilerplate-commerce-staging--hlxsites.aem.live/products-ssg/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8xOTk%3D%2CY29uZmlndXJhYmxlLzU1Ni81MjY%3D",
             "availability": "https://schema.org/InStock",
             "price": 52,
             "priceCurrency": "USD",
@@ -321,7 +321,7 @@ test('complex product markup', async () => {
           {
             "@type": "Offer",
             "sku": "MH05-S-White",
-            "url": "https://main--aem-commerce-ssg-storefront--adobe-rnd.aem.live/products/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8yMDI%3D%2CY29uZmlndXJhYmxlLzU1Ni81MjY%3D",
+            "url": "https://main--aem-boilerplate-commerce-staging--hlxsites.aem.live/products-ssg/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8yMDI%3D%2CY29uZmlndXJhYmxlLzU1Ni81MjY%3D",
             "availability": "https://schema.org/InStock",
             "price": 52,
             "priceCurrency": "USD",
@@ -341,7 +341,7 @@ test('complex product markup', async () => {
           {
             "@type": "Offer",
             "sku": "MH05-XL-Green",
-            "url": "https://main--aem-commerce-ssg-storefront--adobe-rnd.aem.live/products/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8xODQ%3D%2CY29uZmlndXJhYmxlLzU1Ni81MzU%3D",
+            "url": "https://main--aem-boilerplate-commerce-staging--hlxsites.aem.live/products-ssg/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8xODQ%3D%2CY29uZmlndXJhYmxlLzU1Ni81MzU%3D",
             "availability": "https://schema.org/InStock",
             "price": 52,
             "priceCurrency": "USD",
@@ -361,7 +361,7 @@ test('complex product markup', async () => {
           {
             "@type": "Offer",
             "sku": "MH05-XL-Red",
-            "url": "https://main--aem-commerce-ssg-storefront--adobe-rnd.aem.live/products/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8xOTk%3D%2CY29uZmlndXJhYmxlLzU1Ni81MzU%3D",
+            "url": "https://main--aem-boilerplate-commerce-staging--hlxsites.aem.live/products-ssg/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8xOTk%3D%2CY29uZmlndXJhYmxlLzU1Ni81MzU%3D",
             "availability": "https://schema.org/InStock",
             "price": 52,
             "priceCurrency": "USD",
@@ -381,7 +381,7 @@ test('complex product markup', async () => {
           {
             "@type": "Offer",
             "sku": "MH05-XL-White",
-            "url": "https://main--aem-commerce-ssg-storefront--adobe-rnd.aem.live/products/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8yMDI%3D%2CY29uZmlndXJhYmxlLzU1Ni81MzU%3D",
+            "url": "https://main--aem-boilerplate-commerce-staging--hlxsites.aem.live/products-ssg/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8yMDI%3D%2CY29uZmlndXJhYmxlLzU1Ni81MzU%3D",
             "availability": "https://schema.org/InStock",
             "price": 52,
             "priceCurrency": "USD",
@@ -401,7 +401,7 @@ test('complex product markup', async () => {
           {
             "@type": "Offer",
             "sku": "MH05-XS-Green",
-            "url": "https://main--aem-commerce-ssg-storefront--adobe-rnd.aem.live/products/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8xODQ%3D%2CY29uZmlndXJhYmxlLzU1Ni81MjM%3D",
+            "url": "https://main--aem-boilerplate-commerce-staging--hlxsites.aem.live/products-ssg/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8xODQ%3D%2CY29uZmlndXJhYmxlLzU1Ni81MjM%3D",
             "availability": "https://schema.org/InStock",
             "price": 52,
             "priceCurrency": "USD",
@@ -421,7 +421,7 @@ test('complex product markup', async () => {
           {
             "@type": "Offer",
             "sku": "MH05-XS-Red",
-            "url": "https://main--aem-commerce-ssg-storefront--adobe-rnd.aem.live/products/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8xOTk%3D%2CY29uZmlndXJhYmxlLzU1Ni81MjM%3D",
+            "url": "https://main--aem-boilerplate-commerce-staging--hlxsites.aem.live/products-ssg/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8xOTk%3D%2CY29uZmlndXJhYmxlLzU1Ni81MjM%3D",
             "availability": "https://schema.org/InStock",
             "price": 52,
             "priceCurrency": "USD",
@@ -441,9 +441,9 @@ test('complex product markup', async () => {
           {
             "@type": "Offer",
             "sku": "MH05-XS-White",
-            "url": "https://main--aem-commerce-ssg-storefront--adobe-rnd.aem.live/products/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8yMDI%3D%2CY29uZmlndXJhYmxlLzU1Ni81MjM%3D",
+            "url": "https://main--aem-boilerplate-commerce-staging--hlxsites.aem.live/products-ssg/hollister-backyard-sweatshirt/MH05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8yMDI%3D%2CY29uZmlndXJhYmxlLzU1Ni81MjM%3D",
             "availability": "https://schema.org/InStock",
-            "price": 2,
+            "price": 52,
             "priceCurrency": "USD",
             "itemCondition": "https://schema.org/NewCondition"
           }

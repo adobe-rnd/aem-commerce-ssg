@@ -13,7 +13,7 @@ governing permissions and limitations under the License.
 /* This file exposes some common utilities for your actions */
 
 const FILE_PREFIX = 'check-product-changes';
-const FILE_EXT = 'csv';
+const [STATE_FILE_EXT, PDP_FILE_EXT] = ['csv', 'html'];
 
 /**
  *
@@ -380,5 +380,6 @@ module.exports = {
   getProductUrl,
   mapLocale,
   FILE_PREFIX,
-  FILE_EXT,
+  PDP_FILE_EXT,
+  STATE_FILE_EXT,
 }

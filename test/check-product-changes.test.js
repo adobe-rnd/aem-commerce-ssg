@@ -14,7 +14,7 @@ const assert = require('node:assert/strict');
 const { loadState, saveState, getStateFileLocation, poll } = require('../actions/check-product-changes/poller');
 const Files = require('./__mocks__/files');
 const { AdminAPI } = require('../actions/lib/aem');
-const { requestSaaS, requestSpreadsheet, isValidUrl} = require('../actions/utils');
+const { requestSaaS, requestSpreadsheet, isValidUrl } = require('../actions/utils');
 const { MockState } = require('./__mocks__/state');
 
 const EXAMPLE_STATE = 'sku1,1,\nsku2,2,\nsku3,3,';
@@ -43,6 +43,9 @@ jest.mock('../actions/utils', () => ({
   isValidUrl: jest.fn(() => true),
   getProductUrl: jest.fn(({ urlKey, sku }) => `/${urlKey || sku}`),
   mapLocale: jest.fn((locale) => ({ locale })),
+  FILE_PREFIX: 'check-product-changes',
+  STATE_FILE_EXT: 'csv',
+  PDP_FILE_EXT: 'html',
 }));
 
 jest.spyOn(AdminAPI.prototype, 'startProcessing').mockImplementation(jest.fn());
@@ -288,7 +291,7 @@ describe('Poller', () => {
 
       // Verify HTML file was saved
       expect(filesLib.write).toHaveBeenCalledWith(
-        '/public/pdps/url-sku-123',
+        '/public/pdps/url-sku-123.html',
         '<html>Product 123</html>'
       );
 
