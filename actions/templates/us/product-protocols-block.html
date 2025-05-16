@@ -12,6 +12,15 @@
             <ul>
                 <li><a href="/en-us/technical-resources/protocols">General protocols</a></li>
                 <li><a href="/en-us/technical-resources/troubleshooting">Troubleshooting</a></li>
+                {{#if protocolsdownloads}}
+                    {{#each protocolsdownloads}}
+                        {{#if this.url}}
+                        <li>
+                            <a href="{{concat '/content/dam/abcam/product' this.url}}" target="_blank"> {{this.documentType}}|{{this.language}}</a>
+                        </li>
+                        {{/if}}
+                    {{/each}}
+                {{/if}}
             </ul>
         </div>
     </div>
