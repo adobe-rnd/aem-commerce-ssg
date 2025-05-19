@@ -1,13 +1,14 @@
 class ObservabilityClient {
-    constructor(options = {}) {
+    constructor(nativeLogger, options = {endpoint: 'https://blazerank-logs-ingestor.adobeaem.workers.dev/api/v1/services/change-detector'}) {
         this.endpoints = {
-            activationResults: 'https://blazerank-logs-ingestor.adobeaem.workers.dev/api/v1/services/change-detector/activations',
-            logs: 'https://blazerank-logs-ingestor.adobeaem.workers.dev/api/v1/services/change-detector/logs',
+            activationResults: `${options.endpoint}/activations`,
+            logs: `${options.endpoint}/logs`,
         };
         this.activationId = process.env.__OW_ACTIVATION_ID;
         this.namespace = process.env.__OW_NAMESPACE;
         this.instanceStartTime = Date.now();
         this.options = options;
+        this.logger = nativeLogger;
     }
 
     async #sendRequestToObservability(payload) {
@@ -56,6 +57,21 @@ class ObservabilityClient {
         this.#sendRequestToObservability('activationResults', payload);
     }
 
+    logger = {
+      debug: (...args) => {
+        this.sendLogEvent(...args, 'DEBUG');
+        this.logger.debug(...args);
+      },
+      info: (...args) => {
+        this.sendLogEvent(...args, 'INFO');
+        this.logger.info(...args);
+      },
+      error: (...args) => {
+        this.sendLogEvent(...args, 'ERROR');
+        this.logger.error(...args);
+      },
+    }
+
     /**
      * Sends a log event to the observability endpoint.
      * @param {string} message The log message.
@@ -64,9 +80,12 @@ class ObservabilityClient {
      */
     async sendLogEvent(message, severity = 'INFO') {
         const severityMap = {
-            'INFO': 2,
-            'ERROR': 4,
-            //TODO: add more severity levels
+            'DEBUG': 1,
+            'VERBOSE': 2,
+            'INFO': 3,
+            'WARNING': 4,
+            'ERROR': 5,
+            'CRITICAL': 6,
         };
 
         const payload = {

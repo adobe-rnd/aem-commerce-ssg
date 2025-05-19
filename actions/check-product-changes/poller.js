@@ -329,10 +329,9 @@ async function processDeletedProducts(remainingSkus, locale, state, counts, cont
   }
 }
 
-async function poll(params, aioLibs) {
+async function poll(params, aioLibs, logger) {
   checkParams(params);
 
-  const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' });
   const {
     HLX_SITE_NAME: siteName,
     HLX_PATH_FORMAT: pathFormat,

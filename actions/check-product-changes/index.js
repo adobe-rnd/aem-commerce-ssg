@@ -16,15 +16,20 @@ const { StateManager } = require('../lib/state');
 const { ObservabilityClient } = require('../lib/observability');
 
 async function main(params) {
-  const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' });
+  const rtLogger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' });
+  const observabilityClient = new ObservabilityClient(rtLogger, { token: params.authToken });
+  const {logger} = observabilityClient;
   const stateLib = await State.init(params.libInit || {});
   const filesLib = await Files.init(params.libInit || {});
   const stateMgr = new StateManager(stateLib, { logger });
-  const observabilityClient = new ObservabilityClient({ token: params.authToken });
+
+  let activationResult = null;
 
   const running = await stateMgr.get('running');
   if (running?.value === 'true') {
-    return { state: 'skipped' };
+    activationResult = { state: 'skipped' };
+    observabilityClient.sendActivationLog(activationResult);
+    return activationResult;
   }
 
   try {
@@ -32,14 +37,13 @@ async function main(params) {
     // this might not be updated and action execution could be permanently skipped
     // a ttl == function timeout is a mitigation for this risk
     await stateMgr.put('running', 'true', { ttl: 3600 });
-    const activationResult = await poll(params, { stateLib: stateMgr, filesLib });
-    // send activation result to observability endpoint
-    await observabilityClient.sendActivationLog(activationResult);
-    // return the activation result
-    return activationResult;
+    activationResult = await poll(params, { stateLib: stateMgr, filesLib }, logger);
   } finally {
     await stateMgr.put('running', 'false');
   }
+
+  observabilityClient.sendActivationLog(activationResult);
+  return activationResult;
 }
 
 exports.main = main
