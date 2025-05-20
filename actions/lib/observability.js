@@ -31,7 +31,7 @@ class ObservabilityClient {
           } else {
             Promise.resolve();
           }
-        } catch (_) {
+        } catch () {
           Promise.resolve(); // Still resolve to prevent blocking
         }
       }
