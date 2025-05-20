@@ -14,7 +14,6 @@ const { Timings, aggregate } = require('../lib/benchmark');
 const { AdminAPI } = require('../lib/aem');
 const { requestSaaS, requestSpreadsheet, isValidUrl, getProductUrl, mapLocale, FILE_PREFIX, STATE_FILE_EXT, PDP_FILE_EXT } = require('../utils');
 const { GetLastModifiedQuery } = require('../queries');
-const { Core } = require('@adobe/aio-sdk');
 const { generateProductHtml } = require('../pdp-renderer/render');
 const crypto = require('crypto');
 const BATCH_SIZE = 50;

@@ -11,7 +11,7 @@ class ObservabilityClient {
         this.logger = nativeLogger;
     }
 
-    async #sendRequestToObservability(payload) {
+    async #sendRequestToObservability(type, payload) {
         // this method is not awaited, so it runs in the background
         // it is silent and does not throw errors
         try {
@@ -31,7 +31,7 @@ class ObservabilityClient {
           } else {
             Promise.resolve();
           }
-        } catch (error) {
+        } catch (_) {
           Promise.resolve(); // Still resolve to prevent blocking
         }
       }
