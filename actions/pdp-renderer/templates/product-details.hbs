@@ -35,11 +35,17 @@
       <ul>
         {{#each options}}
         <li>
-          {{title}}
+          <div>{{title}}<div>
+          <div>{{id}}<div>
+          <div>{{required}}<div>
           {{#if values}}
           <ul>
             {{#each values}}
-            <li>{{title}}</li>
+            <li>
+              <div>{{title}}</div>
+              <div>{{id}}</div>
+              <div>{{inStock}}</div>
+            </li>
             {{/each}}
           </ul>
           {{/if}}
@@ -47,6 +53,12 @@
         {{/each}}
       </ul>
     </div>
+  </div>
+  {{/if}}
+  {{#if __typename}}
+  <div>
+    <div><h2>Type</h2></div>
+    <div>{{__typename}}</div>
   </div>
   {{/if}}
 </div>
