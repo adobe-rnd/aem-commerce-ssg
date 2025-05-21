@@ -17,7 +17,7 @@ const { ObservabilityClient } = require('../lib/observability');
 
 async function main(params) {
   const rtLogger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' });
-  const observabilityClient = new ObservabilityClient(rtLogger, { token: params.authToken });
+  const observabilityClient = new ObservabilityClient(rtLogger, { token: params.authToken, endpoint: 'https://blazerank-logs-ingestor.adobeaem.workers.dev/api/v1/services/change-detector' });
   const {logger} = observabilityClient;
   const stateLib = await State.init(params.libInit || {});
   const filesLib = await Files.init(params.libInit || {});
@@ -28,7 +28,7 @@ async function main(params) {
   const running = await stateMgr.get('running');
   if (running?.value === 'true') {
     activationResult = { state: 'skipped' };
-    observabilityClient.sendActivationLog(activationResult);
+    await observabilityClient.sendActivationResult(activationResult);
     return activationResult;
   }
 
@@ -42,7 +42,7 @@ async function main(params) {
     await stateMgr.put('running', 'false');
   }
 
-  observabilityClient.sendActivationLog(activationResult);
+  await observabilityClient.sendActivationResult(activationResult);
   return activationResult;
 }
 

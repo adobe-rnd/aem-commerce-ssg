@@ -1,5 +1,6 @@
 class ObservabilityClient {
-    constructor(nativeLogger, options = {endpoint: 'https://blazerank-logs-ingestor.adobeaem.workers.dev/api/v1/services/change-detector'}) {
+    constructor(nativeLogger, options = {}) {
+        this.nativeLogger = nativeLogger;
         this.endpoints = {
             activationResults: `${options.endpoint}/activations`,
             logs: `${options.endpoint}/logs`,
@@ -8,17 +9,14 @@ class ObservabilityClient {
         this.namespace = process.env.__OW_NAMESPACE;
         this.instanceStartTime = Date.now();
         this.options = options;
-        this.logger = nativeLogger;
     }
 
     async #sendRequestToObservability(type, payload) {
-        // this method is not awaited, so it runs in the background
-        // it is silent and does not throw errors
         try {
           const logEndpoint = this.endpoints[type];
       
           if (logEndpoint) {
-            fetch(logEndpoint, {
+            await fetch(logEndpoint, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -26,13 +24,9 @@ class ObservabilityClient {
             },
               body: JSON.stringify(payload),
             });
-            // No `await`, so promise runs in the background
-            Promise.resolve(); // Immediately resolve to avoid blocking
-          } else {
-            Promise.resolve();
           }
-        } catch {
-          Promise.resolve(); // Still resolve to prevent blocking
+        } catch (error) {
+          this.nativeLogger.error(`[ObservabilityClient] Failed to send to observability endpoint '${type}': ${error.message}`, { error });
         }
       }
 
@@ -54,21 +48,21 @@ class ObservabilityClient {
             activationId: this.activationId,
         };
 
-        this.#sendRequestToObservability('activationResults', payload);
+        await this.#sendRequestToObservability('activationResults', payload);
     }
 
     logger = {
-      debug: (...args) => {
-        this.sendLogEvent(...args, 'DEBUG');
-        this.logger.debug(...args);
+      debug: async (...args) => {
+        this.sendLogEvent(args[0] instanceof Error ? args[0].message : args[0], 'DEBUG');
+        this.nativeLogger.debug(...args);
       },
-      info: (...args) => {
-        this.sendLogEvent(...args, 'INFO');
-        this.logger.info(...args);
+      info: async(...args) => {
+        this.sendLogEvent(args[0] instanceof Error ? args[0].message : args[0], 'INFO');
+        this.nativeLogger.info(...args);
       },
-      error: (...args) => {
-        this.sendLogEvent(...args, 'ERROR');
-        this.logger.error(...args);
+      error: async (...args) => {
+        this.sendLogEvent(args[0] instanceof Error ? args[0].message : args[0], 'ERROR');
+        this.nativeLogger.error(...args);
       },
     }
 
@@ -96,7 +90,7 @@ class ObservabilityClient {
             severity: severityMap[severity] || 2,
         };
 
-        this.#sendRequestToObservability('logs', payload);
+        await this.#sendRequestToObservability('logs', payload);
     }
 }
 
