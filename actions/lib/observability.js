@@ -53,15 +53,18 @@ class ObservabilityClient {
 
     logger = {
       debug: async (...args) => {
-        this.sendLogEvent(args[0] instanceof Error ? args[0].message : args[0], 'DEBUG');
+        const message = args.map(arg => arg instanceof Error ? arg.message : String(arg)).join(' ');
+        this.sendLogEvent(message, 'DEBUG');
         this.nativeLogger.debug(...args);
       },
       info: async(...args) => {
-        this.sendLogEvent(args[0] instanceof Error ? args[0].message : args[0], 'INFO');
+        const message = args.map(arg => arg instanceof Error ? arg.message : String(arg)).join(' ');
+        this.sendLogEvent(message, 'INFO');
         this.nativeLogger.info(...args);
       },
       error: async (...args) => {
-        this.sendLogEvent(args[0] instanceof Error ? args[0].message : args[0], 'ERROR');
+        const message = args.map(arg => arg instanceof Error ? arg.message : String(arg)).join(' ');
+        this.sendLogEvent(message, 'ERROR');
         this.nativeLogger.error(...args);
       },
     }
