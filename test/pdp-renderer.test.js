@@ -289,21 +289,57 @@ describe('pdp-renderer', () => {
       expect($('body > main > div.product-details > div > div:contains("Options")').next().html().trim()).toMatchInlineSnapshot(`
 "<ul>
             <li>
-              Size
+              <div>Size</div>
+              <div>size</div>
+              <div>false</div>
               <ul>
-                <li>XS</li>
-                <li>S</li>
-                <li>M</li>
-                <li>L</li>
-                <li>XL</li>
+                <li>
+                  <div>XS</div>
+                  <div>Y29uZmlndXJhYmxlLzU1Ni81MjM=</div>
+                  <div>true</div>
+                </li>
+                <li>
+                  <div>S</div>
+                  <div>Y29uZmlndXJhYmxlLzU1Ni81MjY=</div>
+                  <div>true</div>
+                </li>
+                <li>
+                  <div>M</div>
+                  <div>Y29uZmlndXJhYmxlLzU1Ni81Mjk=</div>
+                  <div>true</div>
+                </li>
+                <li>
+                  <div>L</div>
+                  <div>Y29uZmlndXJhYmxlLzU1Ni81MzI=</div>
+                  <div>true</div>
+                </li>
+                <li>
+                  <div>XL</div>
+                  <div>Y29uZmlndXJhYmxlLzU1Ni81MzU=</div>
+                  <div>true</div>
+                </li>
               </ul>
             </li>
             <li>
-              Color
+              <div>Color</div>
+              <div>color</div>
+              <div>false</div>
               <ul>
-                <li>Green</li>
-                <li>Red</li>
-                <li>White</li>
+                <li>
+                  <div>Green</div>
+                  <div>Y29uZmlndXJhYmxlLzI3Ny8xODQ=</div>
+                  <div>true</div>
+                </li>
+                <li>
+                  <div>Red</div>
+                  <div>Y29uZmlndXJhYmxlLzI3Ny8xOTk=</div>
+                  <div>true</div>
+                </li>
+                <li>
+                  <div>White</div>
+                  <div>Y29uZmlndXJhYmxlLzI3Ny8yMDI=</div>
+                  <div>true</div>
+                </li>
               </ul>
             </li>
           </ul>"
