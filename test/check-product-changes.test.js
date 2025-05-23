@@ -37,6 +37,12 @@ const EXAMPLE_EXPECTED_STATE = {
   },
 };
 
+const mockLogger = {
+  info: jest.fn(),
+  error: jest.fn(),
+  debug: jest.fn(),
+};
+
 jest.mock('../actions/utils', () => ({
   requestSaaS: jest.fn(),
   requestSpreadsheet: jest.fn(),
@@ -238,7 +244,7 @@ describe('Poller', () => {
       const filesLib = mockFiles();
       const stateLib = mockState();
 
-      await expect(poll(params, { filesLib, stateLib }))
+      await expect(poll(params, { filesLib, stateLib }, mockLogger))
         .rejects.toThrow('Missing required parameters: HLX_CONFIG_NAME');
     });
 
@@ -252,7 +258,7 @@ describe('Poller', () => {
       const filesLib = mockFiles();
       const stateLib = mockState();
 
-      await expect(poll(params, { filesLib, stateLib }))
+      await expect(poll(params, { filesLib, stateLib }, mockLogger))
         .rejects.toThrow('Invalid storeUrl');
     });
   });
@@ -276,7 +282,7 @@ describe('Poller', () => {
       // Mock catalog service responses
       mockSaaSResponse(['sku-123'], 5000);
 
-      const result = await poll(defaultParams, { filesLib, stateLib });
+      const result = await poll(defaultParams, { filesLib, stateLib }, mockLogger);
 
       // Verify results
       expect(result.state).toBe('completed');
@@ -325,7 +331,7 @@ describe('Poller', () => {
       // Mock catalog service responses
       mockSaaSResponse(['sku-456'], 5000);
       
-      const result = await poll(defaultParams, { filesLib, stateLib });
+      const result = await poll(defaultParams, { filesLib, stateLib }, mockLogger);
 
       // Verify results
       expect(result.state).toBe('completed');
@@ -355,7 +361,7 @@ describe('Poller', () => {
       // Mock catalog service responses
       mockSaaSResponse(['sku-failed-due-preview', 'sku-failed-due-publishing'], 20000);
       
-      const result = await poll(defaultParams, { filesLib, stateLib });
+      const result = await poll(defaultParams, { filesLib, stateLib }, mockLogger);
 
       // Verify results
       expect(result.state).toBe('completed');
@@ -399,7 +405,7 @@ describe('Poller', () => {
         return Promise.resolve({});
       });
       
-      const result = await poll(defaultParams, { filesLib, stateLib });
+      const result = await poll(defaultParams, { filesLib, stateLib }, mockLogger);
 
       // Verify results
       expect(result.state).toBe('completed');
@@ -465,7 +471,7 @@ describe('Poller', () => {
         });
       });
 
-      const result = await poll(defaultParams, { filesLib, stateLib });
+      const result = await poll(defaultParams, { filesLib, stateLib }, mockLogger);
 
       // Verify results
       expect(result.state).toBe('completed');
@@ -528,7 +534,7 @@ describe('Poller', () => {
         });
       });
 
-      await poll(defaultParams, { filesLib, stateLib });
+      await poll(defaultParams, { filesLib, stateLib }, mockLogger);
 
       // Verify HTML files were deleted
       expect(filesLib.delete).toHaveBeenCalledTimes(2);
