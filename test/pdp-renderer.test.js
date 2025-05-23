@@ -329,6 +329,7 @@ describe('pdp-renderer', () => {
       expect($('head > meta[name="image"]').attr('content')).toEqual('http://www.aemshop.net/media/catalog/product/m/b/mb03-black-0.jpg');
       expect($('head > meta[name="id"]').attr('content')).toEqual('7');
       expect($('head > meta[name="sku"]').attr('content')).toEqual('24-MB03');
+      expect($('head > meta[name="__typename"]').attr('content')).toEqual('SimpleProductView');
       expect($('head > meta[name="x-cs-lastModifiedAt"]').attr('content')).toEqual('2024-10-03T15:26:48.850Z');
       expect($('head > meta[property="og:type"]').attr('content')).toEqual('og:product');
     });
