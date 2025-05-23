@@ -10,7 +10,7 @@ OF ANY KIND, either express or implied. See the License for the specific languag
 governing permissions and limitations under the License.
 */
 
-const { Core } = require('@adobe/aio-sdk')
+const { Core, Files } = require('@adobe/aio-sdk')
 const { errorResponse, stringParameters, mapLocale } = require('../utils');
 const { extractPathDetails } = require('./lib');
 const { generateProductHtml } = require('./render');
@@ -18,7 +18,7 @@ const { generateProductHtml } = require('./render');
 /**
  * Parameters
  * @param {Object} params The parameters object
- * @param {string} params.__ow_path The path of the request
+ * @param {string} params.productPath The URL/URI path of the product
  * @param {string} params.configName Overwrite for HLX_CONFIG_NAME using query parameter
  * @param {string} params.contentUrl Overwrite for HLX_CONTENT_URL using query parameter
  * @param {string} params.storeUrl Overwrite for HLX_STORE_URL using query parameter
@@ -29,19 +29,21 @@ const { generateProductHtml } = require('./render');
  * @param {string} params.HLX_STORE_URL Public facing URL of the store
  * @param {string} params.HLX_PRODUCTS_TEMPLATE URL to the products template page
  * @param {string} params.HLX_PATH_FORMAT The path format to use for parsing
- */
+ * @param {string} params.saveGeneratedMarkup Whether to save the generated HTML to the storage bucket
+*/
 async function main (params) {
   const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' })
 
   try {
     logger.debug(stringParameters(params))
     const {
-      __ow_path,
+      productPath,
       pathFormat : pathFormatQuery,
       configName : configNameQuery,
       contentUrl : contentUrlQuery,
       storeUrl : storeUrlQuery,
       productsTemplate : productsTemplateQuery,
+      saveGeneratedMarkup = false,
       HLX_STORE_URL,
       HLX_CONTENT_URL,
       HLX_CONFIG_NAME,
@@ -58,7 +60,7 @@ async function main (params) {
     let context = { contentUrl, storeUrl, configName, logger, pathFormat, allowedLocales };
     context.productsTemplate = productsTemplateQuery || HLX_PRODUCTS_TEMPLATE;
 
-    const result = extractPathDetails(__ow_path, pathFormat);
+    const result = extractPathDetails(productPath, pathFormat);
     logger.debug('Path parse results', JSON.stringify(result, null, 4));
     const { sku, urlKey, locale } = result;
 
@@ -66,8 +68,8 @@ async function main (params) {
       return errorResponse(400, 'Invalid path', logger);
     }
 
-    // Map locale to context
-    if (locale) {
+      // Map locale to context
+      if (locale) {
       try {
       context = { ...context, ...mapLocale(locale, context) };
       // eslint-disable-next-line no-unused-vars
@@ -76,8 +78,20 @@ async function main (params) {
       }
     }
 
-    // Retrieve base product
+    const productURI = pathFormat
+    .replace(/\s/g, '')
+    .replace('{urlKey}', urlKey)
+    .replace('{locale}', locale)
+    .replace('{sku}', sku);
+
     const productHtml = await generateProductHtml(sku, urlKey, context);
+
+    if(saveGeneratedMarkup) {
+      const filesLib = await Files.init(params.libInit || {});
+      const htmlPath = `/public/pdps${productURI}`;
+      await filesLib.write(htmlPath, productHtml);
+      logger.debug(`Rendered HTML file for product ${productURI} to ${htmlPath}`);
+    }
 
     const response = {
       statusCode: 200,
