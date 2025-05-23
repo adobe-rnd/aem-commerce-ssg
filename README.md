@@ -101,6 +101,16 @@ You can generate this file using the command `aio app use`.
 - More information on this file, application configuration, and extension configuration 
   can be found [here](https://developer.adobe.com/app-builder/docs/guides/appbuilder-configuration/#appconfigyaml)
 
+### Overlay setup
+
+It's possible to easily generate the PDP overlay service URL, with the follwing command, once the AppBuilder package (including the new get-overlay-url action) is deployed:
+```bash
+# as usual, this assumes that the environment variables have already been provided/expanded
+aio rt action invoke aem-commerce-ssg/get-overlay-url -r
+```
+
+Source: [actions/get-overlay-url/index.js](/actions/get-overlay-url/index.js)
+
 #### Action Dependencies
 
 - You have two options to resolve your actions' dependencies:
