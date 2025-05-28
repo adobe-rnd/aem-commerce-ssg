@@ -54,26 +54,19 @@ application:
             annotations:
               final: true
 
-        # triggers:
-        #   everyMinTrigger:
-        #     feed: /whisk.system/alarms/interval
-        #     inputs:
-        #       minutes: 1
-        #   every60MinsTrigger:
-        #     feed: /whisk.system/alarms/interval
-        #     inputs:
-        #       minutes: 60
-        # rules:
-        #   everyMinRule:
-        #   # When the action is invoked, it first checks
-        #   # that no instances of the same action are already
-        #   # running. If an instance is running, business logic
-        #   # execution is skipped; if no instances are running,
-        #   # it scans the Catalog to check for product changes.
-        #   # The above means that the actual logic is not
-        #   # necessarily executed every minute.
-        #     trigger: everyMinTrigger
-        #     action: check-product-changes
-        #   every60MinsRule:
-        #     trigger: every60MinsTrigger
-        #     action: fetch-all-products
+      #   triggers:
+      #    productPollerTrigger:
+      #      feed: /whisk.system/alarms/interval
+      #      inputs:
+      #        minutes: 5
+      #    productScraperTrigger:
+      #      feed: /whisk.system/alarms/interval
+      #      inputs:
+      #        minutes: 60
+      #  rules:
+      #    productPollerRule:
+      #      trigger: productPollerTrigger
+      #      action: check-product-changes
+      #    productScraperRule:
+      #      trigger: productScraperTrigger
+      #      action: fetch-all-products
