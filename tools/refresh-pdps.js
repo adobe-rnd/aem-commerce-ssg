@@ -140,8 +140,8 @@ if (require.main === module) {
 }
 
 module.exports = {
-    enablePollRule,
-    disablePollRule,
+    enableRules,
+    disableRules,
     initStateIfNull,
     clearStoreState,
     getRunning,
