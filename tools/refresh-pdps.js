@@ -17,31 +17,40 @@ const openwhisk = require('openwhisk');
 const { program } = require('commander');
 if (require.main === module) require('dotenv').config();
 
-const RULE_POLL_EVERY_MINUTE = 'poll_every_minute';
+const rules = ['productPollerRule', 'productScraperRule'];
 
 const {
     AIO_RUNTIME_NAMESPACE,
+    AIO_runtime_namespace,
     AIO_RUNTIME_AUTH,
+    AIO_runtime_auth,
 } = process.env;
+
+const namespace = AIO_RUNTIME_NAMESPACE || AIO_runtime_namespace;
+const auth = AIO_RUNTIME_AUTH || AIO_runtime_auth;
 
 let stateInstance, filesLib;
 const ow = openwhisk({
-    api_key: AIO_RUNTIME_AUTH,
-    namespace: AIO_RUNTIME_NAMESPACE,
+    api_key: auth,
+    namespace,
 });
 
-async function enablePollRule() {
-    await ow.rules.enable({
-        name: RULE_POLL_EVERY_MINUTE,
-    });
-    console.info(`rule "${RULE_POLL_EVERY_MINUTE}" enabled`);
+async function enableRules() {
+    for (const rule of rules) {
+        await ow.rules.enable({
+            name: rule,
+        });
+        console.info(`rule "${rule}" enabled`);
+    }
 }
 
-async function disablePollRule() {
-    await ow.rules.disable({
-        name: RULE_POLL_EVERY_MINUTE,
-    });
-    console.info(`rule "${RULE_POLL_EVERY_MINUTE}" disabled`);
+async function disableRules() {
+    for (const rule of rules) {
+        await ow.rules.disable({
+            name: rule,
+        });
+        console.info(`rule "${rule}" disabled`);
+    }
 }
 
 async function initStateIfNull() {
@@ -49,8 +58,8 @@ async function initStateIfNull() {
     console.info('Initializing state libs');
     const cfg = {
         ow: {
-            auth: AIO_RUNTIME_AUTH,
-            namespace: AIO_RUNTIME_NAMESPACE,
+            auth,
+            namespace,
         },
     };
     filesLib = await Files.init(cfg);
@@ -101,6 +110,11 @@ async function main() {
     const { debug, stores: storesString } = program.opts();
     const stores = storesString.split(',');
 
+    if (!namespace || !auth) {
+        console.error('Missing required environment variables');
+        process.exit(1);
+    }
+
     if (debug) {
         console.info('Debug mode enabled');
         const storesState = {};
@@ -111,13 +125,13 @@ async function main() {
         console.log('storesState', storesState);
         // 1. stop the poller. If the poller is already activated
         //    it will be stopped until the next activation (step 4)
-        await disablePollRule();
+        await disableRules();
         // 2. wait for the poller to stop (timeout 30 min)
         await isPollerStopped();
         // 3. remove all SKUs from the state
         await clearStoreState(stateInstance, stores);
         // 4. restart the poller
-        await enablePollRule();
+        await enableRules();
     }
 }
 
