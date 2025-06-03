@@ -27,17 +27,19 @@ application:
           pdp-renderer:
             function: "actions/pdp-renderer/index.js"
             web: "yes"
-            runtime: nodejs:22
+            runtime: "nodejs:22"
             annotations:
               final: true
             include:
-              - ["actions/pdp-renderer/templates/*.hbs", "templates/"]
+              - "actions/pdp-renderer/templates/*.hbs"
+              - "templates/"
           check-product-changes:
-            function: actions/check-product-changes/index.js
+            function: "actions/check-product-changes/index.js"
             web: "no"
             runtime: nodejs:22
             include:
-              - ["actions/pdp-renderer/templates/*.hbs", "templates/"]
+              - "actions/pdp-renderer/templates/*.hbs"
+              - "templates/"
             limits:
               memorySize: 256 # Using 256 since the memory limit might be hit at runtime.
                               # You might reduce it to 128 if execution works fine without errors in your use case.
