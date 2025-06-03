@@ -36,7 +36,7 @@ application:
           check-product-changes:
             function: "actions/check-product-changes/index.js"
             web: "no"
-            runtime: nodejs:22
+            runtime: "nodejs:22"
             include:
               - "actions/pdp-renderer/templates/*.hbs"
               - "templates/"
