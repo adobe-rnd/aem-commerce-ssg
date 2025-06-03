@@ -346,6 +346,20 @@ function getProductUrl(product, context, addStore = true) {
 }
 
 /**
+ * Returns the default store URL.
+ *
+ * @param {object} params The parameters object.
+ * @returns {string} The default store URL.
+ */
+function getDefaultStoreURL(params) {
+  const {
+    ORG: orgName,
+    SITE: siteName,
+  } = params;
+  return  `https://main--${siteName}--${orgName}.aem.live`;
+}
+
+/**
  * Adjust the context according to the given locale.
  * 
  * TODO: Customize this function to match your multi store setup
@@ -355,7 +369,7 @@ function getProductUrl(product, context, addStore = true) {
  */
 function mapLocale(locale, context) {
   // Check if locale is valid
-  const allowedLocales = ['en', 'fr']; // Or use context.allowedLocales derived from HLX_LOCALES configuration
+  const allowedLocales = ['en', 'fr']; // Or use context.allowedLocales derived from LOCALES configuration
   if (locale && !allowedLocales.includes(locale)) {
     throw new Error('Invalid locale');
   }
@@ -378,6 +392,7 @@ module.exports = {
   requestSpreadsheet,
   isValidUrl,
   getProductUrl,
+  getDefaultStoreURL,
   mapLocale,
   FILE_PREFIX,
   PDP_FILE_EXT,

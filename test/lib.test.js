@@ -71,26 +71,26 @@ describe('lib', () => {
 
         // Range
         // Minimum discounted, maximum normal
-        expect(generatePriceString({ priceRange: { minimum: { regular: value100, final: value80 }, maximum: { regular: value100, final: value100 }}})).toBe('<s>€100.00</s> €80.00-€100.00');
+        expect(generatePriceString({ priceRange: { minimum: { regular: value100, final: value80 }, maximum: { regular: value100, final: value100 }}})).toBe('<s>EUR 100.00</s> EUR 80.00-EUR 100.00');
 
         // Minimum normal, maximum discounted
-        expect(generatePriceString({ priceRange: { minimum: { regular: value100, final: value100 }, maximum: { regular: value100, final: value80 }}})).toBe('€100.00-<s>€100.00</s> €80.00');
+        expect(generatePriceString({ priceRange: { minimum: { regular: value100, final: value100 }, maximum: { regular: value100, final: value80 }}})).toBe('EUR 100.00-<s>EUR 100.00</s> EUR 80.00');
 
         // Both discounted
-        expect(generatePriceString({ priceRange: { minimum: { regular: value80, final: value60 }, maximum: { regular: value100, final: value80 }}})).toBe('<s>€80.00</s> €60.00-<s>€100.00</s> €80.00');
+        expect(generatePriceString({ priceRange: { minimum: { regular: value80, final: value60 }, maximum: { regular: value100, final: value80 }}})).toBe('<s>EUR 80.00</s> EUR 60.00-<s>EUR 100.00</s> EUR 80.00');
 
         // Equal range
         // With discount
-        expect(generatePriceString({ priceRange: { minimum: { regular: value80, final: value60 }, maximum: { regular: value100, final: value60 }}})).toBe('<s>€80.00</s> €60.00');
+        expect(generatePriceString({ priceRange: { minimum: { regular: value80, final: value60 }, maximum: { regular: value100, final: value60 }}})).toBe('<s>EUR 80.00</s> EUR 60.00');
 
         // Without discount
-        expect(generatePriceString({ priceRange: { minimum: { regular: value80, final: value80 }, maximum: { regular: value80, final: value80 }}})).toBe('€80.00');
+        expect(generatePriceString({ priceRange: { minimum: { regular: value80, final: value80 }, maximum: { regular: value80, final: value80 }}})).toBe('EUR 80.00');
 
         // No range
         // With discount
-        expect(generatePriceString({ price: { regular: value100, final: value80 }})).toBe('<s>€100.00</s> €80.00');
+        expect(generatePriceString({ price: { regular: value100, final: value80 }})).toBe('<s>EUR 100.00</s> EUR 80.00');
 
         // No discount
-        expect(generatePriceString({ price: { regular: value100, final: value100 }})).toBe('€100.00');
+        expect(generatePriceString({ price: { regular: value100, final: value100 }})).toBe('EUR 100.00');
     });
 });

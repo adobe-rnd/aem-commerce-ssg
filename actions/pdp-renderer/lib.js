@@ -105,11 +105,10 @@ function getFormatter(locale = 'us-en', currency) {
  * @param {Object} product Product object.
  * @returns {string} Formatted price string.
  */
-function generatePriceString(product) {
+function generatePriceString(product, localeCode = 'us-en') {
   const { price, priceRange } = product;
   let currency = priceRange ? priceRange?.minimum?.regular?.amount?.currency : price?.regular?.amount?.currency;
-  const format = getFormatter('us-en', currency).format; // TODO: Assign the correct locale based on your implementation
-
+  const format = getFormatter(localeCode, currency).format;
   let priceString = '';
 
   if (priceRange) {

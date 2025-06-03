@@ -74,10 +74,10 @@ describe('pdp-renderer', () => {
       server.use(handlers.defaultProduct());
 
       const response = await action.main({
-        HLX_STORE_URL: 'https://store.com',
-        HLX_CONTENT_URL: 'https://content.com',
-        HLX_CONFIG_NAME: 'config',
-        HLX_PRODUCTS_TEMPLATE: "https://content.com/products/default",
+        STORE_URL: 'https://store.com',
+        CONTENT_URL: 'https://content.com',
+        CONFIG_NAME: 'config',
+        PRODUCTS_TEMPLATE: "https://content.com/products/default",
         __ow_path: `/products/crown-summit-backpack/24-MB03`,
       });
 
@@ -90,9 +90,9 @@ describe('pdp-renderer', () => {
       server.use(handlers.defaultProduct());
 
       const response = await action.main({
-        HLX_STORE_URL: 'https://store.com',
-        HLX_CONTENT_URL: 'https://content.com',
-        HLX_CONFIG_NAME: 'config',
+        STORE_URL: 'https://store.com',
+        CONTENT_URL: 'https://content.com',
+        CONFIG_NAME: 'config',
         __ow_path: `/products/crown-summit-backpack/24-MB03`,
       });
 
@@ -106,10 +106,10 @@ describe('pdp-renderer', () => {
       server.use(handlers.defaultProduct());
 
       const response = await action.main({
-        HLX_STORE_URL: 'https://store.com',
-        HLX_CONTENT_URL: 'https://content.com',
-        HLX_CONFIG_NAME: 'config',
-        HLX_PATH_FORMAT: '/products/{sku}',
+        STORE_URL: 'https://store.com',
+        CONTENT_URL: 'https://content.com',
+        CONFIG_NAME: 'config',
+        PRODUCT_PAGE_URL_FORMAT: '/products/{sku}',
         __ow_path: `/products/24-MB03`,
       });
 
@@ -121,10 +121,10 @@ describe('pdp-renderer', () => {
       server.use(handlers.defaultProductLiveSearch());
 
       const response = await action.main({
-        HLX_STORE_URL: 'https://store.com',
-        HLX_CONTENT_URL: 'https://content.com',
-        HLX_CONFIG_NAME: 'config',
-        HLX_PATH_FORMAT: '/{urlKey}',
+        STORE_URL: 'https://store.com',
+        CONTENT_URL: 'https://content.com',
+        CONFIG_NAME: 'config',
+        PRODUCT_PAGE_URL_FORMAT: '/{urlKey}',
         __ow_path: `/crown-summit-backpack`,
       });
      
@@ -145,10 +145,10 @@ describe('pdp-renderer', () => {
       }));
 
       const response = await action.main({
-        HLX_STORE_URL: 'https://store.com',
-        HLX_CONTENT_URL: 'https://content.com',
-        HLX_CONFIG_NAME: 'config',
-        HLX_PATH_FORMAT: '/{locale}/products/{sku}',
+        STORE_URL: 'https://store.com',
+        CONTENT_URL: 'https://content.com',
+        CONFIG_NAME: 'config',
+        PRODUCT_PAGE_URL_FORMAT: '/{locale}/products/{sku}',
         __ow_path: `/en/products/24-MB03`,
       });
 
@@ -165,10 +165,10 @@ describe('pdp-renderer', () => {
 
     test('return 400 if locale is not supported', async () => {
       const response = await action.main({
-        HLX_STORE_URL: 'https://store.com',
-        HLX_CONTENT_URL: 'https://content.com',
-        HLX_CONFIG_NAME: 'config',
-        HLX_PATH_FORMAT: '/{locale}/products/{sku}',
+        STORE_URL: 'https://store.com',
+        CONTENT_URL: 'https://content.com',
+        CONFIG_NAME: 'config',
+        PRODUCT_PAGE_URL_FORMAT: '/{locale}/products/{sku}',
         __ow_path: `/test/products/24-MB03`,
       });
 
@@ -179,10 +179,10 @@ describe('pdp-renderer', () => {
   describe('error handling', () => {
     test('return 400 if neither sku nor urlKey are provided', async () => {
       const response = await action.main({
-        HLX_STORE_URL: 'https://store.com',
-        HLX_CONTENT_URL: 'https://content.com',
-        HLX_CONFIG_NAME: 'config',
-        HLX_PATH_FORMAT: '/{urlPath}',
+        STORE_URL: 'https://store.com',
+        CONTENT_URL: 'https://content.com',
+        CONFIG_NAME: 'config',
+        PRODUCT_PAGE_URL_FORMAT: '/{urlPath}',
         __ow_path: `/crown-summit-backpack`,
       });
 
@@ -193,9 +193,9 @@ describe('pdp-renderer', () => {
       server.use(handlers.return404());
 
       const response = await action.main({
-        HLX_STORE_URL: 'https://aemstore.net',
-        HLX_CONTENT_URL: 'https://content.com',
-        HLX_CONFIG_NAME: 'config',
+        STORE_URL: 'https://aemstore.net',
+        CONTENT_URL: 'https://content.com',
+        CONFIG_NAME: 'config',
         __ow_path: '/products/crown-summit-backpack/sku-is-404',
       });
 
@@ -210,9 +210,9 @@ describe('pdp-renderer', () => {
 
     const getProductResponse = async () => {
       return action.main({
-        HLX_STORE_URL: 'https://store.com',
-        HLX_CONTENT_URL: 'https://content.com',
-        HLX_CONFIG_NAME: 'config',
+        STORE_URL: 'https://store.com',
+        CONTENT_URL: 'https://content.com',
+        CONFIG_NAME: 'config',
         __ow_path: `/products/crown-summit-backpack/24-MB03`,
       });
     };
@@ -246,8 +246,10 @@ describe('pdp-renderer', () => {
     test('render price', async () => {
       const response = await getProductResponse();
       const $ = cheerio.load(response.body);
+
+      console.log('price', $('body > main > div.product-details > div > div:contains("Price")').next().text())
       
-      expect($('body > main > div.product-details > div > div:contains("Price")').next().text()).toBe('$38.00');
+      expect($('body > main > div.product-details > div > div:contains("Price")').next().text()).toBe('$ 38.00');
     });
 
     test('render title', async () => {
@@ -263,9 +265,9 @@ describe('pdp-renderer', () => {
       server.use(handlers.defaultProduct());
 
       const response = await action.main({
-        HLX_STORE_URL: 'https://store.com',
-        HLX_CONTENT_URL: 'https://content.com',
-        HLX_CONFIG_NAME: 'config',
+        STORE_URL: 'https://store.com',
+        CONTENT_URL: 'https://content.com',
+        CONFIG_NAME: 'config',
         __ow_path: `/products/crown-summit-backpack/24-MB03`,
       });
 
@@ -278,9 +280,9 @@ describe('pdp-renderer', () => {
       server.use(handlers.defaultVariant());
 
       const response = await action.main({
-        HLX_STORE_URL: 'https://store.com',
-        HLX_CONTENT_URL: 'https://content.com',
-        HLX_CONFIG_NAME: 'config',
+        STORE_URL: 'https://store.com',
+        CONTENT_URL: 'https://content.com',
+        CONFIG_NAME: 'config',
         __ow_path: `/products/crown-summit-backpack/24-MB03`,
       });
 
@@ -352,9 +354,9 @@ describe('pdp-renderer', () => {
       server.use(handlers.defaultProduct());
 
       const response = await action.main({
-        HLX_STORE_URL: 'https://store.com',
-        HLX_CONTENT_URL: 'https://content.com',
-        HLX_CONFIG_NAME: 'config',
+        STORE_URL: 'https://store.com',
+        CONTENT_URL: 'https://content.com',
+        CONFIG_NAME: 'config',
         __ow_path: `/products/crown-summit-backpack/24-MB03`,
       });
 
@@ -374,9 +376,9 @@ describe('pdp-renderer', () => {
       server.use(handlers.defaultProduct());
 
       const response = await action.main({
-        HLX_STORE_URL: 'https://store.com',
-        HLX_CONTENT_URL: 'https://content.com',
-        HLX_CONFIG_NAME: 'config',
+        STORE_URL: 'https://store.com',
+        CONTENT_URL: 'https://content.com',
+        CONFIG_NAME: 'config',
         __ow_path: `/products/crown-summit-backpack/24-MB03`,
       });
 

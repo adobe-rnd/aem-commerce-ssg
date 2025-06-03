@@ -16,6 +16,7 @@ const Files = require('./__mocks__/files');
 const { AdminAPI } = require('../actions/lib/aem');
 const { requestSaaS, requestSpreadsheet, isValidUrl } = require('../actions/utils');
 const { MockState } = require('./__mocks__/state');
+const { getDefaultStoreURL } = require('../actions/utils');
 
 const EXAMPLE_STATE = 'sku1,1,\nsku2,2,\nsku3,3,';
 
@@ -49,6 +50,7 @@ jest.mock('../actions/utils', () => ({
   isValidUrl: jest.fn(() => true),
   getProductUrl: jest.fn(({ urlKey, sku }) => `/${urlKey || sku}`),
   mapLocale: jest.fn((locale) => ({ locale })),
+  getDefaultStoreURL: jest.fn(() => 'https://mock.store.url'),
   FILE_PREFIX: 'check-product-changes',
   STATE_FILE_EXT: 'csv',
   PDP_FILE_EXT: 'html',
@@ -114,12 +116,11 @@ describe('Poller', () => {
   });
 
   const defaultParams = {
-    HLX_SITE_NAME: 'siteName',
-    HLX_PATH_FORMAT: 'pathFormat',
-    PLPURIPrefix: 'prefix',
-    HLX_ORG_NAME: 'orgName',
-    HLX_CONFIG_NAME: 'configName',
-    authToken: 'token',
+    ORG: 'orgName',
+    SITE: 'siteName',
+    PRODUCT_PAGE_URL_FORMAT: 'products/{urlKey}/{sku}',
+    CONFIG_NAME: 'configName',
+    AEM_ADMIN_AUTH_TOKEN: 'token',
   };
 
   const setupSkuData = (filesLib, stateLib, skuData, lastQueriedAt) => {
