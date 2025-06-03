@@ -1,6 +1,11 @@
 # Edge Delivery Services Storefront Prerender
 
 Pluggable prerendering framework for ahead-of-time data fetching and embedding in Product Pages and more.
+* ⚡️ Boost SEO by pre-rendering human-readable product data in the markup
+* 💉 Inject JSON-LD Structured data in the page source code
+* 📈 Aggregate data sources and inject resulting data ahead-of-time
+* ⚙️ Define your custom rendering logic
+* 🧠 Offload intensive computation to the rendering phase
 
 :sparkles: _Early-access technology_ :sparkles: Please get in touch with us in your dedicated support Slack channel to learn more about this feature.
 
