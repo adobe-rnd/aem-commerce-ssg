@@ -15,27 +15,14 @@ const { Files } = require('@adobe/aio-sdk');
 const { deleteState } = require('../actions/check-product-changes/poller');
 const openwhisk = require('openwhisk');
 const { program } = require('commander');
-if (require.main === module) require('dotenv').config();
+ if (require.main === module) require('dotenv').config();
 
 const rules = ['productPollerRule', 'productScraperRule'];
 
-const {
-    AIO_RUNTIME_NAMESPACE,
-    AIO_runtime_namespace,
-    AIO_RUNTIME_AUTH,
-    AIO_runtime_auth,
-} = process.env;
+let ow, stateInstance, filesLib;
 
-const namespace = AIO_RUNTIME_NAMESPACE || AIO_runtime_namespace;
-const auth = AIO_RUNTIME_AUTH || AIO_runtime_auth;
-
-let stateInstance, filesLib;
-const ow = openwhisk({
-    api_key: auth,
-    namespace,
-});
-
-async function enableRules() {
+async function enableRules({ namespace, auth }) {
+    await initStateIfNull({ namespace, auth });
     for (const rule of rules) {
         await ow.rules.enable({
             name: rule,
@@ -44,7 +31,8 @@ async function enableRules() {
     }
 }
 
-async function disableRules() {
+async function disableRules({ namespace, auth }) {
+    await initStateIfNull({ namespace, auth });
     for (const rule of rules) {
         await ow.rules.disable({
             name: rule,
@@ -53,7 +41,7 @@ async function disableRules() {
     }
 }
 
-async function initStateIfNull() {
+async function initStateIfNull({ namespace, auth }) {
     if (stateInstance) return;
     console.info('Initializing state libs');
     const cfg = {
@@ -66,21 +54,21 @@ async function initStateIfNull() {
     stateInstance = await stateLib.init(cfg);
 }
 
-async function clearStoreState(state, stores) {
-    await initStateIfNull();
-    for (const store of stores) {
-        await deleteState(store, filesLib);
-        console.info(`file-based state for store "${store}" deleted`);
+async function clearStoreState(locales, { namespace, auth }) {
+    await initStateIfNull({ namespace, auth });
+    for (const locale of locales) {
+        await deleteState(locale, filesLib);
+        console.info(`file-based state for store "${locale}" deleted`);
     }
 }
 
-async function getRunning(state, key = 'running') {
-    await initStateIfNull();
+async function getRunning(state, key = 'running', { namespace, auth }) {
+    await initStateIfNull({ namespace, auth });
     return (await state.get(key))?.value === 'true';
 }
 
-async function getStoreState(state, store) {
-    await initStateIfNull();
+async function getStoreState(state, store, { namespace, auth }) {
+    await initStateIfNull({ namespace, auth });
     const skusList = await state.get(store);
     const running = (await state.get('running'))?.value === 'true';
     return {
@@ -90,7 +78,8 @@ async function getStoreState(state, store) {
 }
 
 
-async function isPollerStopped(state, timeout) {
+async function isPollerStopped(state, timeout, { namespace, auth }) {
+    await initStateIfNull({ namespace, auth });
     const start = Date.now();
     while (Date.now() - start < timeout) {
         const running = await state.get('running');
@@ -104,35 +93,42 @@ async function isPollerStopped(state, timeout) {
 
 async function main() {
     program
-        .option('-d, --debug', 'Additionally prints out the state')
-        .requiredOption('-s, --stores <us,en,uk,...>', 'Comma separated list of locales');
+        .option('-s, --stores <us,en,uk,...>', 'Comma separated list of locales');
 
-    const { debug, stores: storesString } = program.opts();
-    const stores = storesString.split(',');
+    const { stores: storesString } = program.opts();
+
+    const {
+        AIO_RUNTIME_NAMESPACE,
+        AIO_runtime_namespace,
+        AIO_RUNTIME_AUTH,
+        AIO_runtime_auth,
+    } = process.env;
+    
+    const namespace = AIO_RUNTIME_NAMESPACE || AIO_runtime_namespace;
+    const auth = AIO_RUNTIME_AUTH || AIO_runtime_auth;
 
     if (!namespace || !auth) {
         console.error('Missing required environment variables');
         process.exit(1);
     }
 
-    if (debug) {
-        console.info('Debug mode enabled');
-        const storesState = {};
-        for (const store of stores) {
-            storesState[store] = await getStoreState(stateInstance, store);
-        }
+    ow = openwhisk({
+        api_key: auth,
+        namespace,
+    });
 
-        console.log('storesState', storesState);
-        // 1. stop the poller. If the poller is already activated
-        //    it will be stopped until the next activation (step 4)
-        await disableRules();
-        // 2. wait for the poller to stop (timeout 30 min)
-        await isPollerStopped();
-        // 3. remove all SKUs from the state
-        await clearStoreState(stateInstance, stores);
-        // 4. restart the poller
-        await enableRules();
-    }
+
+    const stores = storesString.split(',');
+
+    // 1. stop the poller. If the poller is already activated
+    //    it will be stopped until the next activation (step 4)
+    await disableRules({ namespace, auth });
+    // 2. wait for the poller to stop (timeout 30 min)
+    await isPollerStopped(stateInstance, 1800000, { namespace, auth });
+    // 3. remove all SKUs from the state
+    await clearStoreState(stateInstance, stores, { namespace, auth });
+    // 4. restart the poller
+    await enableRules({ namespace, auth });
 }
 
 if (require.main === module) {

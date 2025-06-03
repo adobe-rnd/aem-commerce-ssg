@@ -75,7 +75,7 @@ describe('State and Rule Management', () => {
     describe('State Management', () => {
         test('clearStoreState deletes file-based state for multiple stores', async () => {
             const stores = ['us', 'uk'];
-            await clearStoreState(mockState, stores);
+            await clearStoreState(mockState, stores, { namespace: 'test-namespace', auth: 'test-auth' });
             expect(mockFiles.delete).toHaveBeenCalledTimes(2);
             expect(mockFiles.delete).toHaveBeenCalledWith('check-product-changes/us.csv');
             expect(mockFiles.delete).toHaveBeenCalledWith('check-product-changes/uk.csv');
@@ -83,7 +83,7 @@ describe('State and Rule Management', () => {
 
         test('getRunning returns false when state is not "true"', async () => {
             mockState.get.mockResolvedValue({ value: 'false' });
-            const result = await getRunning(mockState);
+            const result = await getRunning(mockState, { namespace: 'test-namespace', auth: 'test-auth' });
             expect(result).toBe(false);
         });
     });
@@ -107,7 +107,7 @@ describe('State and Rule Management', () => {
                 mockState.get.mockResolvedValue(false);
             }, 1000);
 
-            const pollerPromise = isPollerStopped(mockState, timeout);
+            const pollerPromise = isPollerStopped(mockState, timeout, { namespace: 'test-namespace', auth: 'test-auth' });
             jest.advanceTimersByTime(1500);
             await pollerPromise;
 
@@ -120,7 +120,7 @@ describe('State and Rule Management', () => {
             // Mock state to always return running
             mockState.get.mockResolvedValue('true');
 
-            const pollerPromise = isPollerStopped(mockState, timeout);
+            const pollerPromise = isPollerStopped(mockState, timeout, { namespace: 'test-namespace', auth: 'test-auth' });
             jest.advanceTimersByTime(timeout + 100);
 
             await expect(pollerPromise).rejects.toThrow(
