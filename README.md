@@ -1,4 +1,6 @@
-# Adobe Edge Delivery Services Storefront - ahead-of-time static rendering of dynamic content
+# Edge Delivery Services Storefront Prerender
+
+Pluggable prerendering framework for ahead-of-time data fetching and embedding in Product Pages and more.
 
 :sparkles: _Early-access technology_ :sparkles: Please get in touch with us in your dedicated support Slack channel to learn more about this feature.
 
