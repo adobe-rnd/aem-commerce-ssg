@@ -14,7 +14,7 @@ const assert = require('node:assert/strict');
 const { loadState, saveState, getStateFileLocation, poll } = require('../actions/check-product-changes/poller');
 const Files = require('./__mocks__/files');
 const { AdminAPI } = require('../actions/lib/aem');
-const { requestSaaS, requestSpreadsheet, isValidUrl} = require('../actions/utils');
+const { requestSaaS, requestSpreadsheet, isValidUrl } = require('../actions/utils');
 const { MockState } = require('./__mocks__/state');
 
 const EXAMPLE_STATE = 'sku1,1,\nsku2,2,\nsku3,3,';
@@ -37,12 +37,21 @@ const EXAMPLE_EXPECTED_STATE = {
   },
 };
 
+const mockLogger = {
+  info: jest.fn(),
+  error: jest.fn(),
+  debug: jest.fn(),
+};
+
 jest.mock('../actions/utils', () => ({
   requestSaaS: jest.fn(),
   requestSpreadsheet: jest.fn(),
   isValidUrl: jest.fn(() => true),
   getProductUrl: jest.fn(({ urlKey, sku }) => `/${urlKey || sku}`),
   mapLocale: jest.fn((locale) => ({ locale })),
+  FILE_PREFIX: 'check-product-changes',
+  STATE_FILE_EXT: 'csv',
+  PDP_FILE_EXT: 'html',
 }));
 
 jest.spyOn(AdminAPI.prototype, 'startProcessing').mockImplementation(jest.fn());
@@ -235,7 +244,7 @@ describe('Poller', () => {
       const filesLib = mockFiles();
       const stateLib = mockState();
 
-      await expect(poll(params, { filesLib, stateLib }))
+      await expect(poll(params, { filesLib, stateLib }, mockLogger))
         .rejects.toThrow('Missing required parameters: HLX_CONFIG_NAME');
     });
 
@@ -249,7 +258,7 @@ describe('Poller', () => {
       const filesLib = mockFiles();
       const stateLib = mockState();
 
-      await expect(poll(params, { filesLib, stateLib }))
+      await expect(poll(params, { filesLib, stateLib }, mockLogger))
         .rejects.toThrow('Invalid storeUrl');
     });
   });
@@ -273,7 +282,7 @@ describe('Poller', () => {
       // Mock catalog service responses
       mockSaaSResponse(['sku-123'], 5000);
 
-      const result = await poll(defaultParams, { filesLib, stateLib });
+      const result = await poll(defaultParams, { filesLib, stateLib }, mockLogger);
 
       // Verify results
       expect(result.state).toBe('completed');
@@ -288,7 +297,7 @@ describe('Poller', () => {
 
       // Verify HTML file was saved
       expect(filesLib.write).toHaveBeenCalledWith(
-        '/public/pdps/url-sku-123',
+        '/public/pdps/url-sku-123.html',
         '<html>Product 123</html>'
       );
 
@@ -322,7 +331,7 @@ describe('Poller', () => {
       // Mock catalog service responses
       mockSaaSResponse(['sku-456'], 5000);
       
-      const result = await poll(defaultParams, { filesLib, stateLib });
+      const result = await poll(defaultParams, { filesLib, stateLib }, mockLogger);
 
       // Verify results
       expect(result.state).toBe('completed');
@@ -352,7 +361,7 @@ describe('Poller', () => {
       // Mock catalog service responses
       mockSaaSResponse(['sku-failed-due-preview', 'sku-failed-due-publishing'], 20000);
       
-      const result = await poll(defaultParams, { filesLib, stateLib });
+      const result = await poll(defaultParams, { filesLib, stateLib }, mockLogger);
 
       // Verify results
       expect(result.state).toBe('completed');
@@ -396,7 +405,7 @@ describe('Poller', () => {
         return Promise.resolve({});
       });
       
-      const result = await poll(defaultParams, { filesLib, stateLib });
+      const result = await poll(defaultParams, { filesLib, stateLib }, mockLogger);
 
       // Verify results
       expect(result.state).toBe('completed');
@@ -462,7 +471,7 @@ describe('Poller', () => {
         });
       });
 
-      const result = await poll(defaultParams, { filesLib, stateLib });
+      const result = await poll(defaultParams, { filesLib, stateLib }, mockLogger);
 
       // Verify results
       expect(result.state).toBe('completed');
@@ -525,7 +534,7 @@ describe('Poller', () => {
         });
       });
 
-      await poll(defaultParams, { filesLib, stateLib });
+      await poll(defaultParams, { filesLib, stateLib }, mockLogger);
 
       // Verify HTML files were deleted
       expect(filesLib.delete).toHaveBeenCalledTimes(2);
