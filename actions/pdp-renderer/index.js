@@ -29,6 +29,16 @@ const { generateProductHtml } = require('./render');
  * @param {string} params.STORE_URL Public facing URL of the store
  * @param {string} params.PRODUCTS_TEMPLATE URL to the products template page
  * @param {string} params.PRODUCT_PAGE_URL_FORMAT The path format to use for parsing
+ * @param {string} params.configName Overwrite for CONFIG_NAME using query parameter
+ * @param {string} params.contentUrl Overwrite for CONTENT_URL using query parameter
+ * @param {string} params.storeUrl Overwrite for STORE_URL using query parameter
+ * @param {string} params.productsTemplate Overwrite for PRODUCTS_TEMPLATE using query parameter
+ * @param {string} params.pathFormat Overwrite for PRODUCT_PAGE_URL_FORMAT using query parameter
+ * @param {string} params.CONFIG_NAME The config sheet to use (e.g. configs for prod, configs-dev for dev)
+ * @param {string} params.CONTENT_URL Edge Delivery URL of the store (e.g. aem.live)
+ * @param {string} params.STORE_URL Public facing URL of the store
+ * @param {string} params.PRODUCTS_TEMPLATE URL to the products template page
+ * @param {string} params.PRODUCT_PAGE_URL_FORMAT The path format to use for parsing
  */
 async function main (params) {
   const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' })
@@ -48,14 +58,21 @@ async function main (params) {
       PRODUCTS_TEMPLATE,
       PRODUCT_PAGE_URL_FORMAT,
       LOCALES,
+      STORE_URL,
+      CONTENT_URL,
+      CONFIG_NAME,
+      PRODUCTS_TEMPLATE,
+      PRODUCT_PAGE_URL_FORMAT,
+      LOCALES,
     } = params;
 
-    const pathFormat = pathFormatQuery || PRODUCT_PAGE_URL_FORMAT || '/products/{urlKey}/{sku}';
+    const pathFormat = pathFormatQuery || PRODUCT_PAGE_URL_FORMAT;
     const configName = configNameQuery || CONFIG_NAME;
-    const contentUrl = contentUrlQuery || CONTENT_URL || getDefaultStoreURL(params);
-    const storeUrl = storeUrlQuery || STORE_URL || CONTENT_URL || getDefaultStoreURL(params);
+    const contentUrl = contentUrlQuery || CONTENT_URL;
+    const storeUrl = storeUrlQuery || STORE_URL;
     const allowedLocales = LOCALES ? LOCALES.split(',').map(a => a.trim()) : [];
     let context = { contentUrl, storeUrl, configName, logger, pathFormat, allowedLocales };
+    context.productsTemplate = productsTemplateQuery || PRODUCTS_TEMPLATE;
     context.productsTemplate = productsTemplateQuery || PRODUCTS_TEMPLATE;
 
     const result = extractPathDetails(__ow_path, pathFormat);

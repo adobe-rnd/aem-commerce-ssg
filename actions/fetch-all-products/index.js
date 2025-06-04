@@ -101,6 +101,10 @@ async function main(params) {
     ORG: orgName,
     CONTENT_URL: contentUrl,
     CONFIG_NAME: configName = 'configs',
+    SITE: siteName,
+    ORG: orgName,
+    CONTENT_URL: contentUrl,
+    CONFIG_NAME: configName = 'configs',
   } = params;
   if (!siteName || !orgName || !contentUrl) {
     return {
@@ -111,7 +115,7 @@ async function main(params) {
       }
     }
   }
-  const storeUrl = params.STORE_URL ? params.STORE_URL : getDefaultStoreURL(params);
+  const storeUrl = params.STORE_URL;
   const locales = params.LOCALES ? params.LOCALES.split(',') : [null];
   const context = { 
     configName,
