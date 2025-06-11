@@ -2,12 +2,20 @@
   "name": "aemssgdevelop",
   "version": "0.0.1",
   "private": true,
+  "bin": {
+    "setup": "./bin/setup/index.js"
+  },
   "dependencies": {
-    "@adobe/aio-lib-runtime": "^7.1.0",
+    "@adobe/aio-lib-files": "^4.1.2",
+    "@adobe/aio-lib-runtime": "^7.1.2",
+    "@adobe/aio-lib-state": "^5.1.0",
     "@adobe/aio-sdk": "^6",
+    "@whatwg-node/server": "^0.10.10",
     "canvas": "^3.1.0",
     "cheerio": "^1.0.0",
     "commander": "^13.1.0",
+    "diff": "^8.0.2",
+    "dotenv-stringify": "^3.0.1",
     "handlebars": "^4.7.8",
     "js-yaml": "^4.1.0",
     "node-fetch": "^2.6.0",
