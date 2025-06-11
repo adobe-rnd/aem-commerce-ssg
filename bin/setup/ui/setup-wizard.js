@@ -627,6 +627,103 @@ export class SetupWizard extends LitElement {
         this.advancedSettings = { ...this.advancedSettings, [field]: value };
     }
 
+    handleDragOver(event) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'copy';
+    }
+
+    async handleAIOConfigDrop(event) {
+        event.preventDefault();
+        const files = event.dataTransfer.files;
+        if (files.length > 0) {
+            await this.processAIOConfigFile(files[0]);
+        }
+    }
+
+    async handleAIOConfigFileSelect(event) {
+        const files = event.target.files;
+        if (files.length > 0) {
+            await this.processAIOConfigFile(files[0]);
+        }
+    }
+
+    handleDropzoneClick(event) {
+        event.preventDefault();
+        const fileInput = this.shadowRoot.getElementById('aio-file-input');
+        if (fileInput) {
+            fileInput.click();
+        }
+    }
+
+    async processAIOConfigFile(file) {
+        if (!file.name.endsWith('.json')) {
+            this.showToastNotification('Please upload a JSON file.', 'negative');
+            return;
+        }
+
+        try {
+            const fileContent = await this.readFileAsText(file);
+            const config = JSON.parse(fileContent);
+            
+            // Extract AIO namespace and auth from the JSON
+            const aioNamespace = config.project?.workspace?.details?.runtime?.namespaces?.[0]?.name;
+            const aioAuth = config.project?.workspace?.details?.runtime?.namespaces?.[0]?.auth;
+            
+            if (!aioNamespace || !aioAuth) {
+                this.showToastNotification('Invalid AIO configuration file. Missing namespace or auth.', 'negative');
+                return;
+            }
+
+            // Generate filename with Unix timestamp
+            const timestamp = Math.floor(Date.now() / 1000);
+            const baseName = file.name.replace('.json', '');
+            const newFileName = `${baseName}-${timestamp}.json`;
+
+            // Save file and execute aio app use command
+            const response = await fetch('/api/aio-config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    aioNamespace,
+                    aioAuth,
+                    fileContent,
+                    fileName: newFileName
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+
+            // Update component state
+            this.aioNamespace = aioNamespace;
+            this.aioAuth = aioAuth;
+            
+            if (result.success) {
+                this.showToastNotification(`AIO configuration saved as ${newFileName} and applied successfully!`, 'positive');
+            } else {
+                this.showToastNotification(`AIO configuration saved but failed to apply: ${result.error || 'Unknown error'}`, 'negative');
+            }
+            
+        } catch (error) {
+            console.error('Error processing AIO config file:', error);
+            this.showToastNotification('Error processing AIO configuration file.', 'negative');
+        }
+    }
+
+    readFileAsText(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(reader.error);
+            reader.readAsText(file);
+        });
+    }
+
     prevStep() {
         if (this.wizardStep > 1) {
             this.wizardStep -= 1;
@@ -657,6 +754,16 @@ export class SetupWizard extends LitElement {
             this.toastTimeout = null;
         }
         this.isToastVisible = false;
+    }
+
+    maskCredential(credential) {
+        if (!credential || credential.length <= 10) {
+            return credential || 'Not loaded';
+        }
+        const start = credential.substring(0, 6);
+        const end = credential.substring(credential.length - 4);
+        const middle = '*'.repeat(Math.min(12, credential.length - 10));
+        return `${start}${middle}${end}`;
     }
 
     handleToastClose(event) {
@@ -853,14 +960,41 @@ export class SetupWizard extends LitElement {
 
     async performHealthChecks() {
         this.isHealthCheckRunning = true;
-        this.healthCheckResults = null;
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        this.healthCheckResults = {};
 
-        this.healthCheckResults = {
-            aioLogin: Math.random() > 0.1,
-            aemLogin: Math.random() > 0.1,
-            siteConfig: Math.random() > 0.1,
-        };
+        // Health check for renderer endpoint
+        try {
+            const rendererUrl = `https://${this.aioNamespace}.adobeioruntime.net/api/v1/web/aem-commerce-ssg/pdp-renderer/`;
+            const response = await fetch(rendererUrl);
+            
+            // We expect a 404 since the endpoint shouldn't exist yet
+            this.healthCheckResults.rendererEndpoint = response.status === 404;
+        } catch (error) {
+            this.healthCheckResults.rendererEndpoint = false;
+        }
+
+        // Health check for local files endpoint
+        try {
+            const filesUrl = `${window.location.origin}/api/files`;
+            const filesResponse = await fetch(filesUrl);
+            
+            // We expect a 2xx status code for success
+            this.healthCheckResults.filesEndpoint = (filesResponse.status >= 200 && filesResponse.status < 300);
+        } catch (error) {
+            this.healthCheckResults.filesEndpoint = false;
+        }
+
+        // Health check for rules endpoint
+        try {
+            const rulesUrl = `${window.location.origin}/api/rules`;
+            const rulesResponse = await fetch(rulesUrl);
+            
+            // We expect a 2xx status code for success
+            this.healthCheckResults.rulesEndpoint = (rulesResponse.status >= 200 && rulesResponse.status < 300);
+        } catch (error) {
+            this.healthCheckResults.rulesEndpoint = false;
+        }
+
         this.isHealthCheckRunning = false;
         const allChecksPassed = Object.values(this.healthCheckResults).every(status => status);
         if (allChecksPassed) {
@@ -897,18 +1031,47 @@ export class SetupWizard extends LitElement {
 
     renderStep2Token() {
         return html`<div class="step-content">
-            <h3>Step 1: AEM Admin Token</h3>
-            <sp-field-label for="aem-token" required>AEM Admin Token</sp-field-label>
-            <sp-textfield
-                id="aem-token"
-                type="password"
-                placeholder="Paste your AEM admin token here"
-                .value=${this.aemAdminToken}
-                @input=${e => this.handleTokenChange(e.target.value)}
-            ></sp-textfield>
-            ${this.isTokenValid ? html`<p>Token valid for Org: <strong>${this.aioOrg}</strong>, Site: <strong>${this.aioSite}</strong></p>`: ''}
-            <sp-field-label for="token-payload">Token Payload</sp-field-label>
-            <pre id="token-payload">${this.tokenPayload}</pre>
+            <h3>Step 1: AEM Admin Token & AIO Configuration</h3>
+            
+            <!-- AEM Admin Token Section -->
+            <div style="margin-bottom: 24px;">
+                <sp-field-label for="aem-token" required>AEM Admin Token</sp-field-label>
+                <sp-textfield
+                    id="aem-token"
+                    type="password"
+                    placeholder="Paste your AEM admin token here"
+                    .value=${this.aemAdminToken}
+                    @input=${e => this.handleTokenChange(e.target.value)}
+                ></sp-textfield>
+                ${this.isTokenValid ? html`<p>Token valid for Org: <strong>${this.aioOrg}</strong>, Site: <strong>${this.aioSite}</strong></p>`: ''}
+                <sp-field-label for="token-payload">Token Payload</sp-field-label>
+                <pre id="token-payload">${this.tokenPayload}</pre>
+            </div>
+
+            <!-- AIO Configuration Upload Section -->
+            <div style="margin-top: 24px;">
+                <h4>AIO Configuration Upload</h4>
+                <p>Upload your AIO configuration JSON file to automatically load namespace and auth credentials.</p>
+                <sp-dropzone @drop=${this.handleAIOConfigDrop} @dragover=${this.handleDragOver} @click=${this.handleDropzoneClick}>
+                    <div class="dropzone-container">
+                        <sp-icon-upload style="font-size: 48px; color: #0078d4; margin-bottom: 16px;"></sp-icon-upload>
+                        <h4>Drop AIO Configuration JSON here</h4>
+                        <p>or click to browse files</p>
+                        <input type="file" accept=".json" @change=${this.handleAIOConfigFileSelect} style="display: none;" id="aio-file-input" />
+                    </div>
+                </sp-dropzone>
+                
+                <!-- Current AIO Config Display -->
+                ${this.aioNamespace || this.aioAuth ? html`
+                    <div style="margin-top: 16px; padding: 12px; background-color: #1a1a1a; border-radius: 6px; border: 1px solid #333;">
+                        <h5 style="margin: 0 0 8px 0; color: #f0f6fc;">Current AIO Configuration:</h5>
+                        <div style="font-family: monospace; font-size: 12px;">
+                            <div><span style="color: #7d8590;">Namespace:</span> <span style="color: #f0f6fc;">${this.aioNamespace || 'Not loaded'}</span></div>
+                            <div><span style="color: #7d8590;">Auth:</span> <span style="color: #f0f6fc;">${this.maskCredential(this.aioAuth)}</span></div>
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
         </div>`;
     }
 
@@ -924,7 +1087,7 @@ export class SetupWizard extends LitElement {
                         <span style="color: #7d8590;">Namespace:</span>
                         <span style="color: #f0f6fc;">${this.aioNamespace || 'Not loaded'}</span>
                         <span style="color: #7d8590;">Auth:</span>
-                        <span style="color: #f0f6fc;">${this.aioAuth || 'Not loaded'}</span>
+                        <span style="color: #f0f6fc;">${this.maskCredential(this.aioAuth)}</span>
                     </div>
                 </div>
                 

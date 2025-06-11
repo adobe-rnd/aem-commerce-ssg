@@ -7,7 +7,7 @@ import { createServerAdapter } from '@whatwg-node/server'
 import { createServer } from 'http'
 import { exec } from 'child_process'
 import { promisify } from 'util'
-import { Command } from 'commander'
+
 import filesLib from '@adobe/aio-lib-files'
 import runtimeLib from '@adobe/aio-lib-runtime'
 import stateLib from '@adobe/aio-lib-state'
@@ -352,6 +352,51 @@ const RULES_MAP = {
   
       return RequestHelper.jsonResponse({ message: 'Action invoked successfully.', result });
     }
+
+    static async aioConfig(request) {
+      const headers = RequestHelper.extractHeaders(request);
+      const { aioNamespace, aioAuth, fileContent, fileName } = await request.json();
+      
+      try {
+        // Save the configuration file
+        await fs.writeFileSync(fileName, fileContent);
+        
+        // Execute aio app use command
+        console.log(`Executing: aio app use "${fileName}"`);
+        const { stdout, stderr } = await execAsync(`aio app use "${fileName}" --no-input`, {
+          cwd: process.cwd(),
+          timeout: 30000,
+          stdio: 'pipe'
+        });
+        
+        if (stdout) {
+          console.log('AIO app use output:', stdout);
+        }
+        if (stderr) {
+          console.log('AIO app use warnings:', stderr);
+        }
+        
+        console.log('Successfully executed aio app use command.');
+        
+        return RequestHelper.jsonResponse({ 
+          success: true,
+          message: 'AIO configuration saved and applied successfully.',
+          output: stdout,
+          warnings: stderr
+        });
+        
+      } catch (error) {
+        console.error('Failed to execute aio app use command:', error.message);
+        
+        return RequestHelper.jsonResponse({ 
+          success: false,
+          message: 'AIO configuration saved but failed to apply.',
+          error: error.message,
+          stdout: error.stdout,
+          stderr: error.stderr
+        }, 500);
+      }
+    }
   
     static async helixConfig(request) {
       const headers = RequestHelper.extractHeaders(request);
@@ -455,6 +500,7 @@ class Server {
       this.router
         .get('/', () => StaticFileServer.serve('index.html'))
         .get('/api/files', ApiRoutes.getFiles)
+        .post('/api/aio-config', ApiRoutes.aioConfig)
         .get('/api/dotenv', ApiRoutes.getDotenv)
         .post('/api/change-detector/rule', ApiRoutes.changeDetectorRule)
         .post('/api/wizard/done', ApiRoutes.wizardDone)
@@ -505,48 +551,11 @@ function openBrowser(url) {
   });
 }
 
-// Command line interface setup
+// Main function
 async function main() {
-  const program = new Command();
+  console.log('Starting AEM Commerce Prerender Setup Wizard...');
   
-  program
-    .name('setup')
-    .description('AEM Commerce Prerender Setup Wizard')
-    .requiredOption('-c, --config <path>', 'Path to AIO project configuration file')
-    .parse();
-
-  const options = program.opts();
-
-  // Always execute 'aio app use' command with the provided config
-  console.log(`Loading AIO project configuration from: ${options.config}`);
-  
-  try {
-    const { stdout, stderr } = await execAsync(`aio app use "${options.config}" --no-input`, {
-      cwd: process.cwd(), // Execute in the directory where the script was launched
-      timeout: 30000, // 30 second timeout
-      stdio: 'pipe' // Ensure we capture all output
-    });
-    
-    if (stdout) {
-      console.log('AIO app use output:', stdout);
-    }
-    if (stderr) {
-      console.log('AIO app use warnings:', stderr);
-    }
-    
-    console.log('Successfully loaded AIO project configuration.');
-  } catch (error) {
-    console.error('Failed to execute aio app use command:', error.message);
-    if (error.stdout) {
-      console.log('stdout:', error.stdout);
-    }
-    if (error.stderr) {
-      console.error('stderr:', error.stderr);
-    }
-    process.exit(1);
-  }
-
-  // Start the server
+  // Start the server directly
   new Server().start(3030);
 }
 
