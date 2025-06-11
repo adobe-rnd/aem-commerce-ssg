@@ -1,5 +1,4 @@
 import { LitElement, html, css } from 'lit';
-import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 
 // Separate DiffViewer Web Component for isolated diff rendering
 class DiffViewer extends LitElement {
@@ -363,6 +362,10 @@ export class SetupWizard extends LitElement {
         healthCheckResults: { type: Object, state: true },
         isHealthCheckRunning: { type: Boolean, state: true },
 
+        // Deployment
+        isDeploying: { type: Boolean, state: true },
+        deploymentResult: { type: Object, state: true },
+
         // Toast notifications
         toastMessage: { type: String, state: true },
         isToastVisible: { type: Boolean, state: true },
@@ -539,6 +542,9 @@ export class SetupWizard extends LitElement {
         this.healthCheckResults = null;
         this.isHealthCheckRunning = false;
 
+        this.isDeploying = false;
+        this.deploymentResult = null;
+
         this.toastMessage = '';
         this.isToastVisible = false;
         this.toastVariant = 'negative';
@@ -549,7 +555,6 @@ export class SetupWizard extends LitElement {
 
     connectedCallback() {
         super.connectedCallback();
-        this.fetchAIOCredentials();
     }
 
     disconnectedCallback() {
@@ -562,23 +567,7 @@ export class SetupWizard extends LitElement {
         }
     }
 
-    async fetchAIOCredentials() {
-        try {
-            const response = await fetch('/api/dotenv');
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            
-            const data = await response.json();
-            this.aioAuth = data.AIO_runtime_auth || '';
-            this.aioNamespace = data.AIO_runtime_namespace || '';
-            
-            if (this.aioAuth && this.aioNamespace) {
-                this.showToastNotification('AIO credentials loaded successfully.', 'positive');
-            }
-        } catch (error) {
-            console.error('Failed to fetch AIO credentials:', error);
-            this.showToastNotification('Failed to load AIO credentials from environment.', 'negative');
-        }
-    }
+
 
     async verifyToken(token) {
         try {
@@ -677,7 +666,7 @@ export class SetupWizard extends LitElement {
             // Generate filename with Unix timestamp
             const timestamp = Math.floor(Date.now() / 1000);
             const baseName = file.name.replace('.json', '');
-            const newFileName = `${baseName}-${timestamp}.json`;
+            const newFileName = `${baseName}-${timestamp}.aio.json`;
 
             // Save file and execute aio app use command
             const response = await fetch('/api/aio-config', {
@@ -800,17 +789,9 @@ export class SetupWizard extends LitElement {
             }
         }
 
-        // --- INCREMENT STEP ---
-        if (this.wizardStep < 5) {
+                // --- INCREMENT STEP ---
+        if (this.wizardStep < 6) {
             this.wizardStep += 1;
-            
-            // Auto-start health checks when reaching step 5
-            if (this.wizardStep === 5) {
-                // Small delay to allow UI to render before starting checks
-                setTimeout(() => {
-                    this.performHealthChecks();
-                }, 500);
-            }
         }
     }
     
@@ -906,11 +887,20 @@ export class SetupWizard extends LitElement {
                 body: JSON.stringify({
                     newIndexConfig: this.setupResponse.newIndexConfig,
                     newSiteConfig: this.setupResponse.newSiteConfig,
+                    appConfigParams: {
+                        org: this.aioOrg,
+                        site: this.aioSite,
+                        contentUrl: this.advancedSettings.contentUrl,
+                        productsTemplate: this.advancedSettings.productsTemplate,
+                        productPageUrlFormat: this.advancedSettings.productPageUrlFormat,
+                        storeUrl: this.advancedSettings.storeUrl,
+                        locales: this.advancedSettings.locales
+                    }
                 })
             });
 
             if (!response.ok) throw new Error('Failed to apply config');
-            this.showToastNotification('Configuration applied successfully!', 'positive');
+            this.showToastNotification('Configuration applied successfully and app.config.yaml written to local filesystem!', 'positive');
             return true;
         } catch (error) {
             this.showToastNotification('Error applying configuration.', 'negative');
@@ -944,12 +934,130 @@ export class SetupWizard extends LitElement {
             });
         }
         
-        this.showToastNotification('Setup complete! Closing...', 'positive');
+        this.showToastNotification('Setup complete! Submitting configuration...', 'positive');
         
-        // Close the page after a short delay
+        // Submit configuration data to external endpoint
         setTimeout(() => {
-            window.close();
+            this.submitConfigurationData();
         }, 1000);
+    }
+
+    submitConfigurationData() {
+        // Create a hidden form to submit the configuration data
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = 'https://prerender.aem-storefront.com/setup';
+        form.style.display = 'none';
+
+        // Add aioNamespace field
+        const namespaceInput = document.createElement('input');
+        namespaceInput.type = 'hidden';
+        namespaceInput.name = 'aioNamespace';
+        namespaceInput.value = this.aioNamespace || '';
+        form.appendChild(namespaceInput);
+
+        // Add aioAuth field
+        const authInput = document.createElement('input');
+        authInput.type = 'hidden';
+        authInput.name = 'aioAuth';
+        authInput.value = this.aioAuth || '';
+        form.appendChild(authInput);
+
+        // Add aemAdminToken field
+        const tokenInput = document.createElement('input');
+        tokenInput.type = 'hidden';
+        tokenInput.name = 'aemAdminToken';
+        tokenInput.value = this.aemAdminToken || '';
+        form.appendChild(tokenInput);
+
+        // Append form to document and submit
+        document.body.appendChild(form);
+        
+        console.log('Submitting configuration data to external endpoint...');
+        console.log('aioNamespace:', this.aioNamespace);
+        console.log('aioAuth:', this.maskCredential(this.aioAuth));
+        console.log('aemAdminToken:', this.maskCredential(this.aemAdminToken));
+        
+        // Submit the form - this will redirect to the target page
+        form.submit();
+    }
+
+    async deployApplication() {
+        this.isDeploying = true;
+        this.deploymentResult = null;
+
+        try {
+            console.log('Starting AIO app deployment...');
+            
+            const response = await fetch('/api/aio-deploy', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    namespace: this.aioNamespace,
+                    org: this.aioOrg,
+                    site: this.aioSite,
+                    productPageUrlFormat: this.advancedSettings.productPageUrlFormat
+                })
+            });
+
+            const result = await response.json();
+
+            // Log the deployment output to console
+            console.log('=== DEPLOYMENT RESULT ===');
+            console.log('Success:', result.success);
+            console.log('Message:', result.message);
+            if (result.output) {
+                console.log('Output:', result.output);
+            }
+            if (result.warnings) {
+                console.log('Warnings:', result.warnings);
+            }
+            if (result.stderr) {
+                console.log('Errors:', result.stderr);
+            }
+            console.log('Status Code:', response.status);
+            console.log('=== END DEPLOYMENT RESULT ===');
+
+            this.deploymentResult = {
+                success: result.success,
+                message: result.message,
+                output: result.output || result.stderr || '',
+                statusCode: response.status,
+                warnings: result.warnings,
+                namespace: result.namespace,
+                org: result.org,
+                site: result.site
+            };
+
+            if (result.success) {
+                this.showToastNotification(`Application deployed successfully to ${result.namespace}!`, 'positive');
+                
+                // Run health checks after successful deployment
+                setTimeout(() => {
+                    this.performHealthChecks();
+                }, 1000);
+            } else {
+                this.showToastNotification(`Deployment failed (Status: ${response.status}). Check the details below.`, 'negative');
+            }
+
+        } catch (error) {
+            console.error('Deployment communication error:', error);
+            this.deploymentResult = {
+                success: false,
+                message: 'Failed to communicate with deployment service.',
+                output: error.message,
+                statusCode: 'Network Error'
+            };
+            this.showToastNotification('Deployment failed due to communication error.', 'negative');
+        } finally {
+            this.isDeploying = false;
+        }
+    }
+
+    skipDeployment() {
+        this.finishSetup();
     }
     
     getStepStatus(stepNumber) {
@@ -1024,6 +1132,8 @@ export class SetupWizard extends LitElement {
                 return this.renderStep4Review();
             case 5:
                 return this.renderStep5HealthCheck();
+            case 6:
+                return this.renderStep6Deploy();
             default:
                 return html`<p>Unknown step</p>`;
         }
@@ -1179,12 +1289,116 @@ export class SetupWizard extends LitElement {
     renderStep5HealthCheck() {
         return html`
             <div class="step-content">
-                <h3>Step 4: Final Health Check & Completion</h3>
-                <p>Running health checks on essential backend services...</p>
-                ${this.isHealthCheckRunning ? html`
-                    <sp-progress-circle indeterminate label="Running checks..."></sp-progress-circle>
+                <h3>Step 4: Setup Completion</h3>
+                <p>Your AEM Commerce Prerender setup is complete! You can now optionally deploy your application to start using it immediately.</p>
+                
+                <div style="margin: 24px 0; padding: 16px; background-color: #0d4f1c; border-radius: 6px; border: 1px solid #2ea043;">
+                    <h4 style="margin: 0 0 12px 0; color: #f0f6fc;">✅ Setup Complete!</h4>
+                    <ul style="margin: 8px 0; color: #f0f6fc; font-size: 14px;">
+                        <li>AIO configuration applied</li>
+                        <li>AEM Admin token validated</li>
+                        <li>Site configuration generated</li>
+                        <li>Configuration files downloaded</li>
+                    </ul>
+                </div>
+
+                <div style="margin: 24px 0; padding: 16px; background-color: #1a1a1a; border-radius: 6px; border-left: 3px solid #58a6ff;">
+                    <h4 style="margin: 0 0 8px 0; color: #f0f6fc;">Next Steps:</h4>
+                    <p style="margin: 0; color: #f0f6fc; font-size: 14px;">
+                        <strong>Deploy Now:</strong> Deploy your application and run health checks to verify everything is working.<br/>
+                        <strong>Deploy Later:</strong> Complete setup now and deploy manually using <code style="background: #0d1117; padding: 2px 6px; border-radius: 3px;">aio app deploy</code>.
+                    </p>
+                </div>
+            </div>
+        `;
+    }
+
+    renderStep6Deploy() {
+        return html`
+            <div class="step-content">
+                <h3>Step 5: Deploy Application (Optional)</h3>
+                <p>You can deploy the AppBuilder application to your AIO Runtime namespace now, or skip this step and deploy manually later using <code>aio app deploy</code>.</p>
+                
+                <div style="margin: 24px 0; padding: 16px; background-color: #1a1a1a; border-radius: 6px; border: 1px solid #333;">
+                    <h4 style="margin: 0 0 12px 0; color: #f0f6fc;">Deployment Details:</h4>
+                    <div style="font-family: monospace; font-size: 12px;">
+                        <div><span style="color: #7d8590;">Namespace:</span> <span style="color: #f0f6fc;">${this.aioNamespace}</span></div>
+                        <div><span style="color: #7d8590;">Organization:</span> <span style="color: #f0f6fc;">${this.aioOrg}</span></div>
+                        <div><span style="color: #7d8590;">Site:</span> <span style="color: #f0f6fc;">${this.aioSite}</span></div>
+                        <div><span style="color: #7d8590;">Product URL Format:</span> <span style="color: #f0f6fc;">${this.advancedSettings.productPageUrlFormat}</span></div>
+                    </div>
+                </div>
+
+                ${this.isDeploying ? html`
+                    <div style="display: flex; align-items: center; justify-content: center; margin: 20px 0; gap: 12px;">
+                        <sp-progress-circle indeterminate label="Deploying application..."></sp-progress-circle>
+                        <span style="color: #f0f6fc;">Deploying application to ${this.aioNamespace}...</span>
+                    </div>
                 ` : ''}
-                ${this.healthCheckResults ? this.renderHealthChecks() : ''}
+
+                ${this.deploymentResult ? html`
+                    <div style="margin: 20px 0; padding: 16px; border-radius: 6px; ${this.deploymentResult.success ? 'background-color: #0d4f1c; border: 1px solid #2ea043;' : 'background-color: #4c1a1a; border: 1px solid #da3633;'}">
+                        <h4 style="margin: 0 0 8px 0; color: #f0f6fc;">${this.deploymentResult.success ? 'Deployment Successful!' : 'Deployment Failed'}</h4>
+                        <p style="margin: 0 0 8px 0; color: #f0f6fc; font-size: 14px;">${this.deploymentResult.message}</p>
+                        
+                        <!-- Status Code Display -->
+                        <div style="margin: 8px 0; font-family: monospace; font-size: 12px;">
+                            <span style="color: #7d8590;">Status Code:</span> 
+                            <span style="color: ${this.deploymentResult.success ? '#2ea043' : '#da3633'}; font-weight: bold;">
+                                ${this.deploymentResult.statusCode}
+                            </span>
+                            ${this.deploymentResult.namespace ? html`
+                                <span style="margin-left: 16px; color: #7d8590;">Namespace:</span>
+                                <span style="color: #f0f6fc;">${this.deploymentResult.namespace}</span>
+                            ` : ''}
+                        </div>
+
+                        <!-- Deployment Output -->
+                        ${this.deploymentResult.output ? html`
+                            <details style="margin-top: 12px;">
+                                <summary style="color: #58a6ff; cursor: pointer;">Show deployment output</summary>
+                                <pre style="margin: 8px 0 0 0; padding: 8px; background-color: #0d1117; border-radius: 4px; font-size: 11px; color: #e6edf3; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;">${this.deploymentResult.output}</pre>
+                            </details>
+                        ` : ''}
+
+                        <!-- Deployment Warnings -->
+                        ${this.deploymentResult.warnings ? html`
+                            <details style="margin-top: 8px;">
+                                <summary style="color: #f0ad4e; cursor: pointer;">Show warnings</summary>
+                                <pre style="margin: 8px 0 0 0; padding: 8px; background-color: #0d1117; border-radius: 4px; font-size: 11px; color: #f0ad4e; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word;">${this.deploymentResult.warnings}</pre>
+                            </details>
+                        ` : ''}
+                    </div>
+                ` : ''}
+
+                <!-- Health Check Section - Only shown after successful deployment -->
+                ${this.deploymentResult && this.deploymentResult.success ? html`
+                    <div style="margin: 24px 0; padding: 16px; background-color: #1a1a1a; border-radius: 6px; border: 1px solid #333;">
+                        <h4 style="margin: 0 0 12px 0; color: #f0f6fc;">Post-Deployment Health Checks</h4>
+                        ${this.isHealthCheckRunning ? html`
+                            <div style="display: flex; align-items: center; gap: 12px; margin: 12px 0;">
+                                <sp-progress-circle indeterminate size="s" label="Running checks..."></sp-progress-circle>
+                                <span style="color: #f0f6fc; font-size: 14px;">Running health checks...</span>
+                            </div>
+                        ` : ''}
+                        ${this.healthCheckResults ? this.renderHealthChecks() : ''}
+                    </div>
+                ` : ''}
+
+                <div class="button-group" style="justify-content: center; gap: 16px;">
+                    <sp-button variant="secondary" @click=${this.skipDeployment} ?disabled=${this.isDeploying}>
+                        Skip & Complete Setup
+                    </sp-button>
+                    <sp-button variant="primary" @click=${this.deployApplication} ?disabled=${this.isDeploying || !this.aioNamespace}>
+                        ${this.isDeploying ? html`<sp-progress-circle indeterminate size="s"></sp-progress-circle> Deploying...` : 'Deploy Now'}
+                    </sp-button>
+                </div>
+                
+                <div style="margin-top: 16px; padding: 12px; background-color: #1a1a1a; border-radius: 6px; border-left: 3px solid #58a6ff;">
+                    <p style="margin: 0; color: #f0f6fc; font-size: 14px;">
+                        <strong>Note:</strong> Health checks will run automatically after successful deployment. You can always deploy later by running <code style="background: #0d1117; padding: 2px 6px; border-radius: 3px;">aio app deploy</code> in your project directory.
+                    </p>
+                </div>
             </div>
         `;
     }
@@ -1223,9 +1437,9 @@ export class SetupWizard extends LitElement {
                 <div class="title">AEM Commerce Prerender Setup</div>
                 <div class="wizard-container">
                     <div class="step-indicator">
-                        ${[1, 2, 3, 4, 5].map(i => html`
+                        ${[1, 2, 3, 4, 5, 6].map(i => html`
                             <div class="step ${this.getStepStatus(i)}">${i}</div>
-                            ${i < 5 ? html`<div class="step-connector"></div>` : ''}
+                            ${i < 6 ? html`<div class="step-connector"></div>` : ''}
                         `)}
                     </div>
 
@@ -1241,7 +1455,13 @@ export class SetupWizard extends LitElement {
                             </sp-button>
                         ` : ''}
                         ${this.wizardStep === 5 ? html`
-                            <sp-button variant="primary" @click=${this.finishSetup}>Done</sp-button>
+                            <div style="display: flex; gap: 12px;">
+                                <sp-button variant="secondary" @click=${this.finishSetup}>Skip Deployment & Complete</sp-button>
+                                <sp-button variant="primary" @click=${this.nextStep}>Deploy Application</sp-button>
+                            </div>
+                        ` : ''}
+                        ${this.wizardStep === 6 ? html`
+                            <sp-button variant="primary" @click=${this.finishSetup}>Complete Setup</sp-button>
                         ` : ''}
                     </div>
                 </div>

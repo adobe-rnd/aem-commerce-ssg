@@ -13,8 +13,6 @@ import runtimeLib from '@adobe/aio-lib-runtime'
 import stateLib from '@adobe/aio-lib-state'
 import { createPatch } from 'diff';
 import yaml from 'js-yaml';
-import { parse as dotenvParse } from 'dotenv';
-import dotenvStringify from 'dotenv-stringify';
 import fs from 'fs';
 
 const execAsync = promisify(exec);
@@ -201,11 +199,6 @@ const RULES_MAP = {
   
   // Route Handlers
   class ApiRoutes {
-    static async getDotenv(request) {
-      const dotenv = dotenvParse(fs.readFileSync('.env', 'utf8'));
-      return RequestHelper.jsonResponse(dotenv);
-    }
-
     static async wizardDone(request) {
         console.log("Wizard completed, shutting down server.");
         setTimeout(() => process.exit(0), 1000); // Delay to allow response to be sent
@@ -397,23 +390,94 @@ const RULES_MAP = {
         }, 500);
       }
     }
+
+    static async aioAppDeploy(request) {
+      const { namespace, org, site, productPageUrlFormat } = await request.json();
+      
+      console.log(`Starting AIO app deployment...`);
+      console.log(`Namespace: ${namespace}, Org: ${org}, Site: ${site}`);
+      console.log(`Product Page URL Format: ${productPageUrlFormat}`);
+      
+      try {
+        // Execute aio app deploy command synchronously
+        console.log(`Executing: aio app deploy`);
+        const { stdout, stderr } = await execAsync(`aio app deploy`, {
+          cwd: process.cwd(),
+          timeout: 30000, // 30 seconds timeout for deployment
+          stdio: 'pipe'
+        });
+        
+        console.log('=== AIO APP DEPLOY OUTPUT ===');
+        if (stdout) {
+          console.log('STDOUT:', stdout);
+        }
+        if (stderr) {
+          console.log('STDERR:', stderr);
+        }
+        console.log('=== END AIO APP DEPLOY OUTPUT ===');
+        
+        console.log('Successfully executed aio app deploy command.');
+        
+        return RequestHelper.jsonResponse({ 
+          success: true,
+          message: `Application deployed successfully to namespace ${namespace}!`,
+          output: stdout,
+          warnings: stderr,
+          namespace,
+          org,
+          site
+        });
+        
+      } catch (error) {
+        console.error('Failed to execute aio app deploy command:', error.message);
+        console.log('=== AIO APP DEPLOY ERROR OUTPUT ===');
+        if (error.stdout) {
+          console.log('STDOUT:', error.stdout);
+        }
+        if (error.stderr) {
+          console.error('STDERR:', error.stderr);
+        }
+        console.log('=== END AIO APP DEPLOY ERROR OUTPUT ===');
+        
+        return RequestHelper.jsonResponse({ 
+          success: false,
+          message: 'Application deployment failed.',
+          error: error.message,
+          output: error.stdout || '',
+          stderr: error.stderr || '',
+          namespace,
+          org,
+          site
+        }, 500);
+      }
+    }
   
-    static async helixConfig(request) {
+        static async helixConfig(request) {
       const headers = RequestHelper.extractHeaders(request);
       const jwtBody = await AuthService.verifyJWT(headers.aemAdminToken);
       
       if (!jwtBody.isValid) {
         return RequestHelper.errorResponse('Invalid token', 401);
       }
-  
-      const { newIndexConfig, newSiteConfig } = await request.json();
-      if (!newIndexConfig || !newSiteConfig) {
-        return RequestHelper.errorResponse('newIndexConfig and newSiteConfig are required');
+
+      const { newIndexConfig, newSiteConfig, appConfigParams } = await request.json();
+      if (!newIndexConfig || !newSiteConfig || !appConfigParams) {
+        return RequestHelper.errorResponse('newIndexConfig, newSiteConfig, and appConfigParams are required');
       }
-  
+
       const { sub } = jwtBody.payload;
       const [org, site] = sub.split('/');
-  
+
+      // Generate and write app.config.yaml locally
+      try {
+        const { newConfig: newAppConfig } = await ConfigService.buildAppConfig(appConfigParams);
+        fs.writeFileSync('app.config.yaml', newAppConfig);
+        console.log('Successfully wrote app.config.yaml to local filesystem');
+      } catch (error) {
+        console.error('Failed to write app.config.yaml:', error);
+        return RequestHelper.errorResponse('Failed to write app.config.yaml: ' + error.message, 500);
+      }
+
       const [siteConfigApplyResponse, indexConfigApplyResponse] = await Promise.all([
         fetch(`https://admin.hlx.page/config/${org}/sites/${site}.json`, {
           method: 'POST',
@@ -426,12 +490,12 @@ const RULES_MAP = {
           body: newIndexConfig
         })
       ]);
-  
+
       const [siteConfigApplyResult, indexConfigApplyResult] = await Promise.all([
         siteConfigApplyResponse.json(),
         indexConfigApplyResponse.text()
       ]);
-  
+
       if (!siteConfigApplyResponse.ok || !indexConfigApplyResponse.ok) {
         const errors = [];
         if (!siteConfigApplyResponse.ok) {
@@ -443,13 +507,8 @@ const RULES_MAP = {
         return RequestHelper.jsonResponse({ error: 'Config update failed' }, 500, { 'X-Error': errors.join('; ') });
       }
 
-      const currentDotenv = dotenvParse(fs.readFileSync('.env', 'utf8'));
-      currentDotenv.AEM_ADMIN_TOKEN = headers.aemAdminToken;
-      const newDotenv = dotenvStringify(currentDotenv);
-      fs.writeFileSync('.env', newDotenv);
-  
       return RequestHelper.jsonResponse({
-        message: 'Config updated successfully',
+        message: 'Config updated successfully and app.config.yaml written to local filesystem',
         siteConfigApplyResult,
         indexConfigApplyResult
       });
@@ -501,7 +560,7 @@ class Server {
         .get('/', () => StaticFileServer.serve('index.html'))
         .get('/api/files', ApiRoutes.getFiles)
         .post('/api/aio-config', ApiRoutes.aioConfig)
-        .get('/api/dotenv', ApiRoutes.getDotenv)
+        .post('/api/aio-deploy', ApiRoutes.aioAppDeploy)
         .post('/api/change-detector/rule', ApiRoutes.changeDetectorRule)
         .post('/api/wizard/done', ApiRoutes.wizardDone)
         .post('/api/setup', ApiRoutes.setup)
