@@ -21,7 +21,7 @@ export class AppMain extends LitElement {
     render() {
         return html`
             <sp-theme theme="spectrum" color="dark" scale="medium">
-                <settings-tab></settings-tab>
+                <setup-wizard></setup-wizard>
             </sp-theme>
         `;
     }

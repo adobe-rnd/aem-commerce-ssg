@@ -6,6 +6,8 @@ import { join } from 'path'
 import { createServerAdapter } from '@whatwg-node/server'
 import { createServer } from 'http'
 import { exec } from 'child_process'
+import { promisify } from 'util'
+import { Command } from 'commander'
 import filesLib from '@adobe/aio-lib-files'
 import runtimeLib from '@adobe/aio-lib-runtime'
 import stateLib from '@adobe/aio-lib-state'
@@ -14,6 +16,8 @@ import yaml from 'js-yaml';
 import { parse as dotenvParse } from 'dotenv';
 import dotenvStringify from 'dotenv-stringify';
 import fs from 'fs';
+
+const execAsync = promisify(exec);
 
 // Configuration and Constants
 const RULES_MAP = {
@@ -474,9 +478,6 @@ class Server {
   }
   }
   
-  // Start the server
-  new Server().start(3030);
-
 // Utility function to open browser cross-platform
 function openBrowser(url) {
   const platform = process.platform;
@@ -503,3 +504,54 @@ function openBrowser(url) {
     }
   });
 }
+
+// Command line interface setup
+async function main() {
+  const program = new Command();
+  
+  program
+    .name('setup')
+    .description('AEM Commerce Prerender Setup Wizard')
+    .requiredOption('-c, --config <path>', 'Path to AIO project configuration file')
+    .parse();
+
+  const options = program.opts();
+
+  // Always execute 'aio app use' command with the provided config
+  console.log(`Loading AIO project configuration from: ${options.config}`);
+  
+  try {
+    const { stdout, stderr } = await execAsync(`aio app use "${options.config}" --no-input`, {
+      cwd: process.cwd(), // Execute in the directory where the script was launched
+      timeout: 30000, // 30 second timeout
+      stdio: 'pipe' // Ensure we capture all output
+    });
+    
+    if (stdout) {
+      console.log('AIO app use output:', stdout);
+    }
+    if (stderr) {
+      console.log('AIO app use warnings:', stderr);
+    }
+    
+    console.log('Successfully loaded AIO project configuration.');
+  } catch (error) {
+    console.error('Failed to execute aio app use command:', error.message);
+    if (error.stdout) {
+      console.log('stdout:', error.stdout);
+    }
+    if (error.stderr) {
+      console.error('stderr:', error.stderr);
+    }
+    process.exit(1);
+  }
+
+  // Start the server
+  new Server().start(3030);
+}
+
+// Run the main function
+main().catch(error => {
+  console.error('Error starting setup:', error);
+  process.exit(1);
+});

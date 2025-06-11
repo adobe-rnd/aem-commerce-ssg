@@ -334,7 +334,7 @@ if (!customElements.get('diff-viewer')) {
     customElements.define('diff-viewer', DiffViewer);
 }
 
-export class SettingsTab extends LitElement {
+export class SetupWizard extends LitElement {
     static properties = {
         // Wizard state
         wizardStep: { type: Number, state: true },
@@ -367,6 +367,7 @@ export class SettingsTab extends LitElement {
         toastMessage: { type: String, state: true },
         isToastVisible: { type: Boolean, state: true },
         toastVariant: { type: String, state: true },
+        toastTimeout: { type: Number, state: true },
 
         // Download tracking
         filesDownloadedManually: { type: Boolean, state: true }
@@ -541,21 +542,24 @@ export class SettingsTab extends LitElement {
         this.toastMessage = '';
         this.isToastVisible = false;
         this.toastVariant = 'negative';
+        this.toastTimeout = null;
 
         this.filesDownloadedManually = false;
-
-        this._handleUnload = () => {}//navigator.sendBeacon('/api/wizard/done');
     }
 
     connectedCallback() {
         super.connectedCallback();
-        window.addEventListener('unload', this._handleUnload);
         this.fetchAIOCredentials();
     }
 
     disconnectedCallback() {
         super.disconnectedCallback();
-        window.removeEventListener('unload', this._handleUnload);
+        
+        // Clean up toast timeout to prevent memory leaks
+        if (this.toastTimeout) {
+            clearTimeout(this.toastTimeout);
+            this.toastTimeout = null;
+        }
     }
 
     async fetchAIOCredentials() {
@@ -630,12 +634,28 @@ export class SettingsTab extends LitElement {
     }
 
     showToastNotification(message, variant = 'negative') {
+        // Clear any existing timeout
+        if (this.toastTimeout) {
+            clearTimeout(this.toastTimeout);
+        }
+        
         this.toastMessage = message;
         this.toastVariant = variant;
         this.isToastVisible = true;
+        
+        // Auto-hide after 4 seconds (positive toasts) or 6 seconds (negative toasts)
+        const autoHideDelay = variant === 'positive' ? 4000 : 6000;
+        this.toastTimeout = setTimeout(() => {
+            this.hideToastNotification();
+        }, autoHideDelay);
     }
 
     hideToastNotification() {
+        // Clear the timeout when manually hiding
+        if (this.toastTimeout) {
+            clearTimeout(this.toastTimeout);
+            this.toastTimeout = null;
+        }
         this.isToastVisible = false;
     }
 
@@ -672,17 +692,18 @@ export class SettingsTab extends LitElement {
                 this.downloadConfigFiles();
             }
         }
-        if (this.wizardStep === 5) {
-            // Move to step 6 immediately to show the loading spinner, then run checks.
-            this.wizardStep = 6; 
-            await this.performHealthChecks();
-            // Stop execution here, as performHealthChecks handles the final step.
-            return;
-        }
 
         // --- INCREMENT STEP ---
-        if (this.wizardStep < 6) {
+        if (this.wizardStep < 5) {
             this.wizardStep += 1;
+            
+            // Auto-start health checks when reaching step 5
+            if (this.wizardStep === 5) {
+                // Small delay to allow UI to render before starting checks
+                setTimeout(() => {
+                    this.performHealthChecks();
+                }, 500);
+            }
         }
     }
     
@@ -804,6 +825,25 @@ export class SettingsTab extends LitElement {
             setTimeout(() => window.close(), 2000);
         }
     }
+
+    finishSetup() {
+        // Send beacon to indicate setup completion
+        if (navigator.sendBeacon) {
+            navigator.sendBeacon('/api/wizard/done');
+        } else {
+            // Fallback for browsers that don't support sendBeacon
+            fetch('/api/wizard/done', { method: 'POST' }).catch(() => {
+                // Ignore errors since page is closing
+            });
+        }
+        
+        this.showToastNotification('Setup complete! Closing...', 'positive');
+        
+        // Close the page after a short delay
+        setTimeout(() => {
+            window.close();
+        }, 1000);
+    }
     
     getStepStatus(stepNumber) {
         if (this.wizardStep > stepNumber) return 'completed';
@@ -825,9 +865,8 @@ export class SettingsTab extends LitElement {
         const allChecksPassed = Object.values(this.healthCheckResults).every(status => status);
         if (allChecksPassed) {
             this.showToastNotification('All health checks passed!', 'positive');
-            await this.saveAndCompleteSetup();
         } else {
-            this.showToastNotification('Some health checks failed. Please review.', 'negative');
+            this.showToastNotification('Some health checks failed. Please review and click Done to complete setup.', 'negative');
         }
     }
     
@@ -850,12 +889,7 @@ export class SettingsTab extends LitElement {
             case 4:
                 return this.renderStep4Review();
             case 5:
-                 return html`<div class="step-content">
-                    <h3>Next Steps & Service Health Check</h3>
-                    <p>Almost There! The next step is to perform a quick health check on the essential backend services.</p>
-                 </div>`;
-            case 6:
-                return this.renderStep6Finalize();
+                return this.renderStep5HealthCheck();
             default:
                 return html`<p>Unknown step</p>`;
         }
@@ -979,10 +1013,11 @@ export class SettingsTab extends LitElement {
             </div>`;
     }
 
-    renderStep6Finalize() {
+    renderStep5HealthCheck() {
         return html`
             <div class="step-content">
                 <h3>Step 4: Final Health Check & Completion</h3>
+                <p>Running health checks on essential backend services...</p>
                 ${this.isHealthCheckRunning ? html`
                     <sp-progress-circle indeterminate label="Running checks..."></sp-progress-circle>
                 ` : ''}
@@ -1025,9 +1060,9 @@ export class SettingsTab extends LitElement {
                 <div class="title">AEM Commerce Prerender Setup</div>
                 <div class="wizard-container">
                     <div class="step-indicator">
-                        ${[1, 2, 3, 4, 5, 6].map(i => html`
+                        ${[1, 2, 3, 4, 5].map(i => html`
                             <div class="step ${this.getStepStatus(i)}">${i}</div>
-                            ${i < 6 ? html`<div class="step-connector"></div>` : ''}
+                            ${i < 5 ? html`<div class="step-connector"></div>` : ''}
                         `)}
                     </div>
 
@@ -1035,13 +1070,15 @@ export class SettingsTab extends LitElement {
 
                     <div class="button-group">
                         <sp-button variant="secondary" @click=${this.prevStep} ?disabled=${this.wizardStep === 1}>Back</sp-button>
-                        ${this.wizardStep < 6 ? html`
+                        ${this.wizardStep < 5 ? html`
                             <sp-button variant="primary" @click=${this.nextStep} ?disabled=${this.isLoading || this.isApplyingConfig}>
                                 ${this.isLoading ? html`<sp-progress-circle indeterminate size="s"></sp-progress-circle> Loading...` : 
                                  this.isApplyingConfig ? html`<sp-progress-circle indeterminate size="s"></sp-progress-circle> Applying Config...` :
-                                 this.wizardStep === 4 ? 'Apply Configuration' :
-                                 this.wizardStep === 5 ? 'Perform Health Check' : 'Next'}
+                                 this.wizardStep === 4 ? 'Apply Configuration' : 'Next'}
                             </sp-button>
+                        ` : ''}
+                        ${this.wizardStep === 5 ? html`
+                            <sp-button variant="primary" @click=${this.finishSetup}>Done</sp-button>
                         ` : ''}
                     </div>
                 </div>
@@ -1050,6 +1087,6 @@ export class SettingsTab extends LitElement {
     }
 }
 
-if (!customElements.get('settings-tab')) {
-    customElements.define('settings-tab', SettingsTab);
+if (!customElements.get('setup-wizard')) {
+    customElements.define('setup-wizard', SetupWizard);
 }
