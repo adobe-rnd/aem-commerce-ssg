@@ -101,10 +101,6 @@ async function main(params) {
     ORG: orgName,
     CONTENT_URL: contentUrl,
     CONFIG_NAME: configName = 'configs',
-    SITE: siteName,
-    ORG: orgName,
-    CONTENT_URL: contentUrl,
-    CONFIG_NAME: configName = 'configs',
   } = params;
   if (!siteName || !orgName || !contentUrl) {
     return {
