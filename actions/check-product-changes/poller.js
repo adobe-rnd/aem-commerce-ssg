@@ -130,29 +130,18 @@ async function deleteState(locale, filesLib) {
  * @param {string} params.AEM_ADMIN_AUTH_TOKEN - The authentication token for AEM Admin API.
  * @param {string} [params.STORE_URL] - The store's base URL.
  * @param {string} [params.LOCALES] - Comma-separated list of allowed locales.
- * @param {string} params.SITE - The name of the site (repo or repoless).
- * @param {string} params.PRODUCT_PAGE_URL_FORMAT - The URL format for product detail pages.
- * @param {string} params.ORG - The name of the organization.
- * @param {string} params.CONFIG_NAME - The name of the configuration json/xlsx.
- * @param {string} params.PRODUCTS_TEMPLATE - URL to the products template page
- * @param {string} params.AEM_ADMIN_AUTH_TOKEN - The authentication token for AEM Admin API.
- * @param {string} [params.STORE_URL] - The store's base URL.
- * @param {string} [params.LOCALES] - Comma-separated list of allowed locales.
  * @param {string} [params.LOG_LEVEL] - The log level.
- * @param {string} [params.LOG_INGESTOR_ENDPOINT] - The log ingestor endpoint.
  * @param {string} [params.LOG_INGESTOR_ENDPOINT] - The log ingestor endpoint.
  * @param {FilesProvider} filesLib - The files provider object.
  * @returns {Promise<Object>} The result of the polling action.
  */
 function checkParams(params) {
   const requiredParams = ['SITE', 'ORG', 'PRODUCT_PAGE_URL_FORMAT', 'AEM_ADMIN_AUTH_TOKEN'];
-  const requiredParams = ['SITE', 'ORG', 'PRODUCT_PAGE_URL_FORMAT', 'AEM_ADMIN_AUTH_TOKEN'];
   const missingParams = requiredParams.filter(param => !params[param]);
   if (missingParams.length > 0) {
     throw new Error(`Missing required parameters: ${missingParams.join(', ')}`);
   }
 
-  if (params.STORE_URL && !isValidUrl(params.STORE_URL)) {
   if (params.STORE_URL && !isValidUrl(params.STORE_URL)) {
     throw new Error('Invalid storeUrl');
   }
@@ -368,8 +357,6 @@ async function poll(params, aioLibs, logger) {
     LOG_LEVEL: logLevel = "info",
     LOG_INGESTOR_ENDPOINT: logIngestorEndpoint = "https://blazerank-logs-ingestor.adobeaem.workers.dev/api/v1/services/change-detector",
   } = params;
-
-  const locales = LOCALES?.split(',') || [null];
 
   const locales = LOCALES?.split(',') || [null];
 

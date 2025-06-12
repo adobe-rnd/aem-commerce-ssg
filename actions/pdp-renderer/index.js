@@ -21,17 +21,6 @@ const { generateProductHtml } = require('./render');
  * @param {string} params.__ow_path The path of the request
  * @param {string} params.configName Overwrite for CONFIG_NAME using query parameter
  * @param {string} params.contentUrl Overwrite for CONTENT_URL using query parameter
- * @param {string} params.storeUrl Overwrite for STORE_URL using query parameter
- * @param {string} params.productsTemplate Overwrite for PRODUCTS_TEMPLATE using query parameter
- * @param {string} params.pathFormat Overwrite for PRODUCT_PAGE_URL_FORMAT using query parameter
- * @param {string} params.CONFIG_NAME The config sheet to use (e.g. configs for prod, configs-dev for dev)
- * @param {string} params.CONTENT_URL Edge Delivery URL of the store (e.g. aem.live)
- * @param {string} params.STORE_URL Public facing URL of the store
- * @param {string} params.PRODUCTS_TEMPLATE URL to the products template page
- * @param {string} params.PRODUCT_PAGE_URL_FORMAT The path format to use for parsing
- * @param {string} params.configName Overwrite for CONFIG_NAME using query parameter
- * @param {string} params.contentUrl Overwrite for CONTENT_URL using query parameter
- * @param {string} params.storeUrl Overwrite for STORE_URL using query parameter
  * @param {string} params.productsTemplate Overwrite for PRODUCTS_TEMPLATE using query parameter
  * @param {string} params.pathFormat Overwrite for PRODUCT_PAGE_URL_FORMAT using query parameter
  * @param {string} params.CONFIG_NAME The config sheet to use (e.g. configs for prod, configs-dev for dev)
@@ -52,12 +41,6 @@ async function main (params) {
       contentUrl : contentUrlQuery,
       storeUrl : storeUrlQuery,
       productsTemplate : productsTemplateQuery,
-      STORE_URL,
-      CONTENT_URL,
-      CONFIG_NAME,
-      PRODUCTS_TEMPLATE,
-      PRODUCT_PAGE_URL_FORMAT,
-      LOCALES,
       STORE_URL,
       CONTENT_URL,
       CONFIG_NAME,
