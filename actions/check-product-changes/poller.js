@@ -136,7 +136,7 @@ async function deleteState(locale, filesLib) {
  * @returns {Promise<Object>} The result of the polling action.
  */
 function checkParams(params) {
-  const requiredParams = ['SITE', 'ORG', 'PRODUCT_PAGE_URL_FORMAT', 'AEM_ADMIN_AUTH_TOKEN'];
+  const requiredParams = ['SITE', 'ORG', 'PRODUCT_PAGE_URL_FORMAT', 'AEM_ADMIN_AUTH_TOKEN', 'CONFIG_NAME', 'CONTENT_URL', 'STORE_URL', 'PRODUCTS_TEMPLATE'];
   const missingParams = requiredParams.filter(param => !params[param]);
   if (missingParams.length > 0) {
     throw new Error(`Missing required parameters: ${missingParams.join(', ')}`);
