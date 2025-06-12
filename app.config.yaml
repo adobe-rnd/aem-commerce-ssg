@@ -7,8 +7,7 @@ application:
         inputs:
           ORG: "hlxsites"
           SITE: "aem-boilerplate-commerce-staging"
-          PRODUCT_PAGE_URL_FORMAT: "/products/{urlKey}/{sku}"
-          # additional parameters
+          PRODUCT_PAGE_URL_FORMAT: "/products-ssg/{urlKey}/{sku}"
           LOG_LEVEL: "debug"
           LOG_INGESTOR_ENDPOINT: "https://blazerank-logs-ingestor.adobeaem.workers.dev/api/v1/services/change-detector"
           CONTENT_URL: "https://main--aem-boilerplate-commerce-staging--hlxsites.aem.live"
@@ -18,11 +17,7 @@ application:
           STORE_URL: "https://main--aem-boilerplate-commerce-staging--hlxsites.aem.live"
           CONFIG_NAME: "config"
           PATH_FORMAT: "/products-ssg/{urlKey}/{sku}"
-          # LOCALES: comma-seprated list of allowed locales.
-          # i.e. us,uk,it,de,fr,es - or just one
-          # null if there is a single store and no
-          # URI prefixes are used
-          LOCALES: null
+          LOCALES: ""
         actions:
           pdp-renderer:
             function: "actions/pdp-renderer/index.js"
@@ -31,18 +26,15 @@ application:
             annotations:
               final: true
             include:
-              - "actions/pdp-renderer/templates/*.hbs"
-              - "templates/"
+              - ["actions/pdp-renderer/templates/*.hbs", "templates/"]
           check-product-changes:
             function: "actions/check-product-changes/index.js"
             web: "no"
             runtime: "nodejs:22"
             include:
-              - "actions/pdp-renderer/templates/*.hbs"
-              - "templates/"
+              - ["actions/pdp-renderer/templates/*.hbs", "templates/"]
             limits:
-              memorySize: 256 # Using 256 since the memory limit might be hit at runtime.
-                              # You might reduce it to 128 if execution works fine without errors in your use case.
+              memorySize: 256
               timeout: 3600000
             inputs:
               AEM_ADMIN_AUTH_TOKEN: "${AEM_ADMIN_API_AUTH_TOKEN}"
