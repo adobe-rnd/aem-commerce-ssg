@@ -26,13 +26,15 @@ application:
             annotations:
               final: true
             include:
-              - ["actions/pdp-renderer/templates/*.hbs", "templates/"]
+              - - "actions/pdp-renderer/templates/*.hbs"
+                - "templates/"
           check-product-changes:
             function: "actions/check-product-changes/index.js"
             web: "no"
             runtime: "nodejs:22"
             include:
-              - ["actions/pdp-renderer/templates/*.hbs", "templates/"]
+              - - "actions/pdp-renderer/templates/*.hbs"
+                - "templates/"
             limits:
               memorySize: 256
               timeout: 3600000

@@ -66,27 +66,29 @@ const RULES_MAP = {
     static async buildAppConfig(params) {
       const { org, site, locales, contentUrl, productsTemplate, productPageUrlFormat, storeUrl } = params;
       
-      const sampleConfigRequest = await fetch(
-        'https://raw.githubusercontent.com/adobe-rnd/aem-commerce-prerender/refs/heads/main/app.config.yaml'
-      );
-      const sampleConfigContent = await sampleConfigRequest.text();
-      const currentConfig = yaml.load(sampleConfigContent);
-      const { inputs } = currentConfig.application.runtimeManifest.packages['aem-commerce-ssg'];
+      try {
+        const sampleConfigContent = fs.readFileSync('app.config.yaml', 'utf8');
+        const currentConfig = yaml.load(sampleConfigContent);
+        const { inputs } = currentConfig.application.runtimeManifest.packages['aem-commerce-ssg'];
   
-      Object.assign(inputs, {
-        ORG: org,
-        SITE: site,
-        CONTENT_URL: contentUrl,
-        PRODUCTS_TEMPLATE: productsTemplate,
-        PRODUCT_PAGE_URL_FORMAT: productPageUrlFormat,
-        STORE_URL: storeUrl,
-        LOCALES: locales
-      });
+        Object.assign(inputs, {
+          ORG: org,
+          SITE: site,
+          CONTENT_URL: contentUrl,
+          PRODUCTS_TEMPLATE: productsTemplate,
+          PRODUCT_PAGE_URL_FORMAT: productPageUrlFormat,
+          STORE_URL: storeUrl,
+          LOCALES: locales
+        });
   
-      return {
-        newConfig: yaml.dump(currentConfig, { indent: 2, quotingType: '"', forceQuotes: true }),
-        currentConfig: sampleConfigContent
-      };
+        return {
+          newConfig: yaml.dump(currentConfig, { indent: 2, quotingType: '"', forceQuotes: true }),
+          currentConfig: sampleConfigContent
+        };
+      } catch (error) {
+        console.error('Error reading app.config.yaml:', error);
+        throw new Error('Failed to read app.config.yaml. Make sure the file exists in the current directory.');
+      }
     }
   
     static async buildIndexConfig(currentYamlConfig) {
@@ -391,68 +393,14 @@ const RULES_MAP = {
       }
     }
 
-    static async aioAppDeploy(request) {
-      const { namespace, org, site, productPageUrlFormat } = await request.json();
-      
-      console.log(`Starting AIO app deployment...`);
-      console.log(`Namespace: ${namespace}, Org: ${org}, Site: ${site}`);
-      console.log(`Product Page URL Format: ${productPageUrlFormat}`);
-      
-      try {
-        // Execute aio app deploy command synchronously
-        console.log(`Executing: aio app deploy`);
-        const { stdout, stderr } = await execAsync(`aio app deploy`, {
-          cwd: process.cwd(),
-          timeout: 30000, // 30 seconds timeout for deployment
-          stdio: 'pipe'
-        });
-        
-        console.log('=== AIO APP DEPLOY OUTPUT ===');
-        if (stdout) {
-          console.log('STDOUT:', stdout);
-        }
-        if (stderr) {
-          console.log('STDERR:', stderr);
-        }
-        console.log('=== END AIO APP DEPLOY OUTPUT ===');
-        
-        console.log('Successfully executed aio app deploy command.');
-        
-        return RequestHelper.jsonResponse({ 
-          success: true,
-          message: `Application deployed successfully to namespace ${namespace}!`,
-          output: stdout,
-          warnings: stderr,
-          namespace,
-          org,
-          site
-        });
-        
-      } catch (error) {
-        console.error('Failed to execute aio app deploy command:', error.message);
-        console.log('=== AIO APP DEPLOY ERROR OUTPUT ===');
-        if (error.stdout) {
-          console.log('STDOUT:', error.stdout);
-        }
-        if (error.stderr) {
-          console.error('STDERR:', error.stderr);
-        }
-        console.log('=== END AIO APP DEPLOY ERROR OUTPUT ===');
-        
-        return RequestHelper.jsonResponse({ 
-          success: false,
-          message: 'Application deployment failed.',
-          error: error.message,
-          output: error.stdout || '',
-          stderr: error.stderr || '',
-          namespace,
-          org,
-          site
-        }, 500);
-      }
+    static async getRules(request) {
+      const headers = RequestHelper.extractHeaders(request);
+      const { runtimeBase } = await RequestHelper.initServices(headers);
+      const rules = await runtimeBase.rules.list();
+      return RequestHelper.jsonResponse({ rules });
     }
-  
-        static async helixConfig(request) {
+
+    static async helixConfig(request) {
       const headers = RequestHelper.extractHeaders(request);
       const jwtBody = await AuthService.verifyJWT(headers.aemAdminToken);
       
@@ -559,8 +507,8 @@ class Server {
       this.router
         .get('/', () => StaticFileServer.serve('index.html'))
         .get('/api/files', ApiRoutes.getFiles)
+        .get('/api/rules', ApiRoutes.getRules)
         .post('/api/aio-config', ApiRoutes.aioConfig)
-        .post('/api/aio-deploy', ApiRoutes.aioAppDeploy)
         .post('/api/change-detector/rule', ApiRoutes.changeDetectorRule)
         .post('/api/wizard/done', ApiRoutes.wizardDone)
         .post('/api/setup', ApiRoutes.setup)
