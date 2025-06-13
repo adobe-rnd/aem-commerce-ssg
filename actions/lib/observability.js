@@ -42,7 +42,6 @@ class ObservabilityClient {
 
         const payload = {
             environment: `${this.namespace}`,
-            //TODO: more precise start time
             timestamp: this.instanceStartTime,
             result,
             activationId: this.activationId,

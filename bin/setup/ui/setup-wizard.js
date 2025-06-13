@@ -347,7 +347,8 @@ export class SetupWizard extends LitElement {
         toastVariant: { type: String },
         showToast: { type: Boolean },
         aioConfigFile: { type: Object },
-        aioConfigContent: { type: String }
+        aioConfigContent: { type: String },
+        processingAioConfig: { type: Boolean }
     };
 
     static styles = css`
@@ -538,6 +539,7 @@ export class SetupWizard extends LitElement {
         this.showToast = false;
         this.aioConfigFile = null;
         this.aioConfigContent = '';
+        this.processingAioConfig = false;
     }
 
     connectedCallback() {
@@ -665,62 +667,72 @@ export class SetupWizard extends LitElement {
     }
 
     async processAIOConfigFile(file) {
-        if (!file.name.endsWith('.json')) {
-            this.showToastNotification('Please upload a JSON file.', 'negative');
-            return;
-        }
-
+        this.processingAioConfig = true;
+        
         try {
             const fileContent = await this.readFileAsText(file);
             const config = JSON.parse(fileContent);
             
-            // Extract AIO namespace and auth from the JSON
-            const aioNamespace = config.project?.workspace?.details?.runtime?.namespaces?.[0]?.name;
-            const aioAuth = config.project?.workspace?.details?.runtime?.namespaces?.[0]?.auth;
-            
-            if (!aioNamespace || !aioAuth) {
-                this.showToastNotification('Invalid AIO configuration file. Missing namespace or auth.', 'negative');
-                return;
-            }
-
-            // Generate filename with Unix timestamp
-            const timestamp = Math.floor(Date.now() / 1000);
-            const baseName = file.name.replace('.json', '');
-            const newFileName = `${baseName}-${timestamp}.aio.json`;
-
-            // Save file and execute aio app use command
-            const response = await fetch('/api/aio-config', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    aioNamespace,
-                    aioAuth,
-                    fileContent,
-                    fileName: newFileName
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const result = await response.json();
-
-            // Update component state
-            this.aioNamespace = aioNamespace;
-            this.aioAuth = aioAuth;
-            
-            if (result.success) {
-                this.showToastNotification(`AIO configuration saved as ${newFileName} and applied successfully!`, 'positive');
+            // Extract namespace and auth from the config
+            if (config.project && config.project.workspace && config.project.workspace.details) {
+                const details = config.project.workspace.details;
+                
+                // Try different possible structures for namespace
+                let namespace = null;
+                if (details.runtime && details.runtime.namespaces && details.runtime.namespaces.length > 0) {
+                    namespace = details.runtime.namespaces[0].name;
+                } else if (details.runtime && details.runtime.namespace) {
+                    namespace = details.runtime.namespace;
+                }
+                
+                // Try different possible structures for auth
+                let auth = null;
+                if (details.credentials && details.credentials.length > 0) {
+                    const cred = details.credentials[0];
+                    if (cred.jwt && cred.jwt.client_secret) {
+                        auth = cred.jwt.client_secret;
+                    } else if (cred.oauth && cred.oauth.client_secret) {
+                        auth = cred.oauth.client_secret;
+                    }
+                }
+                
+                if (namespace && auth) {
+                    this.aioNamespace = namespace;
+                    this.aioAuth = auth;
+                    this.aioConfigFile = file;
+                    
+                    // Send the config to the backend
+                    const response = await fetch('/api/aio-config', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            aioNamespace: namespace,
+                            aioAuth: auth,
+                            fileContent: fileContent,
+                            fileName: file.name
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        this.showToastNotification(`AIO configuration loaded successfully! Namespace: ${namespace}`, 'positive');
+                    } else {
+                        this.showToastNotification(`AIO configuration saved but failed to apply: ${result.error}`, 'negative');
+                    }
+                } else {
+                    this.showToastNotification('Could not extract namespace and auth from the configuration file. Please check the file format.', 'negative');
+                }
             } else {
-                this.showToastNotification(`AIO configuration saved but failed to apply: ${result.error || 'Unknown error'}`, 'negative');
+                this.showToastNotification('Invalid AIO configuration file format. Please upload a valid configuration file.', 'negative');
             }
-            
         } catch (error) {
             console.error('Error processing AIO config file:', error);
-            this.showToastNotification('Error processing AIO configuration file.', 'negative');
+            this.showToastNotification('Error processing AIO configuration file: ' + error.message, 'negative');
+        } finally {
+            this.processingAioConfig = false;
         }
     }
 
@@ -1033,8 +1045,6 @@ export class SetupWizard extends LitElement {
                                 Token valid for Org: <strong>${this.aioOrg}</strong>, Site: <strong>${this.aioSite}</strong>
                             </p>
                         `: ''}
-                        <sp-field-label for="token-payload" style="margin-top: 16px;">Token Payload</sp-field-label>
-                        <pre id="token-payload" style="width: 100%; max-height: 150px; overflow-y: auto; background-color: #1a1a1a; padding: 12px; border-radius: 4px; font-size: 11px;">${this.aioConfigContent}</pre>
                     </div>
                 </div>
             </div>
@@ -1047,40 +1057,27 @@ export class SetupWizard extends LitElement {
                         <p style="text-align: center; margin-bottom: 24px; color: #ccc;">
                             Upload your AIO configuration JSON file to automatically load namespace and auth credentials.
                         </p>
-                        <div style="display: flex; justify-content: center; width: 100%;">
-                            <sp-dropzone @drop=${this.handleAIOConfigDrop} @dragover=${this.handleDragOver} @click=${this.handleDropzoneClick} style="width: 100%; max-width: 500px;">
-                                <div class="dropzone-container">
-                                    <sp-icon-upload style="font-size: 48px; color: #0078d4; margin-bottom: 16px;"></sp-icon-upload>
-                                    <h4 style="margin: 0 0 8px 0;">Drop AIO Configuration JSON here</h4>
-                                    <p style="margin: 0; color: #999;">or click to browse files</p>
-                                    <input type="file" accept=".json" @change=${this.handleAIOConfigFileSelect} style="display: none;" id="aio-file-input" />
-                                </div>
-                            </sp-dropzone>
-                        </div>
+                        
+                        ${this.processingAioConfig ? html`
+                            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; gap: 16px;">
+                                <sp-progress-circle indeterminate size="l" label="Processing configuration..."></sp-progress-circle>
+                                <span style="color: #f0f6fc; font-size: 14px;">Processing AIO configuration file...</span>
+                            </div>
+                        ` : html`
+                            <div style="display: flex; justify-content: center; width: 100%;">
+                                <sp-dropzone @drop=${this.handleAIOConfigDrop} @dragover=${this.handleDragOver} @click=${this.handleDropzoneClick} style="width: 100%; max-width: 500px;">
+                                    <div class="dropzone-container">
+                                        <sp-icon-upload style="font-size: 48px; color: #0078d4; margin-bottom: 16px;"></sp-icon-upload>
+                                        <h4 style="margin: 0 0 8px 0;">Drop AIO Configuration JSON here</h4>
+                                        <p style="margin: 0; color: #999;">or click to browse files</p>
+                                        <input type="file" accept=".json" @change=${this.handleAIOConfigFileSelect} style="display: none;" id="aio-file-input" />
+                                    </div>
+                                </sp-dropzone>
+                            </div>
+                        `}
                     </div>
                 </div>
             </div>
-            
-            <!-- Current AIO Config Display - Centered -->
-            ${this.aioNamespace || this.aioAuth ? html`
-                <div class="full-width-section">
-                    <div class="centered-content">
-                        <div style="max-width: 600px; width: 100%; padding: 16px; background-color: #1a1a1a; border-radius: 6px; border: 1px solid #333;">
-                            <h5 style="margin: 0 0 12px 0; color: #f0f6fc; text-align: center;">Current AIO Configuration:</h5>
-                            <div style="font-family: monospace; font-size: 12px;">
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                                    <span style="color: #7d8590;">Namespace:</span> 
-                                    <span style="color: #f0f6fc;">${this.aioNamespace || 'Not loaded'}</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between;">
-                                    <span style="color: #7d8590;">Auth:</span> 
-                                    <span style="color: #f0f6fc;">${this.maskCredential(this.aioAuth)}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            ` : ''}
         </div>`;
     }
 

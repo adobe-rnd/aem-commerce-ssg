@@ -7,7 +7,7 @@ application:
         inputs:
           ORG: "hlxsites"
           SITE: "aem-boilerplate-commerce-staging"
-          PRODUCT_PAGE_URL_FORMAT: "/products-ssg/{urlKey}/{sku}"
+          PRODUCT_PAGE_URL_FORMAT: "/products/{urlKey}/{sku}"
           LOG_LEVEL: "debug"
           LOG_INGESTOR_ENDPOINT: "https://blazerank-logs-ingestor.adobeaem.workers.dev/api/v1/services/change-detector"
           CONTENT_URL: "https://main--aem-boilerplate-commerce-staging--hlxsites.aem.live"
@@ -17,7 +17,6 @@ application:
           STORE_URL: "https://main--aem-boilerplate-commerce-staging--hlxsites.aem.live"
           CONFIG_NAME: "config"
           PATH_FORMAT: "/products-ssg/{urlKey}/{sku}"
-          LOCALES: ""
         actions:
           pdp-renderer:
             function: "actions/pdp-renderer/index.js"
