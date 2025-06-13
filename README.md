@@ -12,7 +12,7 @@ Pluggable prerendering stack for ahead-of-time data fetching and embedding in Pr
 
   Setup of prerequisites and Edge Delivery Services is guided and some steps are automated.
 
-  1. After cloning the repo, run `npx setup`
+  1. After cloning the repo, run `npm i && npx setup`
   1. Follow the steps to setup prerequisites and perform the initial setup
   1. Customise the code that contains the rendering logic according to your requirements, for [structured data](/actions/pdp-renderer/ldJson.js), [markup](/actions/pdp-renderer/render.js) and [templates](https://github.com/adobe-rnd/aem-commerce-prerender/tree/main/actions/pdp-renderer/templates)
   1. Deploy the solution with `aio app deploy`
