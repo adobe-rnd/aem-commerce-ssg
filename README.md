@@ -10,10 +10,15 @@ Pluggable prerendering stack for ahead-of-time data fetching and embedding in Pr
 
 ## Getting started
 
-  Setup of prerequisites and Edge Delivery Services is guided and some steps are automated. Just follow the wizard at https://aem-storefront.com/prerendering-setup
+  Setup of prerequisites and Edge Delivery Services is guided and some steps are automated.
+
+  1. After cloning the repo, run `npx setup`
+  1. Follow the steps to setup prerequisites and perform the initial setup
+  1. Customise the code that contains the rendering logic according to your requirements, for [structured data](/actions/pdp-renderer/ldJson.js), [markup](/actions/pdp-renderer/render.js) and [templates](https://github.com/adobe-rnd/aem-commerce-prerender/tree/main/actions/pdp-renderer/templates)
+  1. Deploy the solution with `aio app deploy`
 
 ### What's next?
- You might want to check out the [instructions and guidelines](./docs/POST-SETUP.md) around operation and maintenance of the solution
+ You might want to check out the [instructions and guidelines](./POST-SETUP.md) around operation and maintenance of the solution
 
 ## Considerations & Use Cases
- Few considerations around advantages, use cases and prerequisites are available in the [dedicated page](./docs/USE-CASES.md)
+ Few considerations around advantages, use cases and prerequisites are available in the [dedicated page](./USE-CASES.md)
