@@ -672,61 +672,46 @@ export class SetupWizard extends LitElement {
         try {
             const fileContent = await this.readFileAsText(file);
             const config = JSON.parse(fileContent);
+
+            const {name: namespace, auth} = config.project?.workspace?.details?.runtime?.namespaces?.[0];
             
-            // Extract namespace and auth from the config
-            if (config.project && config.project.workspace && config.project.workspace.details) {
-                const details = config.project.workspace.details;
+            console.log('Extracted namespace:', namespace);
+            console.log('Extracted auth:', auth ? 'Found' : 'Not found');
+            
+            if (namespace && auth) {
+                this.aioNamespace = namespace;
+                this.aioAuth = auth;
+                this.aioConfigFile = file;
                 
-                // Try different possible structures for namespace
-                let namespace = null;
-                if (details.runtime && details.runtime.namespaces && details.runtime.namespaces.length > 0) {
-                    namespace = details.runtime.namespaces[0].name;
-                } else if (details.runtime && details.runtime.namespace) {
-                    namespace = details.runtime.namespace;
-                }
+                // Send the config to the backend
+                const response = await fetch('/api/aio-config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        aioNamespace: namespace,
+                        aioAuth: auth,
+                        fileContent: fileContent,
+                        fileName: file.name
+                    })
+                });
                 
-                // Try different possible structures for auth
-                let auth = null;
-                if (details.credentials && details.credentials.length > 0) {
-                    const cred = details.credentials[0];
-                    if (cred.jwt && cred.jwt.client_secret) {
-                        auth = cred.jwt.client_secret;
-                    } else if (cred.oauth && cred.oauth.client_secret) {
-                        auth = cred.oauth.client_secret;
-                    }
-                }
+                const result = await response.json();
                 
-                if (namespace && auth) {
-                    this.aioNamespace = namespace;
-                    this.aioAuth = auth;
-                    this.aioConfigFile = file;
-                    
-                    // Send the config to the backend
-                    const response = await fetch('/api/aio-config', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            aioNamespace: namespace,
-                            aioAuth: auth,
-                            fileContent: fileContent,
-                            fileName: file.name
-                        })
-                    });
-                    
-                    const result = await response.json();
-                    
-                    if (result.success) {
-                        this.showToastNotification(`AIO configuration loaded successfully! Namespace: ${namespace}`, 'positive');
-                    } else {
-                        this.showToastNotification(`AIO configuration saved but failed to apply: ${result.error}`, 'negative');
-                    }
+                if (result.success) {
+                    this.showToastNotification(`AIO configuration loaded successfully! Namespace: ${namespace}`, 'positive');
                 } else {
-                    this.showToastNotification('Could not extract namespace and auth from the configuration file. Please check the file format.', 'negative');
+                    this.showToastNotification(`AIO configuration saved but failed to apply: ${result.error}`, 'negative');
                 }
             } else {
-                this.showToastNotification('Invalid AIO configuration file format. Please upload a valid configuration file.', 'negative');
+                // Show more detailed error message
+                const missingItems = [];
+                if (!namespace) missingItems.push('namespace');
+                if (!auth) missingItems.push('auth/client_secret');
+                
+                this.showToastNotification(`Could not extract ${missingItems.join(' and ')} from the configuration file. Please check the browser console for the file structure and ensure it's a valid AIO configuration file.`, 'negative');
+                console.error('Failed to extract required fields. File structure:', config);
             }
         } catch (error) {
             console.error('Error processing AIO config file:', error);
@@ -1293,9 +1278,6 @@ export class SetupWizard extends LitElement {
                                 ${this.loading ? html`<sp-progress-circle indeterminate size="s"></sp-progress-circle> Loading...` : 
                                  this.currentStep === 3 ? 'Apply Configuration' : 'Next'}
                             </sp-button>
-                        ` : ''}
-                        ${this.currentStep === 4 ? html`
-                            <sp-button variant="primary" @click=${this.saveAndCompleteSetup}>Complete Setup</sp-button>
                         ` : ''}
                     </div>
                 </div>

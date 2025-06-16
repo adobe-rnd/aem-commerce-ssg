@@ -7,7 +7,7 @@ application:
         inputs:
           ORG: "hlxsites"
           SITE: "aem-boilerplate-commerce-staging"
-          PRODUCT_PAGE_URL_FORMAT: "/products/{urlKey}/{sku}"
+          PRODUCT_PAGE_URL_FORMAT: "/products-ssg/{urlKey}/{sku}"
           LOG_LEVEL: "debug"
           LOG_INGESTOR_ENDPOINT: "https://blazerank-logs-ingestor.adobeaem.workers.dev/api/v1/services/change-detector"
           CONTENT_URL: "https://main--aem-boilerplate-commerce-staging--hlxsites.aem.live"
