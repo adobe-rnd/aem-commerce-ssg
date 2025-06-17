@@ -373,16 +373,6 @@ async function poll(params, aioLibs, logger) {
     aioLibs,
     logLevel,
     logIngestorEndpoint,
-    storeUrl,
-    contentUrl,
-    configName,
-    logger,
-    counts,
-    pathFormat,
-    productsTemplate,
-    aioLibs,
-    logLevel,
-    logIngestorEndpoint,
   };
   const timings = new Timings();
   const adminApi = new AdminAPI({

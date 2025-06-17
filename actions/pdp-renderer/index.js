@@ -11,7 +11,7 @@ governing permissions and limitations under the License.
 */
 
 const { Core } = require('@adobe/aio-sdk')
-const { errorResponse, stringParameters, mapLocale, getDefaultStoreURL } = require('../utils');
+const { errorResponse, stringParameters, mapLocale } = require('../utils');
 const { extractPathDetails } = require('./lib');
 const { generateProductHtml } = require('./render');
 

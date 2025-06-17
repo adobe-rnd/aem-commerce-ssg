@@ -14,7 +14,7 @@ governing permissions and limitations under the License.
 
 const { CategoriesQuery, ProductCountQuery, ProductsQuery } = require('../queries');
 const { Core, Files } = require('@adobe/aio-sdk')
-const { requestSaaS, getDefaultStoreURL, FILE_PREFIX, STATE_FILE_EXT } = require('../utils');
+const { requestSaaS, FILE_PREFIX, STATE_FILE_EXT } = require('../utils');
 const { Timings } = require('../lib/benchmark');
 
 async function getSkus(categoryPath, context) {

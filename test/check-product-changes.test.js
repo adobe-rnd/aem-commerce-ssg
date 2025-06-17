@@ -16,7 +16,6 @@ const Files = require('./__mocks__/files');
 const { AdminAPI } = require('../actions/lib/aem');
 const { requestSaaS, requestSpreadsheet, isValidUrl } = require('../actions/utils');
 const { MockState } = require('./__mocks__/state');
-const { getDefaultStoreURL } = require('../actions/utils');
 
 const EXAMPLE_STATE = 'sku1,1,\nsku2,2,\nsku3,3,';
 
