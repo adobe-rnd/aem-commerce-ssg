@@ -229,9 +229,9 @@ describe('pdp-renderer', () => {
       
       const $ = cheerio.load(response.body);
       
-      expect($('body > main > div.product-details > div > div:contains("Images")').next().find('a').map((_,e) => $(e).prop('outerHTML')).toArray()).toEqual([
-        '<a href="http://www.aemshop.net/media/catalog/product/m/b/mb03-black-0.jpg">http://www.aemshop.net/media/catalog/product/m/b/mb03-black-0.jpg</a>',
-        '<a href="http://www.aemshop.net/media/catalog/product/m/b/mb03-black-0_alt1.jpg">http://www.aemshop.net/media/catalog/product/m/b/mb03-black-0_alt1.jpg</a>'
+      expect($('body > main > div.product-details > div > div:contains("Images")').next().find('img').map((_,e) => $(e).prop('outerHTML')).toArray()).toEqual([
+        '<img src="http://www.aemshop.net/media/catalog/product/m/b/mb03-black-0.jpg">',
+        '<img src="http://www.aemshop.net/media/catalog/product/m/b/mb03-black-0_alt1.jpg">'
       ]);
     });
 
