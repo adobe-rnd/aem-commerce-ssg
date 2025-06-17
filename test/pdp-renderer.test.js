@@ -311,26 +311,31 @@ describe('pdp-renderer', () => {
                   <div>XS</div>
                   <div>Y29uZmlndXJhYmxlLzU1Ni81MjM=</div>
                   <div>true</div>
+                  <a href="https://store.com/products/hollister-backyard-sweatshirt/mh05?optionsUIDs=Y29uZmlndXJhYmxlLzU1Ni81MjM=">https://store.com/products/hollister-backyard-sweatshirt/mh05?optionsUIDs=Y29uZmlndXJhYmxlLzU1Ni81MjM=</a>
                 </li>
                 <li>
                   <div>S</div>
                   <div>Y29uZmlndXJhYmxlLzU1Ni81MjY=</div>
                   <div>true</div>
+                  <a href="https://store.com/products/hollister-backyard-sweatshirt/mh05?optionsUIDs=Y29uZmlndXJhYmxlLzU1Ni81MjY=">https://store.com/products/hollister-backyard-sweatshirt/mh05?optionsUIDs=Y29uZmlndXJhYmxlLzU1Ni81MjY=</a>
                 </li>
                 <li>
                   <div>M</div>
                   <div>Y29uZmlndXJhYmxlLzU1Ni81Mjk=</div>
                   <div>true</div>
+                  <a href="https://store.com/products/hollister-backyard-sweatshirt/mh05?optionsUIDs=Y29uZmlndXJhYmxlLzU1Ni81Mjk=">https://store.com/products/hollister-backyard-sweatshirt/mh05?optionsUIDs=Y29uZmlndXJhYmxlLzU1Ni81Mjk=</a>
                 </li>
                 <li>
                   <div>L</div>
                   <div>Y29uZmlndXJhYmxlLzU1Ni81MzI=</div>
                   <div>true</div>
+                  <a href="https://store.com/products/hollister-backyard-sweatshirt/mh05?optionsUIDs=Y29uZmlndXJhYmxlLzU1Ni81MzI=">https://store.com/products/hollister-backyard-sweatshirt/mh05?optionsUIDs=Y29uZmlndXJhYmxlLzU1Ni81MzI=</a>
                 </li>
                 <li>
                   <div>XL</div>
                   <div>Y29uZmlndXJhYmxlLzU1Ni81MzU=</div>
                   <div>true</div>
+                  <a href="https://store.com/products/hollister-backyard-sweatshirt/mh05?optionsUIDs=Y29uZmlndXJhYmxlLzU1Ni81MzU=">https://store.com/products/hollister-backyard-sweatshirt/mh05?optionsUIDs=Y29uZmlndXJhYmxlLzU1Ni81MzU=</a>
                 </li>
               </ul>
             </li>
@@ -343,16 +348,19 @@ describe('pdp-renderer', () => {
                   <div>Green</div>
                   <div>Y29uZmlndXJhYmxlLzI3Ny8xODQ=</div>
                   <div>true</div>
+                  <a href="https://store.com/products/hollister-backyard-sweatshirt/mh05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8xODQ=">https://store.com/products/hollister-backyard-sweatshirt/mh05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8xODQ=</a>
                 </li>
                 <li>
                   <div>Red</div>
                   <div>Y29uZmlndXJhYmxlLzI3Ny8xOTk=</div>
                   <div>true</div>
+                  <a href="https://store.com/products/hollister-backyard-sweatshirt/mh05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8xOTk=">https://store.com/products/hollister-backyard-sweatshirt/mh05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8xOTk=</a>
                 </li>
                 <li>
                   <div>White</div>
                   <div>Y29uZmlndXJhYmxlLzI3Ny8yMDI=</div>
                   <div>true</div>
+                  <a href="https://store.com/products/hollister-backyard-sweatshirt/mh05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8yMDI=">https://store.com/products/hollister-backyard-sweatshirt/mh05?optionsUIDs=Y29uZmlndXJhYmxlLzI3Ny8yMDI=</a>
                 </li>
               </ul>
             </li>
