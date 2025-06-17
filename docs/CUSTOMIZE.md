@@ -8,11 +8,18 @@ GTIN [is strongly recommended](https://support.google.com/merchants/answer/63244
 
 From [ldJson.js](/actions/pdp-renderer/ldJson.js#L73)
 ```js
+/**
+ * Extracts the GTIN (Global Trade Item Number) from a product's attributes.
+ * Checks for GTIN, UPC, or EAN attributes as defined in the Catalog.
+ * 
+ * @param {Object} product - The product object containing attributes
+ * @returns {string} The GTIN value if found, empty string otherwise
+ */
 function getGTIN(product) {
-  return product.attributes.find(attr => attr.name === 'gtin')?.value
-    || product.attributes.find(attr => attr.name === 'upc')?.value
-    || product.attributes.find(attr => attr.name === 'ean')?.value
-    || product.attributes.find(attr => attr.name === 'isbn')?.value
+  return product?.attributes?.find(attr => attr.name === 'gtin')?.value
+    || product?.attributes?.find(attr => attr.name === 'upc')?.value
+    || product?.attributes?.find(attr => attr.name === 'ean')?.value
+    || product?.attributes?.find(attr => attr.name === 'isbn')?.value
     || '';
 }
 ```
