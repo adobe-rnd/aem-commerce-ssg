@@ -22,9 +22,6 @@ application:
             function: "actions/pdp-renderer/index.js"
             web: "yes"
             runtime: "nodejs:22"
-            function: "actions/pdp-renderer/index.js"
-            web: "yes"
-            runtime: "nodejs:22"
             annotations:
               final: true
             include:
