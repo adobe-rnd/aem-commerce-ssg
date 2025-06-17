@@ -12,7 +12,16 @@ governing permissions and limitations under the License.
 
 const { Timings, aggregate } = require('../lib/benchmark');
 const { AdminAPI } = require('../lib/aem');
-const { requestSaaS, requestSpreadsheet, isValidUrl, getProductUrl, mapLocale, FILE_PREFIX, STATE_FILE_EXT, PDP_FILE_EXT } = require('../utils');
+const {
+  requestSaaS,
+  requestSpreadsheet,
+  isValidUrl,
+  getProductUrl,
+  mapLocale,
+  FILE_PREFIX,
+  STATE_FILE_EXT,
+  PDP_FILE_EXT,
+} = require('../utils');
 const { GetLastModifiedQuery } = require('../queries');
 const { generateProductHtml } = require('../pdp-renderer/render');
 const crypto = require('crypto');
@@ -113,26 +122,27 @@ async function deleteState(locale, filesLib) {
  * state accordingly.
  *
  * @param {Object} params - The parameters object.
- * @param {string} params.HLX_SITE_NAME - The name of the site (repo or repoless).
- * @param {string} params.HLX_PATH_FORMAT - The URL format for product detail pages.
- * @param {string} params.HLX_ORG_NAME - The name of the organization.
- * @param {string} params.HLX_CONFIG_NAME - The name of the configuration json/xlsx.
- * @param {string} params.HLX_PRODUCTS_TEMPLATE URL to the products template page
- * @param {string} params.authToken - The authentication token.
- * @param {string} [params.HLX_STORE_URL] - The store's base URL.
- * @param {string} [params.HLX_LOCALES] - Comma-separated list of allowed locales.
+ * @param {string} params.SITE - The name of the site (repo or repoless).
+ * @param {string} params.PRODUCT_PAGE_URL_FORMAT - The URL format for product detail pages.
+ * @param {string} params.ORG - The name of the organization.
+ * @param {string} params.CONFIG_NAME - The name of the configuration json/xlsx.
+ * @param {string} params.PRODUCTS_TEMPLATE - URL to the products template page
+ * @param {string} params.AEM_ADMIN_AUTH_TOKEN - The authentication token for AEM Admin API.
+ * @param {string} [params.STORE_URL] - The store's base URL.
+ * @param {string} [params.LOCALES] - Comma-separated list of allowed locales.
  * @param {string} [params.LOG_LEVEL] - The log level.
+ * @param {string} [params.LOG_INGESTOR_ENDPOINT] - The log ingestor endpoint.
  * @param {FilesProvider} filesLib - The files provider object.
  * @returns {Promise<Object>} The result of the polling action.
  */
 function checkParams(params) {
-  const requiredParams = ['HLX_SITE_NAME', 'HLX_PATH_FORMAT', 'HLX_ORG_NAME', 'HLX_CONFIG_NAME', 'authToken'];
+  const requiredParams = ['SITE', 'ORG', 'PRODUCT_PAGE_URL_FORMAT', 'AEM_ADMIN_AUTH_TOKEN', 'CONFIG_NAME', 'CONTENT_URL', 'STORE_URL', 'PRODUCTS_TEMPLATE'];
   const missingParams = requiredParams.filter(param => !params[param]);
   if (missingParams.length > 0) {
     throw new Error(`Missing required parameters: ${missingParams.join(', ')}`);
   }
 
-  if (params.HLX_STORE_URL && !isValidUrl(params.HLX_STORE_URL)) {
+  if (params.STORE_URL && !isValidUrl(params.STORE_URL)) {
     throw new Error('Invalid storeUrl');
   }
 }
@@ -332,22 +342,37 @@ async function poll(params, aioLibs, logger) {
   checkParams(params);
 
   const {
-    HLX_SITE_NAME: siteName,
-    HLX_PATH_FORMAT: pathFormat,
-    HLX_ORG_NAME: orgName,
-    HLX_CONFIG_NAME: configName,
-    HLX_PRODUCTS_TEMPLATE: productsTemplate,
-    authToken,
+    // required
+    ORG_NAME: orgName,
+    SITE: siteName,
+    PRODUCT_PAGE_URL_FORMAT: pathFormat,
+
+    CONFIG_NAME: configName,
+    AEM_ADMIN_AUTH_TOKEN: authToken,
+    PRODUCTS_TEMPLATE: productsTemplate,
+    STORE_URL: storeUrl,
+    CONTENT_URL: contentUrl,
+    LOCALES,
+    LOG_LEVEL: logLevel,
+    LOG_INGESTOR_ENDPOINT: logIngestorEndpoint,
   } = params;
-  const storeUrl = params.HLX_STORE_URL ? params.HLX_STORE_URL : `https://main--${siteName}--${orgName}.aem.live`;
-  const contentUrl = params.HLX_CONTENT_URL ? params.HLX_CONTENT_URL : `https://main--${siteName}--${orgName}.aem.live`;
-  const locales = params.HLX_LOCALES ? params.HLX_LOCALES.split(',') : [null];
+
+  const locales = LOCALES?.split(',') || [null];
 
   const counts = {
     published: 0, unpublished: 0, ignored: 0, failed: 0,
   };
   const sharedContext = {
-    storeUrl, contentUrl, configName, logger, counts, pathFormat, productsTemplate, aioLibs
+    storeUrl,
+    contentUrl,
+    configName,
+    logger,
+    counts,
+    pathFormat,
+    productsTemplate,
+    aioLibs,
+    logLevel,
+    logIngestorEndpoint,
   };
   const timings = new Timings();
   const adminApi = new AdminAPI({

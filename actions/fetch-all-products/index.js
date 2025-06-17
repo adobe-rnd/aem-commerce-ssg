@@ -97,10 +97,10 @@ async function getAllSkus(context) {
 async function main(params) {
   const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' })
   const {
-    HLX_SITE_NAME: siteName,
-    HLX_ORG_NAME: orgName,
-    HLX_CONTENT_URL: contentUrl,
-    HLX_CONFIG_NAME: configName = 'configs',
+    SITE: siteName,
+    ORG: orgName,
+    CONTENT_URL: contentUrl,
+    CONFIG_NAME: configName = 'configs',
   } = params;
   if (!siteName || !orgName || !contentUrl) {
     return {
@@ -111,8 +111,8 @@ async function main(params) {
       }
     }
   }
-  const storeUrl = params.HLX_STORE_URL ? params.HLX_STORE_URL : `https://main--${siteName}--${orgName}.aem.live`;
-  const locales = params.HLX_LOCALES ? params.HLX_LOCALES.split(',') : [null];
+  const storeUrl = params.STORE_URL;
+  const locales = params.LOCALES ? params.LOCALES.split(',') : [null];
   const context = { 
     configName,
     storeUrl,

@@ -1,52 +1,28 @@
-# Edge Delivery Services Storefront Prerender
+# AEM Commerce Prerender
 
-Pluggable prerendering framework for ahead-of-time data fetching and embedding in Product Pages and more.
+Pluggable prerendering stack for ahead-of-time data fetching and embedding in Product Pages and framework for definining rendering templates and rules.
+
 * ⚡️ Boost SEO by pre-rendering human-readable product data in the markup
 * 💉 Inject JSON-LD Structured data in the page source code
 * 📈 Aggregate data sources and inject resulting data ahead-of-time
 * ⚙️ Define your custom rendering logic
 * 🧠 Offload intensive computation to the rendering phase
 
-:sparkles: _Early-access technology_ :sparkles: Please get in touch with us in your dedicated support Slack channel to learn more about this feature.
-
 ## Getting started
 
-Please follow the [Documentation](https://github.com/adobe-rnd/aem-commerce-ssg/wiki/Documentation#summary) for setting up the solution, maintaining and operating it.
+  Setup of prerequisites and Edge Delivery Services is guided and some steps are automated.
 
-## Local Dev
+  1. Go to [https://developer.adobe.com/console](https://developer.adobe.com/console) and choose "Create project from template"
+  1. Select "App Builder" and choose the environments (workspaces) according to your needs (we recommend Stage and Production as a starting point)
+  1. You can leave all the other fields as per default settings; don't forget to provide a descriptive project title.
+  1. After saving the newly created project, click on the workspace you want to deploy the prerendering stack to, and from the top-right click "Download All": this will download a JSON file that will be used in the setup process.
+  1. Then generate a repo with the relevant code in your org by clicking [here](https://github.com/new?template_name=aem-commerce-prerender&template_owner=adobe-rnd). You can now clone the resulting repo from your org, and run `npm i && npx setup`
+  1. Follow the steps to perform the initial setup
+  1. Customise the code that contains the rendering logic according to your requirements, for [structured data](/actions/pdp-renderer/ldJson.js), [markup](/actions/pdp-renderer/render.js) and [templates](https://github.com/adobe-rnd/aem-commerce-prerender/tree/main/actions/pdp-renderer/templates) - more info [here](/docs/CUSTOMIZE.md)
+  1. Deploy the solution with `aio app deploy`
 
-- `aio app run` to start your local Dev server
-- App will run on `localhost:9080` by default
+### What's next?
+ You might want to check out the [instructions and guidelines](./POST-SETUP.md) around operation and maintenance of the solution
 
-By default the UI will be served locally but actions will be deployed and served from Adobe I/O Runtime. To start a
-local serverless stack and also run your actions locally use the `aio app run --local` option.
-
-## Test & Coverage
-
-- Run `aio app test` to run unit tests for ui and actions
-- Run `aio app test --e2e` to run e2e tests
-
-## Deploy & Cleanup
-
-- `aio app deploy` to build and deploy all actions on Runtime and static files to CDN
-- `aio app undeploy` to undeploy the app
-
-### `.env` config
-
-You can generate this file using the command `aio app use`. 
-
-```bash
-# This file must **not** be committed to source control
-
-## please provide your Adobe I/O Runtime credentials
-# AIO_RUNTIME_AUTH=
-# AIO_RUNTIME_NAMESPACE=
-```
-
-## Notes on dependencies
-
-The action uses LiveSearch to list products from the store.
-PLEASE NOTE that LiveSearch has a hard limit on the maximum number of results that can be returned in a search query: 10,000.
-For further details, please see https://experienceleague.adobe.com/en/docs/commerce-merchant-services/live-search/boundaries-limits#query
-
-To mitigate that issue, the [fetch-all-products](/actions/fetch-all-products/index.js) action goes into each of the categories to fetch all products under each category. Then it combines all products and removes any duplicates.
+## Considerations & Use Cases
+ Few considerations around advantages, use cases and prerequisites are available in the [dedicated page](./USE-CASES.md)

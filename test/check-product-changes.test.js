@@ -49,6 +49,7 @@ jest.mock('../actions/utils', () => ({
   isValidUrl: jest.fn(() => true),
   getProductUrl: jest.fn(({ urlKey, sku }) => `/${urlKey || sku}`),
   mapLocale: jest.fn((locale) => ({ locale })),
+  getDefaultStoreURL: jest.fn(() => 'https://content.com'),
   FILE_PREFIX: 'check-product-changes',
   STATE_FILE_EXT: 'csv',
   PDP_FILE_EXT: 'html',
@@ -114,12 +115,14 @@ describe('Poller', () => {
   });
 
   const defaultParams = {
-    HLX_SITE_NAME: 'siteName',
-    HLX_PATH_FORMAT: 'pathFormat',
-    PLPURIPrefix: 'prefix',
-    HLX_ORG_NAME: 'orgName',
-    HLX_CONFIG_NAME: 'configName',
-    authToken: 'token',
+    ORG: 'orgName',
+    SITE: 'siteName',
+    CONTENT_URL: 'https://content.com',
+    STORE_URL: 'https://store.com',
+    PRODUCTS_TEMPLATE: 'https://store.com/products/default',
+    PRODUCT_PAGE_URL_FORMAT: 'products/{urlKey}/{sku}',
+    CONFIG_NAME: 'configName',
+    AEM_ADMIN_AUTH_TOKEN: 'token',
   };
 
   const setupSkuData = (filesLib, stateLib, skuData, lastQueriedAt) => {
@@ -166,6 +169,8 @@ describe('Poller', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+    // Reset isValidUrl mock to default behavior
+    isValidUrl.mockReturnValue(true);
   });
 
   it('loadState returns default state', async () => {
@@ -239,20 +244,20 @@ describe('Poller', () => {
   describe('Parameter validation', () => {
     it('should throw an error if required parameters are missing', async () => {
       const params = { ...defaultParams };
-      delete params.HLX_CONFIG_NAME;
+      delete params.CONFIG_NAME;
       
       const filesLib = mockFiles();
       const stateLib = mockState();
 
       await expect(poll(params, { filesLib, stateLib }, mockLogger))
-        .rejects.toThrow('Missing required parameters: HLX_CONFIG_NAME');
+        .rejects.toThrow('Missing required parameters: CONFIG_NAME');
     });
 
-    it('should throw an error if HLX_STORE_URL is invalid', async () => {
+    it('should throw an error if STORE_URL is invalid', async () => {
       isValidUrl.mockReturnValue(false);
       const params = {
         ...defaultParams,
-        HLX_STORE_URL: 'invalid-url',
+        STORE_URL: 'invalid-url',
       };
       
       const filesLib = mockFiles();

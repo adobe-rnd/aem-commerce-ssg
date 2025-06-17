@@ -82,7 +82,7 @@ test('complex product markup', async () => {
   const $ = cheerio.load(content);
 
   // Validate H1
-  expect($('h1').text()).toEqual('SSG Configurable Product');
+  expect($('h1').text()).toEqual('BYOM Configurable Product');
 
   // Validate price
   expect($('.product-details > div > div:contains("Price")').next().text()).toEqual('$40.00-$80.00');
@@ -133,7 +133,7 @@ test('complex product markup', async () => {
     "@type": "ProductGroup",
     "sku": "SSGCONFIG123",
     "productGroupId": "SSGCONFIG123",
-    "name": "SSG Configurable Product",
+    "name": "BYOM Configurable Product",
     "gtin": "",
     "variesBy": [
       "https://schema.org/color"
@@ -144,7 +144,7 @@ test('complex product markup', async () => {
       {
         "@type": "Product",
         "sku": "SSGCONFIG123-blue",
-        "name": "SSG Configurable Product-blue",
+        "name": "BYOM Configurable Product-blue",
         "gtin": "",
         "image": "http://www.aemshop.net/media/catalog/product/a/d/adb402_1.jpg",
         "offers": [
@@ -163,7 +163,7 @@ test('complex product markup', async () => {
       {
         "@type": "Product",
         "sku": "SSGCONFIG123-green",
-        "name": "SSG Configurable Product-green",
+        "name": "BYOM Configurable Product-green",
         "gtin": "",
         "image": "http://www.aemshop.net/media/catalog/product/a/d/adb412_1.jpg",
         "offers": [
@@ -182,7 +182,7 @@ test('complex product markup', async () => {
       {
         "@type": "Product",
         "sku": "SSGCONFIG123-red",
-        "name": "SSG Configurable Product-red",
+        "name": "BYOM Configurable Product-red",
         "gtin": "",
         "image": "http://www.aemshop.net/media/catalog/product/a/d/adb187_1.jpg",
         "offers": [

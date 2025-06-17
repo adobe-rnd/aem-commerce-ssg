@@ -45,7 +45,7 @@ async function getVariants(baseProduct, url, axes, context) {
       '@type': 'Product',
       sku: variant.product.sku,
       name: variant.product.name,
-      gtin: '', // TODO: Add based on your data model (https://schema.org/gtin)
+      gtin: getGTIN(variant.product),
       image: getPrimaryImage(variant.product, null),
       offers: [getOffer(variant.product, variantUrl.toString())],
     };
@@ -63,11 +63,26 @@ async function getVariants(baseProduct, url, axes, context) {
   });
 }
 
+/**
+ * Extracts the GTIN (Global Trade Item Number) from a product's attributes.
+ * Checks for GTIN, UPC, or EAN attributes as defined in the Catalog.
+ * 
+ * @param {Object} product - The product object containing attributes
+ * @returns {string} The GTIN value if found, empty string otherwise
+ */
+function getGTIN(product) {
+  return product?.attributes?.find(attr => attr.name === 'gtin')?.value
+    || product?.attributes?.find(attr => attr.name === 'upc')?.value
+    || product?.attributes?.find(attr => attr.name === 'ean')?.value
+    || product?.attributes?.find(attr => attr.name === 'isbn')?.value
+    || '';
+}
+
 async function generateLdJson(product, context) {
   const { name, sku, __typename } = product;
   const image = getPrimaryImage(product);
   const url = getProductUrl(product, context);
-  const gtin = ''; // TODO: Add based on your data model (https://schema.org/gtin)
+  const gtin = getGTIN(product);
 
   let ldJson;
   if (__typename === 'SimpleProductView') {
@@ -84,7 +99,6 @@ async function generateLdJson(product, context) {
   } else if (__typename === 'ComplexProductView') {
     const axes = product.options.map(({ id }) => id);
 
-    // TODO: Double check if your axis are a schema org property (e.g. https://schema.org/color) or a simple string
     const schemaOrgProperties = ['color', 'size'];
 
     ldJson = {
@@ -106,9 +120,6 @@ async function generateLdJson(product, context) {
   if (image) {
     ldJson.image = image.url;
   }
-
-  // TODO: Add other data like aggregated ratings (https://schema.org/AggregateRating),
-  // shipping details (https://schema.org/OfferShippingDetails) and return policy (https://schema.org/MerchantReturnPolicy)
 
   return JSON.stringify(ldJson);
 }
