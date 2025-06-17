@@ -22,7 +22,7 @@ Pluggable prerendering stack for ahead-of-time data fetching and embedding in Pr
   1. Deploy the solution with `aio app deploy`
 
 ### What's next?
- You might want to check out the [instructions and guidelines](./POST-SETUP.md) around operation and maintenance of the solution
+ You might want to check out the [instructions and guidelines](/docs/POST-SETUP.md) around operation and maintenance of the solution
 
 ## Considerations & Use Cases
  Few considerations around advantages, use cases and prerequisites are available in the [dedicated page](./USE-CASES.md)
