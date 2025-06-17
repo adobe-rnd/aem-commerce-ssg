@@ -71,10 +71,10 @@ async function getVariants(baseProduct, url, axes, context) {
  * @returns {string} The GTIN value if found, empty string otherwise
  */
 function getGTIN(product) {
-  return product.attributes.find(attr => attr.name === 'gtin')?.value
-    || product.attributes.find(attr => attr.name === 'upc')?.value
-    || product.attributes.find(attr => attr.name === 'ean')?.value
-    || product.attributes.find(attr => attr.name === 'isbn')?.value
+  return product?.attributes?.find(attr => attr.name === 'gtin')?.value
+    || product?.attributes?.find(attr => attr.name === 'upc')?.value
+    || product?.attributes?.find(attr => attr.name === 'ean')?.value
+    || product?.attributes?.find(attr => attr.name === 'isbn')?.value
     || '';
 }
 
