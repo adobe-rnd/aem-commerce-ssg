@@ -46,7 +46,19 @@ async function generateProductHtml(sku, urlKey, context) {
     }
     baseProduct = baseProductData.data.productSearch.items[0].productView;
   }
-  logger.debug('Retrieved base product', JSON.stringify(baseProduct, null, 4));
+
+  if (baseProduct.options && baseProduct.options.length > 0) {
+    baseProduct.options = baseProduct.options.map((option) => {
+      const baseUrl = context.storeUrl + context.pathFormat.replace('{urlKey}', baseProduct.urlKey).replace('{sku}', baseProduct.sku.toLowerCase());
+      if (Array.isArray(option.values)) {
+        option.values = option.values.map((value) => ({
+          ...value,
+          url: baseUrl + '?optionsUIDs=' + value.id,
+        }));
+      } 
+      return option;
+    });
+  }
 
   // Assign meta tag data for template
   const templateProductData = toTemplateProductData(baseProduct);

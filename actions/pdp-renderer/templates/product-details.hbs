@@ -10,7 +10,7 @@
     <div>
       <ul>
         {{#each imageList}}
-        <li><a href="{{this}}">{{this}}</a></li>
+        <li><img src="{{this}}"></li>
         {{/each}}
       </ul>
     </div>
@@ -45,6 +45,7 @@
               <div>{{title}}</div>
               <div>{{id}}</div>
               <div>{{inStock}}</div>
+              <a href="{{url}}">{{url}}</a>
             </li>
             {{/each}}
           </ul>
