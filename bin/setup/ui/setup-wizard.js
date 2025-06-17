@@ -918,25 +918,6 @@ export class SetupWizard extends LitElement {
         this.loading = true;
         this.healthChecks = [];
 
-        // Health check for renderer endpoint
-        try {
-            const rendererUrl = `https://${this.aioNamespace}.adobeioruntime.net/api/v1/web/aem-commerce-ssg/pdp-renderer/`;
-            const response = await fetch(rendererUrl);
-            
-            // We expect a 404 since the endpoint shouldn't exist yet
-            this.healthChecks.push({
-                name: 'Renderer Endpoint',
-                status: response.status === 404,
-                message: response.status === 404 ? 'Renderer endpoint not found' : 'Renderer endpoint exists'
-            });
-        } catch (error) {
-            this.healthChecks.push({
-                name: 'Renderer Endpoint',
-                status: false,
-                message: 'Failed to check renderer endpoint'
-            });
-        }
-
         // Health check for local files endpoint
         try {
             const filesUrl = `${window.location.origin}/api/files`;

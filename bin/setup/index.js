@@ -8,9 +8,8 @@ import { createServer } from 'http'
 import { exec } from 'child_process'
 import { promisify } from 'util'
 
-import filesLib from '@adobe/aio-lib-files'
-import runtimeLib from '@adobe/aio-lib-runtime'
-import stateLib from '@adobe/aio-lib-state'
+import { Files, State } from '@adobe/aio-sdk';
+import runtimeLib from '@adobe/aio-lib-runtime';
 import { createPatch } from 'diff';
 import yaml from 'js-yaml';
 import fs from 'fs';
@@ -181,9 +180,9 @@ const RULES_MAP = {
     static async initServices(headers) {
       const { namespace, auth } = headers;
       return {
-        filesBase: await filesLib.init({ ow: { namespace, auth } }),
+        filesBase: await Files.init({ ow: { namespace, auth } }),
         runtimeBase: await runtimeLib.init({ namespace, api_key: auth, apihost: 'https://adobeioruntime.net' }),
-        stateBase: await stateLib.init({ ow: { namespace, auth } })
+        stateBase: await State.init({ ow: { namespace, auth } })
       };
     }
   
@@ -392,7 +391,7 @@ const RULES_MAP = {
       
       try {
         // Save the configuration file
-        await fs.writeFileSync(fileName, fileContent);
+        await fs.writeFileSync(fileName.replace(/\.json$/, '.aio.json'), fileContent);
         
         // Execute aio app use command
         console.log(`Executing: aio app use "${fileName}"`);
