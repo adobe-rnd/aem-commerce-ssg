@@ -4,8 +4,8 @@
             {{#if this.url}}
             <div>
                 <div><em>{{this.documentType}}</em></div>
-                <div><span>{{ this.language }}</span></div>
-                <div><a href="{{concat '/content/dam/abcam/product' this.url}}" target="_blank"></a></div>
+                <div><span>{{#if this.language}}{{this.language}}{{else}}en{{/if}}</span></div>
+                <div><a href="{{this.url}}" target="_blank"></a></div>
             </div>
             {{/if}}
         {{/each}}

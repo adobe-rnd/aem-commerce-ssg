@@ -1,10 +1,10 @@
-{{#if (isOneOf raw.adstatus values="inactive,quarantined")}}
+{{#if isUnpublishedProduct}}
 <div>
   {{> product-header-inactive-block class='inactive-product'}}
   {{> product-downloads-inactive-block class='inactive-product'}}
 </div>
 <div>
-  {{> alternate-products-inactive-block class='inactive-product'}}
+  {{> product-unpublished-replacements-block class='inactive-product'}}
 </div>
 <div>
   <p> Please note: All products are 'FOR RESEARCH USE ONLY. NOT FOR USE IN DIAGNOSTIC OR THERAPEUTIC PROCEDURES'. </p>

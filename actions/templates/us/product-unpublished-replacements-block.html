@@ -1,0 +1,24 @@
+{{#if unpublishedReplacements}}
+<div class="unpublished-replacements {{class}}">
+  <div>
+    <div><h3>Recommended alternatives</h3></div>
+  </div>
+  {{#each unpublishedReplacements}}
+  <div>
+    <div>
+      <h5>{{this.categoryType}}</h5>
+      <div>{{this.productCode}}</div>
+      <h4>{{this.name}}</h4>
+      {{#if this.seoClass}}
+      <div>{{this.seoClass.levelOne}}</div>
+      {{/if}} {{#if this.productSlug}}
+      <div>{{this.productSlug}}</div>
+      {{/if}} {{#if this.reviewsSummary}}
+      <div>{{this.reviewsSummary.aggregatedRating}}</div>
+      <div>{{this.reviewsSummary.numberOfReviews}}</div>
+      {{/if}}
+    </div>
+  </div>
+  {{/each}}
+</div>
+{{/if}}
