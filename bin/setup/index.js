@@ -207,6 +207,44 @@ const RULES_MAP = {
         return RequestHelper.jsonResponse({ message: 'Server is shutting down.' });
     }
 
+    static async handleExternalSubmission(request) {
+        try {
+            const formData = await request.formData();
+            const jsonData = formData.get('data');
+            
+            if (!jsonData) {
+                return RequestHelper.errorResponse('No data field found in form submission');
+            }
+
+            const parsedData = JSON.parse(jsonData);
+            
+            console.log('Received external submission:');
+            console.log('ID:', parsedData.id);
+            console.log('Org:', parsedData.org);
+            console.log('Site:', parsedData.site);
+            console.log('Namespace:', parsedData.appbuilderProjectJSON?.project?.workspace?.details?.runtime?.namespaces?.[0]?.name);
+            console.log('AEM Admin JWT:', parsedData.aemAdminJWT ? 'Present' : 'Missing');
+            
+            // Here you could process the data further, save to database, etc.
+            // For now, we'll just log it and return success
+            
+            return RequestHelper.jsonResponse({
+                success: true,
+                message: 'Configuration received successfully',
+                data: {
+                    id: parsedData.id,
+                    org: parsedData.org,
+                    site: parsedData.site,
+                    namespace: parsedData.appbuilderProjectJSON?.project?.workspace?.details?.runtime?.namespaces?.[0]?.name
+                }
+            });
+            
+        } catch (error) {
+            console.error('Error processing external submission:', error);
+            return RequestHelper.errorResponse('Failed to process submission: ' + error.message, 500);
+        }
+    }
+
     static async getFiles(request) {
       const headers = RequestHelper.extractHeaders(request);
       const { filesBase } = await RequestHelper.initServices(headers);
@@ -408,7 +446,7 @@ const RULES_MAP = {
         return RequestHelper.errorResponse('Invalid token', 401);
       }
 
-      const { newIndexConfig, newSiteConfig, appConfigParams } = await request.json();
+      const { newIndexConfig, newSiteConfig, appConfigParams, aioNamespace, aioAuth } = await request.json();
       if (!newIndexConfig || !newSiteConfig || !appConfigParams) {
         return RequestHelper.errorResponse('newIndexConfig, newSiteConfig, and appConfigParams are required');
       }
@@ -421,9 +459,18 @@ const RULES_MAP = {
         const { newConfig: newAppConfig } = await ConfigService.buildAppConfig(appConfigParams);
         fs.writeFileSync('app.config.yaml', newAppConfig);
         console.log('Successfully wrote app.config.yaml to local filesystem');
+
+        const contextInfo = {
+            ...appConfigParams,
+            aioNamespace,
+            aioAuth
+        };
+        fs.writeFileSync('.aem-commerce-prerender.json', JSON.stringify(contextInfo, null, 2));
+        console.log('Successfully wrote .aem-commerce-prerender.json to local filesystem');
+
       } catch (error) {
-        console.error('Failed to write app.config.yaml:', error);
-        return RequestHelper.errorResponse('Failed to write app.config.yaml: ' + error.message, 500);
+        console.error('Failed to write configuration files:', error);
+        return RequestHelper.errorResponse('Failed to write configuration files: ' + error.message, 500);
       }
 
       const [siteConfigApplyResponse, indexConfigApplyResponse] = await Promise.all([
@@ -509,6 +556,7 @@ class Server {
         .get('/api/files', ApiRoutes.getFiles)
         .get('/api/rules', ApiRoutes.getRules)
         .post('/api/aio-config', ApiRoutes.aioConfig)
+        .post('/api/external-submit', ApiRoutes.handleExternalSubmission)
         .post('/api/change-detector/rule', ApiRoutes.changeDetectorRule)
         .post('/api/wizard/done', ApiRoutes.wizardDone)
         .post('/api/setup', ApiRoutes.setup)

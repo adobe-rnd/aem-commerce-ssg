@@ -797,6 +797,9 @@ export class SetupWizard extends LitElement {
         } else if (this.currentStep === 3) {
             await this.applyConfig();
             await this.performHealthChecks();
+            // After health checks complete, submit to external endpoint
+            await this.submitToExternalEndpoint();
+            return; // Don't increment step, we're done
         }
         this.currentStep++;
     }
@@ -893,12 +896,10 @@ export class SetupWizard extends LitElement {
                     appConfigParams: {
                         org: this.aioOrg,
                         site: this.aioSite,
-                        contentUrl: this.advancedSettings.contentUrl,
-                        productsTemplate: this.advancedSettings.productsTemplate,
-                        productPageUrlFormat: this.advancedSettings.productPageUrlFormat,
-                        storeUrl: this.advancedSettings.storeUrl,
-                        locales: this.advancedSettings.locales
-                    }
+                        ...this.advancedSettings
+                    },
+                    aioNamespace: this.aioNamespace,
+                    aioAuth: this.aioAuth
                 })
             });
 
@@ -992,7 +993,69 @@ export class SetupWizard extends LitElement {
             this.showToastNotification('Some health checks failed. Please review and click Done to complete setup.', 'negative');
         }
     }
-    
+
+    async submitToExternalEndpoint() {
+        try {
+            // Prepare the JSON payload
+            const payload = {
+                id: `${this.aioOrg}/${this.aioSite}`,
+                org: this.aioOrg,
+                site: this.aioSite,
+                appbuilderProjectJSON: {
+                    project: {
+                        name: this.aioConfigFile?.name?.replace('.json', '') || 'aem-commerce-prerender',
+                        title: `AEM Commerce Prerender - ${this.aioOrg}/${this.aioSite}`,
+                        id: `${this.aioOrg}-${this.aioSite}-commerce-prerender`,
+                        workspace: {
+                            details: {
+                                runtime: {
+                                    namespaces: [
+                                        {
+                                            name: this.aioNamespace,
+                                            auth: this.aioAuth
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
+                aemAdminJWT: this.token,
+                annotations: []
+            };
+
+            // Create and submit form
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = 'https://prerender.aem-storefront.com/setup-done';
+            form.style.display = 'none';
+
+            // Add the JSON payload as a form field
+            const dataInput = document.createElement('input');
+            dataInput.type = 'hidden';
+            dataInput.name = 'data';
+            dataInput.value = JSON.stringify(payload);
+            form.appendChild(dataInput);
+
+            // Append form to document and submit
+            document.body.appendChild(form);
+            
+            console.log('Submitting configuration to external endpoint...');
+            console.log('Payload:', JSON.stringify(payload, null, 2));
+            
+            this.showToastNotification('Setup complete! Redirecting to external configuration...', 'positive');
+            
+            // Submit the form - this will redirect to the target page
+            setTimeout(() => {
+                form.submit();
+            }, 1500); // Give user time to see the success message
+
+        } catch (error) {
+            console.error('Error submitting to external endpoint:', error);
+            this.showToastNotification('Setup completed but failed to submit to external endpoint: ' + error.message, 'negative');
+        }
+    }
+
     renderWizardStep() {
         switch (this.currentStep) {
             case 1:
@@ -1001,8 +1064,6 @@ export class SetupWizard extends LitElement {
                 return this.renderStep3AdvancedSettings();
             case 3:
                 return this.renderStep4Review();
-            case 4:
-                return this.finishSetup();
             default:
                 return html`<div>Invalid step</div>`;
         }
@@ -1155,9 +1216,6 @@ export class SetupWizard extends LitElement {
                 <h3>Step 3: Preview & Apply Configuration</h3>
                 <p>Below is a preview of the configuration changes that will be applied.</p>
                 <diff-viewer .patch=${this.configPatch} ?loading=${this.loading}></diff-viewer>
-                <div class="button-group">
-                    <sp-button @click=${this.downloadConfigFiles} variant="secondary">Download Configuration Files</sp-button>
-                </div>
                 ${this.loading ? html`
                     <div style="display: flex; align-items: center; justify-content: center; margin-top: 20px; gap: 12px;">
                         <sp-progress-circle indeterminate label="Applying configuration and running health checks..."></sp-progress-circle>
@@ -1182,69 +1240,6 @@ export class SetupWizard extends LitElement {
         `;
     }
 
-    async saveAndCompleteSetup() {
-        try {
-            this.loading = true;
-            await this.submitConfigurationData();
-            this.currentStep++;
-        } catch (error) {
-            console.error('Error saving configuration:', error);
-            this.showToastNotification('Failed to save configuration: ' + error.message, 'negative');
-        } finally {
-            this.loading = false;
-        }
-    }
-
-    finishSetup() {
-        return html`
-            <div class="step-container">
-                <h2>Setup Complete ✅</h2>
-                <p>Your AEM Commerce Prerender has been successfully configured.</p>
-                <p>You can close this window now.</p>
-            </div>
-        `;
-    }
-
-    submitConfigurationData() {
-        // Create a hidden form to submit the configuration data
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = 'https://prerender.aem-storefront.com/setup';
-        form.style.display = 'none';
-
-        // Add aioNamespace field
-        const namespaceInput = document.createElement('input');
-        namespaceInput.type = 'hidden';
-        namespaceInput.name = 'aioNamespace';
-        namespaceInput.value = this.aioNamespace || '';
-        form.appendChild(namespaceInput);
-
-        // Add aioAuth field
-        const authInput = document.createElement('input');
-        authInput.type = 'hidden';
-        authInput.name = 'aioAuth';
-        authInput.value = this.aioAuth || '';
-        form.appendChild(authInput);
-
-        // Add aemAdminToken field
-        const tokenInput = document.createElement('input');
-        tokenInput.type = 'hidden';
-        tokenInput.name = 'aemAdminToken';
-        tokenInput.value = this.token || '';
-        form.appendChild(tokenInput);
-
-        // Append form to document and submit
-        document.body.appendChild(form);
-        
-        console.log('Submitting configuration data to external endpoint...');
-        console.log('aioNamespace:', this.aioNamespace);
-        console.log('aioAuth:', this.maskCredential(this.aioAuth));
-        console.log('aemAdminToken:', this.maskCredential(this.token));
-        
-        // Submit the form - this will redirect to the target page
-        form.submit();
-    }
-
     render() {
         return html`
             ${this.showToast ? html`
@@ -1263,22 +1258,25 @@ export class SetupWizard extends LitElement {
                 <div class="title">AEM Commerce Prerender Setup</div>
                 <div class="wizard-container">
                     <div class="step-indicator">
-                        ${[1, 2, 3, 4].map(i => html`
+                        ${[1, 2, 3].map(i => html`
                             <div class="step ${this.currentStep === i ? 'active' : ''}">${i}</div>
-                            ${i < 4 ? html`<div class="step-connector"></div>` : ''}
+                            ${i < 3 ? html`<div class="step-connector"></div>` : ''}
                         `)}
                     </div>
-
-                    ${this.renderWizardStep()}
-
+                    <div class="wizard-content">
+                        ${this.renderWizardStep()}
+                    </div>
                     <div class="button-group">
                         <sp-button variant="secondary" @click=${this.prevStep} ?disabled=${this.currentStep === 1}>Back</sp-button>
-                        ${this.currentStep < 4 ? html`
+                        ${this.currentStep < 3 ? html`
                             <sp-button variant="primary" @click=${this.nextStep} ?disabled=${this.loading}>
-                                ${this.loading ? html`<sp-progress-circle indeterminate size="s"></sp-progress-circle> Loading...` : 
-                                 this.currentStep === 3 ? 'Apply Configuration' : 'Next'}
+                                ${this.loading ? html`<sp-progress-circle indeterminate size="s"></sp-progress-circle> Loading...` : 'Next'}
                             </sp-button>
-                        ` : ''}
+                        ` : html`
+                            <sp-button variant="primary" @click=${this.nextStep} ?disabled=${this.loading}>
+                                ${this.loading ? html`<sp-progress-circle indeterminate size="s"></sp-progress-circle> Processing...` : 'Complete Setup'}
+                            </sp-button>
+                        `}
                     </div>
                 </div>
             </div>

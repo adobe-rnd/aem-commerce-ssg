@@ -347,15 +347,14 @@ async function poll(params, aioLibs, logger) {
     SITE: siteName,
     PRODUCT_PAGE_URL_FORMAT: pathFormat,
 
-    // optional, fallback to default values
-    CONFIG_NAME: configName = "config",
+    CONFIG_NAME: configName,
     AEM_ADMIN_AUTH_TOKEN: authToken,
     PRODUCTS_TEMPLATE: productsTemplate,
     STORE_URL: storeUrl,
     CONTENT_URL: contentUrl,
     LOCALES,
-    LOG_LEVEL: logLevel = "info",
-    LOG_INGESTOR_ENDPOINT: logIngestorEndpoint = "https://blazerank-logs-ingestor.adobeaem.workers.dev/api/v1/services/change-detector",
+    LOG_LEVEL: logLevel,
+    LOG_INGESTOR_ENDPOINT: logIngestorEndpoint,
   } = params;
 
   const locales = LOCALES?.split(',') || [null];
