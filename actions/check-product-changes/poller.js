@@ -196,7 +196,7 @@ function unpublishAndDelete(batches, locale, adminApi) {
  */
 function shouldProcessProduct(product) {
   const { urlKey, lastModifiedDate, lastPreviewDate, currentHash, newHash } = product;
-  return urlKey?.match(/^[a-zA-Z0-9-]+$/) && lastModifiedDate >= lastPreviewDate && currentHash !== newHash;
+  return urlKey?.match(/^[a-zA-Z0-9-]+$/) && lastModifiedDate >= lastPreviewDate && newHash && currentHash !== newHash;
 }
 
 /**
