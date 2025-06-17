@@ -1,10 +1,8 @@
 application:
   actions: "actions"
-  actions: "actions"
   runtimeManifest:
     packages:
       aem-commerce-ssg:
-        license: "Apache-2.0"
         license: "Apache-2.0"
         inputs:
           ORG: "hlxsites"
@@ -36,25 +34,17 @@ application:
             function: "actions/check-product-changes/index.js"
             web: "no"
             runtime: "nodejs:22"
-            function: "actions/check-product-changes/index.js"
-            web: "no"
-            runtime: "nodejs:22"
             include:
               - - "actions/pdp-renderer/templates/*.hbs"
                 - "templates/"
             limits:
               memorySize: 256
-              memorySize: 256
               timeout: 3600000
             inputs:
-              AEM_ADMIN_AUTH_TOKEN: "${AEM_ADMIN_API_AUTH_TOKEN}"
               AEM_ADMIN_AUTH_TOKEN: "${AEM_ADMIN_API_AUTH_TOKEN}"
             annotations:
               final: true
           fetch-all-products:
-            function: "actions/fetch-all-products/index.js"
-            web: "yes"
-            runtime: "nodejs:22"
             function: "actions/fetch-all-products/index.js"
             web: "yes"
             runtime: "nodejs:22"
@@ -63,26 +53,8 @@ application:
           get-overlay-url:
             function: "actions/get-overlay-url/index.js"
             runtime: "nodejs:22"
-            function: "actions/get-overlay-url/index.js"
-            runtime: "nodejs:22"
             annotations:
               final: true
-        triggers:
-          productPollerTrigger:
-            feed: "/whisk.system/alarms/interval"
-            inputs:
-              minutes: 5
-          productScraperTrigger:
-            feed: "/whisk.system/alarms/interval"
-            inputs:
-              minutes: 60
-        rules:
-          productPollerRule:
-            trigger: "productPollerTrigger"
-            action: "check-product-changes"
-          productScraperRule:
-            trigger: "productScraperTrigger"
-            action: "fetch-all-products"
         triggers:
           productPollerTrigger:
             feed: "/whisk.system/alarms/interval"
