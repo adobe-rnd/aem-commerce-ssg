@@ -6,7 +6,7 @@
           * AIO\_RUNTIME\_NAMESPACE\_PROD
           * AIO\_RUNTIME\_AUTH\_STAGE
           * AIO\_RUNTIME\_NAMESPACE\_STAGE
-          * You can retrieve the values from https://byom-setup.aem-storefront.com/settings, by selecting the workspace (Stage or Prod) and copy/pasting the values.
+          * You can retrieve the values from the JSON files you downloaded earlier, from the corresponding workspace (Stage or Prod) and copy/pasting the values.
       * Make sure you activate the GitHub actions. By default, any commit to the main branch of your project will be deployed to the staging workspace of your AppBuilder project. Any release will [trigger](https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#release) an deployment to the production workspace. We recommend to stick to this workflow.
 
 # Initial Rollout of Product Pages
@@ -142,33 +142,7 @@ In the tools/ folder, there are scripts for troubleshooting and monitoring the p
 ```
 
 ## Observability
- [TBD]
 
-# Setting up cron jobs in App Builder
+ Logs and statistics of operation (like i.e. number of pages published, changes detected, products ignored, errored, ...) are sent to the endpoint specified in `app.config.yaml`
 
-Once all the actions are ready and Edge Delivery configs are all done, you might want to set up cron jobs in App Builder that automate the execution of your action, including:
-
-Product scraper: fetching the latest products from Live Search and make them available in App Builder Files Storage. Recommended interval: 60 minutes
-
-PDP poller: checking product updates, comparing the output HTML and re-preview and publish the updated pages. Recommended interval: 1 minute
-
-You can put the triggers and rules in `app.config.yaml` file, and run "aio app deploy" to deploy them in App Builder.
-
-```yaml
-       triggers:
-         productPollerTrigger:
-           feed: /whisk.system/alarms/interval
-           inputs:
-             minutes: 5
-         productScraperTrigger:
-           feed: /whisk.system/alarms/interval
-           inputs:
-             minutes: 60
-       rules:
-         productPollerRule:
-           trigger: productPollerTrigger
-           action: check-product-changes
-         productScraperRule:
-           trigger: productScraperTrigger
-           action: fetch-all-products
-```
+ You can always extract reports/data following the instructions above.
