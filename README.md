@@ -25,4 +25,4 @@ Pluggable prerendering stack for ahead-of-time data fetching and embedding in Pr
  You might want to check out the [instructions and guidelines](/docs/POST-SETUP.md) around operation and maintenance of the solution
 
 ## Considerations & Use Cases
- Few considerations around advantages, use cases and prerequisites are available in the [dedicated page](./USE-CASES.md)
+ Few considerations around advantages, use cases and prerequisites are available in the [dedicated page](/docs/USE-CASES.md)
