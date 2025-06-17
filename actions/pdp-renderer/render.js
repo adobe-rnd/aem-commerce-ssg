@@ -46,6 +46,7 @@ async function generateProductHtml(sku, urlKey, context) {
     }
     baseProduct = baseProductData.data.productSearch.items[0].productView;
   }
+  logger.debug('Retrieved base product', JSON.stringify(baseProduct, null, 4));
 
   if (baseProduct.options && baseProduct.options.length > 0) {
     baseProduct.options = baseProduct.options.map((option) => {
