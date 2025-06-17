@@ -6,7 +6,8 @@
           * AIO\_RUNTIME\_NAMESPACE\_PROD
           * AIO\_RUNTIME\_AUTH\_STAGE
           * AIO\_RUNTIME\_NAMESPACE\_STAGE
-          * You can retrieve the values from the JSON files you downloaded earlier, from the corresponding workspace (Stage or Prod) and copy/pasting the values.
+          * You can retrieve the values from the JSON files you downloaded earlier, from the corresponding workspace (Stage or Prod) and copy/pasting the values (`namespace` and `auth`).
+            Just install [jq](https://github.com/jqlang/jq) and execute `cat /path/to/my/AppBuilder-Project-file.json | jq '.project.workspace.details.runtime.namespaces[0]'`
       * Make sure you activate the GitHub actions. By default, any commit to the main branch of your project will be deployed to the staging workspace of your AppBuilder project. Any release will [trigger](https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/events-that-trigger-workflows#release) an deployment to the production workspace. We recommend to stick to this workflow.
 
 # Initial Rollout of Product Pages
