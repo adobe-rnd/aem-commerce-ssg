@@ -246,7 +246,7 @@ async function enrichProductWithMetadata(product, state, context) {
         await filesLib.write(htmlPath, productHtml);
         logger.debug(`Saved HTML for product ${sku} to ${htmlPath}`);
       } catch (e) {
-        newHash = null; // Reset newHash if saving fails
+        enrichedProduct.newHash = null; // Reset newHash if saving fails
         logger.error(`Error saving HTML for product ${sku}:`, e);
       }
     }
