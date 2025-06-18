@@ -232,7 +232,7 @@ async function getConfig(context) {
       }
       // get the matching root path
       // see https://github.com/hlxsites/aem-boilerplate-commerce/blob/53fb19440df441723c0c891d22e3a3396d2968ce/scripts/configs.js#L59-L81
-      let pathname = `${getProductUrl({ /* no product */}, context, false)}`;
+      let pathname = `${getProductUrl({ /* no product */}, context, false)}` || '';
       if (!pathname.endsWith('/')) pathname += '/';
 
       let rootPath = Object.keys(configObj.public)
