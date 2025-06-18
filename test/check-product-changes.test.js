@@ -50,6 +50,7 @@ jest.mock('../actions/utils', () => ({
   getProductUrl: jest.fn(({ urlKey, sku }) => `/${urlKey || sku}`),
   mapLocale: jest.fn((locale) => ({ locale })),
   getDefaultStoreURL: jest.fn(() => 'https://content.com'),
+  formatMemoryUsage: jest.fn(() => '100MB'),
   FILE_PREFIX: 'check-product-changes',
   STATE_FILE_EXT: 'csv',
   PDP_FILE_EXT: 'html',

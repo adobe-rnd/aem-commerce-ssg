@@ -381,6 +381,16 @@ function mapLocale(locale, context) {
   }
 }
 
+/**
+ * Formats a memory usage value in bytes to a human-readable string in megabytes.
+ * 
+ * @param {number} data - The memory usage value in bytes
+ * @returns {string} The formatted memory usage string in MB with 2 decimal places
+ */
+function formatMemoryUsage(data) {
+  return `${Math.round(data / 1024 / 1024 * 100) / 100} MB`;
+}
+
 module.exports = {
   errorResponse,
   getBearerToken,
@@ -394,6 +404,7 @@ module.exports = {
   getProductUrl,
   getDefaultStoreURL,
   mapLocale,
+  formatMemoryUsage,
   FILE_PREFIX,
   PDP_FILE_EXT,
   STATE_FILE_EXT,
