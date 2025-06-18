@@ -235,7 +235,6 @@ async function enrichProductWithMetadata(product, state, context) {
       lastPreviewDate,
       currentHash: state.skus[sku]?.hash || null,
       newHash,
-      productHtml
     };
 
     // Save HTML immediately if product should be processed
@@ -247,6 +246,7 @@ async function enrichProductWithMetadata(product, state, context) {
         await filesLib.write(htmlPath, productHtml);
         logger.debug(`Saved HTML for product ${sku} to ${htmlPath}`);
       } catch (e) {
+        newHash = null; // Reset newHash if saving fails
         logger.error(`Error saving HTML for product ${sku}:`, e);
       }
     }
@@ -261,7 +261,6 @@ async function enrichProductWithMetadata(product, state, context) {
       lastPreviewDate,
       currentHash: state.skus[sku]?.hash || null,
       newHash: null,
-      productHtml: null
     };
   }
 }
