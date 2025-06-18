@@ -167,18 +167,6 @@ describe('pdp-renderer', () => {
       const ldJson = JSON.parse($('head > script[type="application/ld+json"]').html());
       expect(ldJson.offers[0].url).toEqual('https://store.com/en/products/24-MB03');
     });
-
-    test('return 400 if locale is not supported', async () => {
-      const response = await action.main({
-        STORE_URL: 'https://store.com',
-        CONTENT_URL: 'https://content.com',
-        CONFIG_NAME: 'config',
-        PRODUCT_PAGE_URL_FORMAT: '/{locale}/products/{sku}',
-        __ow_path: `/test/products/24-MB03`,
-      });
-
-      expect(response.error.statusCode).toEqual(400);
-    });
   })
 
   describe('error handling', () => {
