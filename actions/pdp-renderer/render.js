@@ -54,8 +54,9 @@ async function generateProductHtml(sku, urlKey, context) {
       if (Array.isArray(option.values)) {
         option.values = option.values.map((value) => ({
           ...value,
-          url: baseUrl + '?optionsUIDs=' + value.id,
+          url: baseUrl.toLowerCase() + '?optionsUIDs=' + value.id,
         }));
+        option.values.sort((a, b) => a.title.localeCompare(b.title));
       } 
       return option;
     });
