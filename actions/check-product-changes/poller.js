@@ -247,7 +247,7 @@ async function enrichProductWithMetadata(product, state, context) {
         await filesLib.write(htmlPath, productHtml);
         logger.debug(`Saved HTML for product ${sku} to ${htmlPath}`);
       } catch (e) {
-        newHash = null; // Reset newHash if saving fails
+        enrichedProduct.newHash = null; // Reset newHash if saving fails
         logger.error(`Error saving HTML for product ${sku}:`, e);
       }
     }
@@ -348,6 +348,7 @@ async function poll(params, aioLibs, logger) {
     PRODUCT_PAGE_URL_FORMAT: pathFormat,
 
     CONFIG_NAME: configName,
+    CONFIG_SHEET: configSheet,
     AEM_ADMIN_AUTH_TOKEN: authToken,
     PRODUCTS_TEMPLATE: productsTemplate,
     STORE_URL: storeUrl,
@@ -366,6 +367,7 @@ async function poll(params, aioLibs, logger) {
     storeUrl,
     contentUrl,
     configName,
+    configSheet,
     logger,
     counts,
     pathFormat,

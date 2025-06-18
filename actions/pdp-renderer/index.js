@@ -38,12 +38,14 @@ async function main (params) {
       __ow_path,
       pathFormat : pathFormatQuery,
       configName : configNameQuery,
+      configSheet : configSheetQuery,
       contentUrl : contentUrlQuery,
       storeUrl : storeUrlQuery,
       productsTemplate : productsTemplateQuery,
       STORE_URL,
       CONTENT_URL,
       CONFIG_NAME,
+      CONFIG_SHEET,
       PRODUCTS_TEMPLATE,
       PRODUCT_PAGE_URL_FORMAT,
       LOCALES,
@@ -51,10 +53,11 @@ async function main (params) {
 
     const pathFormat = pathFormatQuery || PRODUCT_PAGE_URL_FORMAT;
     const configName = configNameQuery || CONFIG_NAME;
+    const configSheet = configSheetQuery || CONFIG_SHEET;
     const contentUrl = contentUrlQuery || CONTENT_URL;
     const storeUrl = storeUrlQuery || STORE_URL;
     const allowedLocales = LOCALES ? LOCALES.split(',').map(a => a.trim()) : [];
-    let context = { contentUrl, storeUrl, configName, logger, pathFormat, allowedLocales };
+    let context = { contentUrl, storeUrl, configName, configSheet, logger, pathFormat, allowedLocales };
     context.productsTemplate = productsTemplateQuery || PRODUCTS_TEMPLATE;
     context.productsTemplate = productsTemplateQuery || PRODUCTS_TEMPLATE;
 
