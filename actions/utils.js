@@ -368,13 +368,6 @@ function getDefaultStoreURL(params) {
  * @returns {Object} An object containing the adjusted context.
  */
 function mapLocale(locale, context) {
-  // Check if locale is valid
-  const allowedLocales = ['en', 'fr']; // Or use context.allowedLocales derived from LOCALES configuration
-  if (locale && !allowedLocales.includes(locale)) {
-    throw new Error('Invalid locale');
-  }
-
-  // Example for dedicated config file per locale
   return {
     locale,
     configName: locale ? [locale, context.configName].join('/') : context.configName,
