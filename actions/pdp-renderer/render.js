@@ -3,7 +3,7 @@ const path = require('path');
 const Handlebars = require('handlebars');
 const { findDescription, prepareBaseTemplate, getPrimaryImage, generatePriceString, getImageList } = require('./lib');
 const { generateLdJson } = require('./ldJson');
-const { requestSaaS } = require('../utils');
+const { requestSaaS, getProductUrl } = require('../utils');
 const { ProductQuery, ProductByUrlKeyQuery } = require('../queries');
 
 function toTemplateProductData(baseProduct) {
@@ -50,7 +50,7 @@ async function generateProductHtml(sku, urlKey, context) {
 
   if (baseProduct.options && baseProduct.options.length > 0) {
     baseProduct.options = baseProduct.options.map((option) => {
-      const baseUrl = context.storeUrl + context.pathFormat.replace('{urlKey}', baseProduct.urlKey).replace('{sku}', baseProduct.sku.toLowerCase());
+      const baseUrl = getProductUrl(baseProduct, context);
       if (Array.isArray(option.values)) {
         option.values = option.values.map((value) => ({
           ...value,
