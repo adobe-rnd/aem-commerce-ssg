@@ -226,8 +226,8 @@ async function getConfig(context) {
     logger.debug(`Fetching public config`);
     try {
       const configObj = await requestConfigService(context);
-      context.config = configObj?.public.default;
-      if (!context.config){
+      const defaultConfig = configObj?.public.default;
+      if (!defaultConfig){
         throw new Error('No default config found');
       }
       // get the matching root path
@@ -244,10 +244,7 @@ async function getConfig(context) {
         })
         .find((key) => pathname === key || pathname.startsWith(key));
   
-      if (rootPath) {
-        context.config = deepmerge(context.config, configObj.public[rootPath])
-      }
-
+      context.config = rootPath ? deepmerge(defaultConfig, configObj.public[rootPath]) : defaultConfig;
       return context.config;
     } catch (e) {
       logger.debug(`Failed to fetch public config. Falling back to spreadsheet`, e);
