@@ -16,6 +16,7 @@ const { main } = require('../actions/fetch-all-products/index');
             CONTENT_URL: process.env.CONTENT_URL,
             LOG_LEVEL: 'info',
             LOG_INGESTOR_ENDPOINT: process.env.LOG_INGESTOR_ENDPOINT,
+            LOCALES: process.env.LOCALES,
         });
         console.log(JSON.stringify(resp, null, 2));
     } catch (error) {
