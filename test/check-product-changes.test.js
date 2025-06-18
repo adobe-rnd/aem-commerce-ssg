@@ -14,7 +14,7 @@ const assert = require('node:assert/strict');
 const { loadState, saveState, getStateFileLocation, poll } = require('../actions/check-product-changes/poller');
 const Files = require('./__mocks__/files');
 const { AdminAPI } = require('../actions/lib/aem');
-const { requestSaaS, requestSpreadsheet, isValidUrl, formatMemoryUsage } = require('../actions/utils');
+const { requestSaaS, requestSpreadsheet, isValidUrl } = require('../actions/utils');
 const { MockState } = require('./__mocks__/state');
 
 const EXAMPLE_STATE = 'sku1,1,\nsku2,2,\nsku3,3,';
