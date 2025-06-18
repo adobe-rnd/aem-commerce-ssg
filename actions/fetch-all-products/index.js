@@ -14,7 +14,7 @@ governing permissions and limitations under the License.
 
 const { CategoriesQuery, ProductCountQuery, ProductsQuery } = require('../queries');
 const { Core, Files } = require('@adobe/aio-sdk')
-const { requestSaaS, FILE_PREFIX, STATE_FILE_EXT, mapLocale } = require('../utils');
+const { requestSaaS, FILE_PREFIX, STATE_FILE_EXT } = require('../utils');
 const { Timings } = require('../lib/benchmark');
 
 async function getSkus(categoryPath, context) {
@@ -123,10 +123,10 @@ async function main(params) {
   };
 
   const results = await Promise.all(locales.map(async (locale) => {
-    const context = {
-      ...sharedContext,
-      ...mapLocale(locale, sharedContext),
-    };
+    const context = { ...sharedContext };
+    if (locale) {
+      context.locale = locale;
+    }
     const timings = new Timings();
     const stateFilePrefix = locale || 'default';
     const allSkus = await getAllSkus(context);

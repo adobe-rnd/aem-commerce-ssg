@@ -11,7 +11,7 @@ governing permissions and limitations under the License.
 */
 
 const { Core } = require('@adobe/aio-sdk')
-const { errorResponse, stringParameters, mapLocale } = require('../utils');
+const { errorResponse, stringParameters } = require('../utils');
 const { extractPathDetails } = require('./lib');
 const { generateProductHtml } = require('./render');
 
@@ -71,12 +71,7 @@ async function main (params) {
 
     // Map locale to context
     if (locale) {
-      try {
-      context = { ...context, ...mapLocale(locale, context) };
-      // eslint-disable-next-line no-unused-vars
-      } catch(e) {
-        return errorResponse(400, 'Invalid locale', logger);
-      }
+      context = { ...context, locale };
     }
 
     // Retrieve base product

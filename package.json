@@ -8,6 +8,7 @@
   "dependencies": {
     "@adobe/aio-lib-runtime": "^7.1.2",
     "@adobe/aio-sdk": "^6.0.0",
+    "@fastify/deepmerge": "^3.1.0",
     "@whatwg-node/server": "^0.10.10",
     "canvas": "^3.1.0",
     "cheerio": "^1.0.0",

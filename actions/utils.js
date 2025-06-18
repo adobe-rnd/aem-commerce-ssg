@@ -9,6 +9,7 @@ the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTA
 OF ANY KIND, either express or implied. See the License for the specific language
 governing permissions and limitations under the License.
 */
+const deepmerge = require('@fastify/deepmerge')();
 
 /* This file exposes some common utilities for your actions */
 
@@ -202,24 +203,62 @@ async function requestSpreadsheet(name, sheet, context) {
   return request('spreadsheet', sheetUrl);
 }
 
+async function requestConfigService(context) {
+  const { contentUrl } = context;
+  let publicConfig = `${contentUrl}/config.json`
+  return request('configservice', publicConfig);
+}
+
 /**
- * Returns the parsed configuration.
+ * Returns the parsed configuration. It first tries to fetch the config from the config service,
+ * and if that fails, it falls back to the spreadsheet. The configuration returned from config 
+ * service must contain a default config and may contain a specific config for the current locale.
+ * In this case the configuration is merged.
  *
  * @param {object} context context object containing the configName.
  *
  * @returns {Promise<object>} configuration as object.
  */
 async function getConfig(context) {
-  const { configName = 'configs', configSheet, logger } = context;
+  const { configName = 'configs', configSheet, logger, locale } = context;
   if (!context.config) {
+    // try to fetch the config from the config service first
+    logger.debug(`Fetching public config`);
+    try {
+      const configObj = await requestConfigService(context);
+      const defaultConfig = configObj?.public.default;
+      if (!defaultConfig){
+        throw new Error('No default config found');
+      }
+      // get the matching root path
+      // see https://github.com/hlxsites/aem-boilerplate-commerce/blob/53fb19440df441723c0c891d22e3a3396d2968ce/scripts/configs.js#L59-L81
+      let pathname = `${getProductUrl({ /* no product */}, context, false)}` || '';
+      if (!pathname.endsWith('/')) pathname += '/';
+
+      let rootPath = Object.keys(configObj.public)
+        // Sort by number of non-empty segments to find the deepest path
+        .sort((a, b) => {
+          const aSegments = a.split('/').filter(Boolean).length;
+          const bSegments = b.split('/').filter(Boolean).length;
+          return bSegments - aSegments;
+        })
+        .find((key) => pathname === key || pathname.startsWith(key));
+  
+      context.config = rootPath ? deepmerge(defaultConfig, configObj.public[rootPath]) : defaultConfig;
+      return context.config;
+    } catch (e) {
+      logger.debug(`Failed to fetch public config. Falling back to spreadsheet`, e);
+    }
+    
+    // fallback to spreadsheet in a locale specific folder if locale is provided
+    let spreadsheetPath = locale ? `${locale}/${configName}` : configName;
     logger.debug(`Fetching config ${configName}`);
-    const configData = await requestSpreadsheet(configName, configSheet, context);
+    const configData = await requestSpreadsheet(spreadsheetPath, configSheet, context);
     if(configData.data) {
       context.config = configData.data.reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {});
       context.config.__hasLegacyFormat = true;
-    } else { 
-      // Handle case where configData.public.default is an object
-      context.config = configData.public.default;
+    } else {
+      throw new Error(`Failed to fetch config ${configName}`);
     }
   }
   return context.config;
@@ -360,21 +399,6 @@ function getDefaultStoreURL(params) {
 }
 
 /**
- * Adjust the context according to the given locale.
- * 
- * TODO: Customize this function to match your multi store setup
- * 
- * @param {string} locale The locale to map.
- * @returns {Object} An object containing the adjusted context.
- */
-function mapLocale(locale, context) {
-  return {
-    locale,
-    configName: locale ? [locale, context.configName].join('/') : context.configName,
-  }
-}
-
-/**
  * Formats a memory usage value in bytes to a human-readable string in megabytes.
  * 
  * @param {number} data - The memory usage value in bytes
@@ -396,7 +420,6 @@ module.exports = {
   isValidUrl,
   getProductUrl,
   getDefaultStoreURL,
-  mapLocale,
   formatMemoryUsage,
   FILE_PREFIX,
   PDP_FILE_EXT,

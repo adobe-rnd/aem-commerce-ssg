@@ -17,7 +17,6 @@ const {
   requestSpreadsheet,
   isValidUrl,
   getProductUrl,
-  mapLocale,
   formatMemoryUsage,
   FILE_PREFIX,
   STATE_FILE_EXT,
@@ -397,7 +396,7 @@ async function poll(params, aioLibs, logger) {
 
       let context = { ...sharedContext };
       if (locale) {
-        context = { ...context, ...mapLocale(locale, context) };
+        context = { ...context, locale };
       }
 
       const { filesLib } = aioLibs;
