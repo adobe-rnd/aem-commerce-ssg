@@ -210,10 +210,10 @@ async function requestSpreadsheet(name, sheet, context) {
  * @returns {Promise<object>} configuration as object.
  */
 async function getConfig(context) {
-  const { configName = 'configs', logger } = context;
+  const { configName = 'configs', configSheet, logger } = context;
   if (!context.config) {
     logger.debug(`Fetching config ${configName}`);
-    const configData = await requestSpreadsheet(configName, null, context);
+    const configData = await requestSpreadsheet(configName, configSheet, context);
     if(configData.data) {
       context.config = configData.data.reduce((acc, { key, value }) => ({ ...acc, [key]: value }), {});
       context.config.__hasLegacyFormat = true;
@@ -245,12 +245,12 @@ async function requestSaaS(query, operationName, variables, context) {
     'Content-Type': 'application/json',
     'origin': storeUrl,
     ...(config.__hasLegacyFormat ? {
-      'magento-customer-group': config['commerce.headers.cs.Magento-Customer-Group'],
-      'magento-environment-id': config['commerce.headers.cs.Magento-Environment-Id'],
-      'magento-store-code': config['commerce.headers.cs.Magento-Store-Code'],
-      'magento-store-view-code': config['commerce.headers.cs.Magento-Store-View-Code'],
-      'magento-website-code': config['commerce.headers.cs.Magento-Website-Code'],
-      'x-api-key': config['commerce.headers.cs.x-api-key'],
+      'magento-customer-group': config['commerce.headers.cs.Magento-Customer-Group'] || config['commerce-customer-group'],
+      'magento-environment-id': config['commerce.headers.cs.Magento-Environment-Id'] || config['commerce-environment-id'],
+      'magento-store-code': config['commerce.headers.cs.Magento-Store-Code'] || config['commerce-store-code'],
+      'magento-store-view-code': config['commerce.headers.cs.Magento-Store-View-Code'] || config['commerce-store-view-code'],
+      'magento-website-code': config['commerce.headers.cs.Magento-Website-Code'] || config['commerce-website-code'],
+      'x-api-key': config['commerce.headers.cs.x-api-key'] || config['commerce-x-api-key'],
     } : {
       'magento-customer-group': config.headers?.cs?.['Magento-Customer-Group'],
       'magento-environment-id': config.headers?.cs?.['Magento-Environment-Id'],

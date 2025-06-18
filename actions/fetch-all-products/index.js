@@ -101,6 +101,7 @@ async function main(params) {
     ORG: orgName,
     CONTENT_URL: contentUrl,
     CONFIG_NAME: configName = 'configs',
+    CONFIG_SHEET: configSheet,
   } = params;
   if (!siteName || !orgName || !contentUrl) {
     return {
@@ -115,6 +116,7 @@ async function main(params) {
   const locales = params.LOCALES ? params.LOCALES.split(',') : [null];
   const sharedContext = {
     configName,
+    configSheet,
     storeUrl,
     contentUrl,
     logger: logger,

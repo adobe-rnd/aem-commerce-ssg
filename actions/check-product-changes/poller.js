@@ -347,6 +347,7 @@ async function poll(params, aioLibs, logger) {
     PRODUCT_PAGE_URL_FORMAT: pathFormat,
 
     CONFIG_NAME: configName,
+    CONFIG_SHEET: configSheet,
     AEM_ADMIN_AUTH_TOKEN: authToken,
     PRODUCTS_TEMPLATE: productsTemplate,
     STORE_URL: storeUrl,
@@ -365,6 +366,7 @@ async function poll(params, aioLibs, logger) {
     storeUrl,
     contentUrl,
     configName,
+    configSheet,
     logger,
     counts,
     pathFormat,
