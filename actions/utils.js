@@ -9,7 +9,7 @@ the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTA
 OF ANY KIND, either express or implied. See the License for the specific language
 governing permissions and limitations under the License.
 */
-const deepmerge = require('@fastify/deepmerge');
+const deepmerge = require('@fastify/deepmerge')();
 
 /* This file exposes some common utilities for your actions */
 
@@ -226,8 +226,10 @@ async function getConfig(context) {
     logger.debug(`Fetching public config`);
     try {
       const configObj = await requestConfigService(context);
-      const defaultConfig = configObj?.public.default;
-      if (!defaultConfig) throw new Error('No default config found');
+      context.config = configObj?.public.default;
+      if (!context.config){
+        throw new Error('No default config found');
+      }
       // get the matching root path
       // see https://github.com/hlxsites/aem-boilerplate-commerce/blob/53fb19440df441723c0c891d22e3a3396d2968ce/scripts/configs.js#L59-L81
       let pathname = `${getProductUrl({ /* no product */}, context, false)}`;
@@ -242,7 +244,10 @@ async function getConfig(context) {
         })
         .find((key) => pathname === key || pathname.startsWith(key));
   
-      context.config = rootPath ? deepmerge(defaultConfig, configObj[rootPath]) : defaultConfig;
+      if (rootPath) {
+        context.config = deepmerge(context.config, configObj.public[rootPath])
+      }
+
       return context.config;
     } catch (e) {
       logger.debug(`Failed to fetch public config. Falling back to spreadsheet`, e);
