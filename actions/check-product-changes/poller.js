@@ -18,6 +18,7 @@ const {
   isValidUrl,
   getProductUrl,
   mapLocale,
+  formatMemoryUsage,
   FILE_PREFIX,
   STATE_FILE_EXT,
   PDP_FILE_EXT,
@@ -470,6 +471,16 @@ async function poll(params, aioLibs, logger) {
     // wait for queues to finish, even in error case
     await adminApi.stopProcessing();
   }
+
+  // get memory usage
+  const memoryData = process.memoryUsage();
+  const memoryUsage = {
+    rss: `${formatMemoryUsage(memoryData.rss)}`,
+    heapTotal: `${formatMemoryUsage(memoryData.heapTotal)}`,
+    heapUsed: `${formatMemoryUsage(memoryData.heapUsed)}`,
+    external: `${formatMemoryUsage(memoryData.external)}`,
+  };
+  logger.info(`Memory usage: ${JSON.stringify(memoryUsage)}`);
 
   const elapsed = new Date() - timings.now;
 
