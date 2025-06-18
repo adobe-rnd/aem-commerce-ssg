@@ -48,7 +48,6 @@ jest.mock('../actions/utils', () => ({
   requestSpreadsheet: jest.fn(),
   isValidUrl: jest.fn(() => true),
   getProductUrl: jest.fn(({ urlKey, sku }) => `/${urlKey || sku}`),
-  mapLocale: jest.fn((locale) => ({ locale })),
   getDefaultStoreURL: jest.fn(() => 'https://content.com'),
   formatMemoryUsage: jest.fn(() => '100MB'),
   FILE_PREFIX: 'check-product-changes',

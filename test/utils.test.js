@@ -156,7 +156,7 @@ describe('request', () => {
   });
 
   test('getConfig (ConfigBus)', async () => {
-    server.use(http.get('https://content.com/configs.json', async () => {
+    server.use(http.get('https://content.com/config.json', async () => {
       return HttpResponse.json(SAMPLE_CONFIGBUS_RESPONSE);
     }));
 
@@ -302,6 +302,22 @@ describe('request', () => {
 });
 
 describe('getProductUrl', () => {
+  
+  test('getProductUrl with no product, with products prefix, with locale', () => {
+    const context = { storeUrl: 'https://example.com', pathFormat: '/{locale}/products/{urlKey}/{sku}', locale: 'en' };
+    expect(getProductUrl({ }, context, false)).toBe('/en/products');
+  });
+
+  test('getProductUrl with no product, with products prefix, without locale', () => {
+    const context = { storeUrl: 'https://example.com', pathFormat: '/products/{urlKey}/{sku}'};
+    expect(getProductUrl({ }, context, false)).toBe('/products');
+  });
+
+  test('getProductUrl with no product, without products prefix, without locale', () => {
+    const context = { storeUrl: 'https://example.com', pathFormat: '/{urlKey}/{sku}'};
+    expect(getProductUrl({ }, context, false)).toBe('/');
+  });
+
   test('getProductUrl with urlKey and sku', () => {
       const context = { storeUrl: 'https://example.com', pathFormat: '/products/{urlKey}/{sku}' };
       expect(getProductUrl({ urlKey: 'my-url-key', sku: 'my-sku' }, context)).toBe('https://example.com/products/my-url-key/my-sku');
