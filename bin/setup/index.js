@@ -13,16 +13,18 @@ import runtimeLib from '@adobe/aio-lib-runtime';
 import { createPatch } from 'diff';
 import yaml from 'js-yaml';
 import fs from 'fs';
+import dotenvStringify from 'dotenv-stringify';
+import dotenv from 'dotenv';
 
 const execAsync = promisify(exec);
 
 // Configuration and Constants
 const RULES_MAP = {
-    'every60MinsRule': {
+    'productScraperRule': {
       name: 'Refresh Product SKU List',
       description: 'Download the list product SKU from Catalog Service every 60 minutes',
     },
-    'everyMinRule': {
+    'productPollerRule': {
       name: 'Check for Product Changes',
       description: 'Triggers a check for products that have been updated, created or deleted in the Catalog. This is triggered every minute. If execution lasts more than 1 minute, there won\'t be any concurrency.',
     }
@@ -388,14 +390,16 @@ const RULES_MAP = {
     static async aioConfig(request) {
       const headers = RequestHelper.extractHeaders(request);
       const { aioNamespace, aioAuth, fileContent, fileName } = await request.json();
+
+      const newFileName = fileName.replace(/\.json$/, '.aio.json');
       
       try {
         // Save the configuration file
-        await fs.writeFileSync(fileName.replace(/\.json$/, '.aio.json'), fileContent);
+        await fs.writeFileSync(newFileName, fileContent);
         
         // Execute aio app use command
-        console.log(`Executing: aio app use "${fileName}"`);
-        const { stdout, stderr } = await execAsync(`aio app use "${fileName}" --no-input`, {
+        console.log(`Executing: aio app use "${newFileName}"`);
+        const { stdout, stderr } = await execAsync(`aio app use "${newFileName}" --no-input`, {
           cwd: process.cwd(),
           timeout: 30000,
           stdio: 'pipe'
@@ -466,6 +470,20 @@ const RULES_MAP = {
         };
         fs.writeFileSync('.aem-commerce-prerender.json', JSON.stringify(contextInfo, null, 2));
         console.log('Successfully wrote .aem-commerce-prerender.json to local filesystem');
+
+        // Add/update AEM_ADMIN_API_AUTH_TOKEN in .env file using dotenv and dotenv-stringify
+        const envPath = '.env';
+        let envObject = {};
+        if (fs.existsSync(envPath)) {
+            const envContent = fs.readFileSync(envPath, 'utf8');
+            envObject = dotenv.parse(envContent);
+        }
+
+        envObject['AEM_ADMIN_API_AUTH_TOKEN'] = headers.aemAdminToken;
+
+        const newEnvContent = dotenvStringify(envObject);
+        fs.writeFileSync(envPath, newEnvContent);
+        console.log('Successfully updated .env file with AEM_ADMIN_API_AUTH_TOKEN using dotenv-stringify.');
 
       } catch (error) {
         console.error('Failed to write configuration files:', error);
