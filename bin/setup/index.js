@@ -483,7 +483,7 @@ const RULES_MAP = {
 
         const newEnvContent = dotenvStringify(envObject);
         fs.writeFileSync(envPath, newEnvContent);
-        console.log('Successfully updated .env file with AEM_ADMIN_API_AUTH_TOKEN using dotenv-stringify.');
+        console.log('Successfully updated .env file with AEM_ADMIN_API_AUTH_TOKEN.');
 
       } catch (error) {
         console.error('Failed to write configuration files:', error);
