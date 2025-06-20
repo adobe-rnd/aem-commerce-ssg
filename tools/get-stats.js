@@ -301,7 +301,7 @@ End: ${endTime.toISOString()}`);
 
         // At this point, we know the activation is within our target day
         // Now we can apply other filters
-        if (activation.name === 'poller') {
+        if (activation.name === 'check-product-changes') {
           yield activation;
         }
       }
@@ -380,7 +380,7 @@ async function checkNewActivations(targetDate) {
       totalChecked++;
       const activationDate = new Date(activation.start);
 
-      if (activation.name === 'poller') {
+      if (activation.name === 'check-product-changes') {
         console.log(`plotting activation ${activation.activationId} [${activationDate.toLocaleString()} ${Intl.DateTimeFormat().resolvedOptions().timeZone }]`);
 
         const execution = await runtime.activations.get({ activationId: activation.activationId });

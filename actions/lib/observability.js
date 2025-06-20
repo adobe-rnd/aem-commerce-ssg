@@ -1,6 +1,15 @@
+function getMessage(args) {
+  return args.map(arg => {
+    if (arg instanceof Error) return arg.message + '\n' + arg.stack;
+    if (arg instanceof String) return arg;
+    return JSON.stringify(arg);
+  }).join(' ');
+}
+
 class ObservabilityClient {
     constructor(nativeLogger, options = {}) {
         this.nativeLogger = nativeLogger;
+        this.level = (nativeLogger.config.level || 'info').toLowerCase();
         this.endpoints = {
             activationResults: `${options.endpoint}/activations`,
             logs: `${options.endpoint}/logs`,
@@ -52,18 +61,31 @@ class ObservabilityClient {
 
     logger = {
       debug: async (...args) => {
-        const message = args.map(arg => arg instanceof Error ? arg.message : String(arg)).join(' ');
-        this.sendLogEvent(message, 'DEBUG');
+        const message = getMessage(args);
+        if (this.level === 'debug') {
+          this.sendLogEvent(message, 'DEBUG');
+        }
         this.nativeLogger.debug(...args);
       },
       info: async(...args) => {
-        const message = args.map(arg => arg instanceof Error ? arg.message : String(arg)).join(' ');
-        this.sendLogEvent(message, 'INFO');
+        const message = getMessage(args);
+        if (this.level === 'debug' || this.level === 'info') {
+          this.sendLogEvent(message, 'INFO');
+        }
         this.nativeLogger.info(...args);
       },
+      warn: async (...args) => {
+        const message = getMessage(args);
+        if (this.level === 'debug' || this.level === 'info' || this.level === 'warning') {
+          this.sendLogEvent(message, 'WARNING');
+        }
+        this.nativeLogger.warn(...args);
+      },
       error: async (...args) => {
-        const message = args.map(arg => arg instanceof Error ? arg.message : String(arg)).join(' ');
-        this.sendLogEvent(message, 'ERROR');
+        const message = getMessage(args);
+        if (this.level === 'debug' || this.level === 'info' || this.level === 'warning' || this.level === 'error') {
+          this.sendLogEvent(message, 'ERROR');
+        }
         this.nativeLogger.error(...args);
       },
     }
