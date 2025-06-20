@@ -214,10 +214,16 @@ function enrichProductWithMetadata(product, state, context) {
  * @param {*} param0 
  * @returns 
  */
+let renderLimit$;
 async function enrichProductWithRenderedHash(product, context) {
   const { logger } = context;
   const { sku, urlKey, path } = product;
 
+  if (!renderLimit$) {
+    renderLimit$ = import('p-limit').then(({ default: pLimit }) => pLimit(50));
+  }
+
+  return (await renderLimit$)(async () => {
   try {
     const productHtml = await generateProductHtml(sku, urlKey, context);
     product.newHash = crypto.createHash('sha256').update(productHtml).digest('hex');
@@ -235,11 +241,12 @@ async function enrichProductWithRenderedHash(product, context) {
         logger.error(`Error saving HTML for product ${sku}:`, e);
       }
     }
-  } catch (e) {
-    logger.error(`Error generating product HTML for SKU ${sku}:`, e);
-  }
+    } catch (e) {
+      logger.error(`Error generating product HTML for SKU ${sku}:`, e);
+    }
 
-  return product;
+    return product;
+  });
 }
 
 /**
