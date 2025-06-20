@@ -36,13 +36,13 @@
         {{#each options}}
         <li>
           <h3>{{title}}</h3>
-          <div>{{id}}</div>
-          <div>{{required}}</div>
+          <div>option id <em>{{id}}</em></div>
+          <div>required <em>{{required}}</em></div>
           {{#if values}}
           <ul>
             {{#each values}}
             <li>
-              <a href="{{url}}" id="{{id}}">{{title}}<em>{{#if inStock}}in stock{{else}}out of stock{{/if}}</em></a>
+              <a href="{{url}}">{{title}} <em>{{#if inStock}}in stock{{else}}out of stock{{/if}}</em></a>
             </li>
             {{/each}}
           </ul>
