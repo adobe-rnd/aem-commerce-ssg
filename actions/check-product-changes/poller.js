@@ -170,7 +170,7 @@ function createBatches(products) {
  * @returns {boolean}
  */
 function shouldPreviewAndPublish({ currentHash, newHash }) {
-  return currentHash !== newHash;
+  return newHash && currentHash !== newHash;
 }
 
 /**
@@ -271,8 +271,8 @@ async function processDeletedProducts(remainingSkus, state, context, adminApi) {
   const { filesLib } = aioLibs;
 
   try {
-    const publishedProducts = await requestSpreadsheet('published-products-index', null, context);
-    const deletedProducts = publishedProducts.data.filter(({ sku }) => remainingSkus.includes(sku));
+    const deletedProducts = (await requestSpreadsheet('published-products-index', null, context))
+      .data.filter(({ sku }) => remainingSkus.includes(sku));
 
     // Process in batches
     if (deletedProducts.length) {
