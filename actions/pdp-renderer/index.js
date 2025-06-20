@@ -11,7 +11,7 @@ governing permissions and limitations under the License.
 */
 
 const { Core } = require('@adobe/aio-sdk')
-const { errorResponse, stringParameters, mapLocale } = require('../utils');
+const { errorResponse, stringParameters } = require('../utils');
 const { extractPathDetails } = require('./lib');
 const { generateProductHtml } = require('./render');
 
@@ -38,12 +38,14 @@ async function main (params) {
       __ow_path,
       pathFormat : pathFormatQuery,
       configName : configNameQuery,
+      configSheet : configSheetQuery,
       contentUrl : contentUrlQuery,
       storeUrl : storeUrlQuery,
       productsTemplate : productsTemplateQuery,
       STORE_URL,
       CONTENT_URL,
       CONFIG_NAME,
+      CONFIG_SHEET,
       PRODUCTS_TEMPLATE,
       PRODUCT_PAGE_URL_FORMAT,
       LOCALES,
@@ -51,10 +53,11 @@ async function main (params) {
 
     const pathFormat = pathFormatQuery || PRODUCT_PAGE_URL_FORMAT;
     const configName = configNameQuery || CONFIG_NAME;
+    const configSheet = configSheetQuery || CONFIG_SHEET;
     const contentUrl = contentUrlQuery || CONTENT_URL;
     const storeUrl = storeUrlQuery || STORE_URL;
     const allowedLocales = LOCALES ? LOCALES.split(',').map(a => a.trim()) : [];
-    let context = { contentUrl, storeUrl, configName, logger, pathFormat, allowedLocales };
+    let context = { contentUrl, storeUrl, configName, configSheet, logger, pathFormat, allowedLocales };
     context.productsTemplate = productsTemplateQuery || PRODUCTS_TEMPLATE;
     context.productsTemplate = productsTemplateQuery || PRODUCTS_TEMPLATE;
 
@@ -68,12 +71,7 @@ async function main (params) {
 
     // Map locale to context
     if (locale) {
-      try {
-      context = { ...context, ...mapLocale(locale, context) };
-      // eslint-disable-next-line no-unused-vars
-      } catch(e) {
-        return errorResponse(400, 'Invalid locale', logger);
-      }
+      context = { ...context, locale };
     }
 
     // Retrieve base product

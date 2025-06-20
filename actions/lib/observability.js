@@ -26,7 +26,7 @@ class ObservabilityClient {
             });
           }
         } catch (error) {
-          this.nativeLogger.error(`[ObservabilityClient] Failed to send to observability endpoint '${type}': ${error.message}`, { error });
+          this.nativeLogger.debug(`[ObservabilityClient] Failed to send to observability endpoint '${type}': ${error.message}`, { error });
         }
       }
 

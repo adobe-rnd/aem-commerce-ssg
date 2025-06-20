@@ -17,7 +17,7 @@ const {
   requestSpreadsheet,
   isValidUrl,
   getProductUrl,
-  mapLocale,
+  formatMemoryUsage,
   FILE_PREFIX,
   STATE_FILE_EXT,
   PDP_FILE_EXT,
@@ -235,7 +235,6 @@ async function enrichProductWithMetadata(product, state, context) {
       lastPreviewDate,
       currentHash: state.skus[sku]?.hash || null,
       newHash,
-      productHtml
     };
 
     // Save HTML immediately if product should be processed
@@ -247,6 +246,7 @@ async function enrichProductWithMetadata(product, state, context) {
         await filesLib.write(htmlPath, productHtml);
         logger.debug(`Saved HTML for product ${sku} to ${htmlPath}`);
       } catch (e) {
+        enrichedProduct.newHash = null; // Reset newHash if saving fails
         logger.error(`Error saving HTML for product ${sku}:`, e);
       }
     }
@@ -261,7 +261,6 @@ async function enrichProductWithMetadata(product, state, context) {
       lastPreviewDate,
       currentHash: state.skus[sku]?.hash || null,
       newHash: null,
-      productHtml: null
     };
   }
 }
@@ -348,6 +347,7 @@ async function poll(params, aioLibs, logger) {
     PRODUCT_PAGE_URL_FORMAT: pathFormat,
 
     CONFIG_NAME: configName,
+    CONFIG_SHEET: configSheet,
     AEM_ADMIN_AUTH_TOKEN: authToken,
     PRODUCTS_TEMPLATE: productsTemplate,
     STORE_URL: storeUrl,
@@ -366,6 +366,7 @@ async function poll(params, aioLibs, logger) {
     storeUrl,
     contentUrl,
     configName,
+    configSheet,
     logger,
     counts,
     pathFormat,
@@ -395,7 +396,7 @@ async function poll(params, aioLibs, logger) {
 
       let context = { ...sharedContext };
       if (locale) {
-        context = { ...context, ...mapLocale(locale, context) };
+        context = { ...context, locale };
       }
 
       const { filesLib } = aioLibs;
@@ -471,6 +472,16 @@ async function poll(params, aioLibs, logger) {
     // wait for queues to finish, even in error case
     await adminApi.stopProcessing();
   }
+
+  // get memory usage
+  const memoryData = process.memoryUsage();
+  const memoryUsage = {
+    rss: `${formatMemoryUsage(memoryData.rss)}`,
+    heapTotal: `${formatMemoryUsage(memoryData.heapTotal)}`,
+    heapUsed: `${formatMemoryUsage(memoryData.heapUsed)}`,
+    external: `${formatMemoryUsage(memoryData.external)}`,
+  };
+  logger.info(`Memory usage: ${JSON.stringify(memoryUsage)}`);
 
   const elapsed = new Date() - timings.now;
 

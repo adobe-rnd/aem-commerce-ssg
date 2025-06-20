@@ -101,6 +101,7 @@ async function main(params) {
     ORG: orgName,
     CONTENT_URL: contentUrl,
     CONFIG_NAME: configName = 'configs',
+    CONFIG_SHEET: configSheet,
   } = params;
   if (!siteName || !orgName || !contentUrl) {
     return {
@@ -113,14 +114,19 @@ async function main(params) {
   }
   const storeUrl = params.STORE_URL;
   const locales = params.LOCALES ? params.LOCALES.split(',') : [null];
-  const context = { 
+  const sharedContext = {
     configName,
+    configSheet,
     storeUrl,
     contentUrl,
     logger: logger,
   };
 
   const results = await Promise.all(locales.map(async (locale) => {
+    const context = { ...sharedContext };
+    if (locale) {
+      context.locale = locale;
+    }
     const timings = new Timings();
     const stateFilePrefix = locale || 'default';
     const allSkus = await getAllSkus(context);
