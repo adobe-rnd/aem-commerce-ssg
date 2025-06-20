@@ -11,7 +11,7 @@ governing permissions and limitations under the License.
 */
 
 const assert = require('node:assert/strict');
-const { loadState, saveState, getStateFileLocation, poll } = require('../actions/check-product-changes/poller');
+const { loadState, saveState, getFileLocation, poll } = require('../actions/check-product-changes/poller');
 const Files = require('./__mocks__/files');
 const { AdminAPI } = require('../actions/lib/aem');
 const { requestSaaS, requestSpreadsheet, isValidUrl } = require('../actions/utils');
@@ -189,7 +189,7 @@ describe('Poller', () => {
   it('loadState returns parsed state', async () => {
     const filesLib = new Files(0);
     const stateLib = new MockState(0);
-    await filesLib.write(getStateFileLocation('uk'), EXAMPLE_STATE);
+    await filesLib.write(getFileLocation('uk', 'csv'), EXAMPLE_STATE);
     const state = await loadState('uk', { filesLib, stateLib });
     assert.deepEqual(state, EXAMPLE_EXPECTED_STATE);
   });
@@ -197,7 +197,7 @@ describe('Poller', () => {
   it('loadState after saveState', async () => {
     const filesLib = new Files(0);
     const stateLib = new MockState(0);
-    await filesLib.write(getStateFileLocation('uk'), EXAMPLE_STATE);
+    await filesLib.write(getFileLocation('uk', 'csv'), EXAMPLE_STATE);
     const state = await loadState('uk', { filesLib, stateLib });
     assert.deepEqual(state, EXAMPLE_EXPECTED_STATE);
     state.skus['sku1'] = {
@@ -210,7 +210,7 @@ describe('Poller', () => {
     };
     await saveState(state, { filesLib, stateLib });
 
-    const serializedState = await filesLib.read(getStateFileLocation('uk'));
+    const serializedState = await filesLib.read(getFileLocation('uk', 'csv'));
     assert.equal(serializedState, 'sku1,4,hash1\nsku2,5,hash2\nsku3,3,');
 
     const newState = await loadState('uk', { filesLib, stateLib });
@@ -220,7 +220,7 @@ describe('Poller', () => {
   it('loadState after saveState with null storeCode', async () => {
     const filesLib = new Files(0);
     const stateLib = new MockState(0);
-    await filesLib.write(getStateFileLocation('default'), EXAMPLE_STATE);
+    await filesLib.write(getFileLocation('default', 'csv'), EXAMPLE_STATE);
     const state = await loadState('default', { filesLib, stateLib });
     const expectedState = {
       ...EXAMPLE_EXPECTED_STATE,
@@ -237,7 +237,7 @@ describe('Poller', () => {
     };
     await saveState(state, { filesLib, stateLib });
 
-    const serializedState = await filesLib.read(getStateFileLocation('default'));
+    const serializedState = await filesLib.read(getFileLocation('default', 'csv'));
     assert.equal(serializedState, 'sku1,4,hash1\nsku2,5,hash2\nsku3,3,');
   });
 

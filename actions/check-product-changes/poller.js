@@ -27,8 +27,8 @@ const { generateProductHtml } = require('../pdp-renderer/render');
 const crypto = require('crypto');
 const BATCH_SIZE = 50;
 
-function getStateFileLocation(stateKey) {
-  return `${FILE_PREFIX}/${stateKey}.${STATE_FILE_EXT}`;
+function getFileLocation(stateKey, extension) {
+  return `${FILE_PREFIX}/${stateKey}.${extension}`;
 }
 
 /**
@@ -55,7 +55,7 @@ async function loadState(locale, aioLibs) {
   const stateObj = { locale };
   try {
     const stateKey = locale || 'default';
-    const fileLocation = getStateFileLocation(stateKey);
+    const fileLocation = getFileLocation(stateKey, STATE_FILE_EXT);
     const buffer = await filesLib.read(fileLocation);
     const stateData = buffer?.toString();
     if (stateData) {
@@ -93,7 +93,7 @@ async function saveState(state, aioLibs) {
   const { filesLib } = aioLibs;
   let { locale } = state;
   const stateKey = locale || 'default';
-  const fileLocation = getStateFileLocation(stateKey);
+  const fileLocation = getFileLocation(stateKey, STATE_FILE_EXT);
   const csvData = [
     ...Object.entries(state.skus)
       .map(([sku, { lastPreviewedAt, hash }]) => {
@@ -112,7 +112,7 @@ async function saveState(state, aioLibs) {
  */
 async function deleteState(locale, filesLib) {
   const stateKey = `${locale}`;
-  const fileLocation = getStateFileLocation(stateKey);
+  const fileLocation = getFileLocation(stateKey, STATE_FILE_EXT);
   await filesLib.delete(fileLocation);
 }
 
@@ -400,7 +400,7 @@ async function poll(params, aioLibs, logger) {
       const state = await loadState(locale, aioLibs);
 
       // add newly discovered produts to the state if necessary
-      const productsFileName = getStateFileLocation(`${locale || 'default'}-products`);
+      const productsFileName = getFileLocation(`${locale || 'default'}-products`, 'json');
       JSON.parse((await filesLib.read(productsFileName)).toString()).forEach(({ sku }) => {
         if (!state.skus[sku]) {
           state.skus[sku] = { lastPreviewedAt: new Date(0), hash: null };
@@ -494,5 +494,5 @@ module.exports = {
   deleteState,
   loadState,
   saveState,
-  getStateFileLocation,
+  getFileLocation,
 };
