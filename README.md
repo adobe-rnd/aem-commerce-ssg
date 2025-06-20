@@ -15,7 +15,8 @@ Pluggable prerendering stack for ahead-of-time data fetching and embedding in Pr
   1. Go to [https://developer.adobe.com/console](https://developer.adobe.com/console) and choose "Create project from template"
   1. Select "App Builder" and choose the environments (workspaces) according to your needs (we recommend Stage and Production as a starting point)
   1. You can leave all the other fields as per default settings; don't forget to provide a descriptive project title.
-  1. After saving the newly created project, click on the workspace you want to deploy the prerendering stack to, and from the top-right click "Download All": this will download a JSON file that will be used in the setup process.
+  1. After saving the newly created project, click on the workspace you want to deploy the prerendering stack to - use Stage to get started.
+  1. In the top-right click "Download All": this will download a JSON file that will be used in the setup process.
   1. Then generate a repo with the relevant code in your org by clicking [here](https://github.com/new?template_name=aem-commerce-prerender&template_owner=adobe-rnd). You can now clone the resulting repo from your org, and run `npm i && npx setup`
   1. Follow the steps to perform the initial setup
   1. Customise the code that contains the rendering logic according to your requirements, for [structured data](/actions/pdp-renderer/ldJson.js), [markup](/actions/pdp-renderer/render.js) and [templates](https://github.com/adobe-rnd/aem-commerce-prerender/tree/main/actions/pdp-renderer/templates) - more info [here](/docs/CUSTOMIZE.md)
