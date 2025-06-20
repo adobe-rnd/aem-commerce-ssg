@@ -226,6 +226,7 @@ async function enrichProductWithRenderedHash(product, context) {
   return (await renderLimit$)(async () => {
   try {
     const productHtml = await generateProductHtml(sku, urlKey, context);
+    product.renderedAt = new Date();
     product.newHash = crypto.createHash('sha256').update(productHtml).digest('hex');
 
     // Save HTML immediately if product should be processed
@@ -258,7 +259,7 @@ async function processPublishedBatch(publishedBatch, state, counts, products, ai
     if (record.previewedAt && record.publishedAt) {
       const product = products.find(p => p.sku === record.sku);
       state.skus[record.sku] = {
-        lastPreviewedAt: record.previewedAt,
+        lastPreviewedAt: record.renderedAt || record.previewedAt,
         hash: product?.newHash
       };
       counts.published++;
@@ -431,7 +432,7 @@ async function poll(params, aioLibs, logger) {
           .then(enrichedProducts => filterProducts(shouldPreviewAndPublish, enrichedProducts, knownSkus, context))
           .then(products => {
             if (products.length) {
-              const records = products.map(({ sku, path }) => (({ sku, path })));
+              const records = products.map(({ sku, path, renderedAt }) => (({ sku, path, renderedAt })));
               return adminApi.previewAndPublish(records, locale, batchNumber + 1)
                 .then(publishedBatch => processPublishedBatch(publishedBatch, state, counts, products, aioLibs));
             } else {
