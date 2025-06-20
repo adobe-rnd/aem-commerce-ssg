@@ -133,7 +133,7 @@ async function main(params) {
     timings.sample('getAllSkus');
     const filesLib = await Files.init(params.libInit || {});
     timings.sample('saveFile');
-    const productsFileName = `${FILE_PREFIX}/${stateFilePrefix}-products.${STATE_FILE_EXT}`;
+    const productsFileName = `${FILE_PREFIX}/${stateFilePrefix}-products.json`;
     await filesLib.write(productsFileName, JSON.stringify(allSkus));
     return timings.measures;
   }));
