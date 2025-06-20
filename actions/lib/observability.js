@@ -1,7 +1,7 @@
 function getMessage(args) {
   return args.map(arg => {
     if (arg instanceof Error) return arg.message + '\n' + arg.stack;
-    if (arg instanceof String) return arg;
+    if (arg instanceof String || typeof arg === 'string') return arg;
     return JSON.stringify(arg);
   }).join(' ');
 }
