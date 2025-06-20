@@ -494,6 +494,7 @@ async function poll(params, aioLibs, logger) {
     elapsed,
     status: { ...counts },
     timings: timings.measures,
+    memoryUsage,
   };
 }
 
