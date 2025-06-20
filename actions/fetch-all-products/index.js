@@ -14,7 +14,7 @@ governing permissions and limitations under the License.
 
 const { CategoriesQuery, ProductCountQuery, ProductsQuery } = require('../queries');
 const { Core, Files } = require('@adobe/aio-sdk')
-const { requestSaaS, FILE_PREFIX, STATE_FILE_EXT } = require('../utils');
+const { requestSaaS, FILE_PREFIX } = require('../utils');
 const { Timings } = require('../lib/benchmark');
 
 async function getSkus(categoryPath, context) {
@@ -133,7 +133,7 @@ async function main(params) {
     timings.sample('getAllSkus');
     const filesLib = await Files.init(params.libInit || {});
     timings.sample('saveFile');
-    const productsFileName = `${FILE_PREFIX}/${stateFilePrefix}-products.${STATE_FILE_EXT}`;
+    const productsFileName = `${FILE_PREFIX}/${stateFilePrefix}-products.json`;
     await filesLib.write(productsFileName, JSON.stringify(allSkus));
     return timings.measures;
   }));
